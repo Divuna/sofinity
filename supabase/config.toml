@@ -1,1 +1,34 @@
 project_id = "rrmvxsldrjgbdxluklka"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[auth]
+enabled = true
+port = 54324
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://rrmvxsldrjgbdxluklka.supabase.co"]
+jwt_expiry = 3600
+enable_signup = true
+
+[db]
+port = 54322
+
+[storage]
+enabled = true
+port = 54323
+buckets = []
+
+[edge_runtime]
+enabled = true
+port = 54325
+
+[analytics]
+enabled = false
+
+[functions.ai-assistant]
+verify_jwt = true
