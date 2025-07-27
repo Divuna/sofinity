@@ -7,6 +7,9 @@ import Index from "./pages/Index";
 import CampaignReview from "./pages/CampaignReview";
 import TeamFeedback from "./pages/TeamFeedback";
 import VersionTracker from "./pages/VersionTracker";
+import AIAssistant from "./pages/AIAssistant";
+import KnowledgeBase from "./pages/KnowledgeBase";
+import SetupWizard from "./pages/SetupWizard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +25,9 @@ const App = () => (
           <Route path="/campaign-review" element={<CampaignReview />} />
           <Route path="/team-feedback" element={<TeamFeedback />} />
           <Route path="/version-tracker" element={<VersionTracker />} />
+          <Route path="/ai-assistant" element={<AIAssistant />} />
+          <Route path="/knowledge-base" element={<KnowledgeBase />} />
+          <Route path="/setup-wizard" element={<SetupWizard />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
