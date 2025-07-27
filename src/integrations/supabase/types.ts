@@ -387,6 +387,39 @@ export type Database = {
           },
         ]
       }
+      Emails: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          project: string | null
+          recipient: string | null
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          project?: string | null
+          recipient?: string | null
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          project?: string | null
+          recipient?: string | null
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       Feedback: {
         Row: {
           campaign_id: string | null
