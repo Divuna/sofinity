@@ -1,0 +1,76 @@
+import React from 'react';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { 
+  LayoutDashboard, 
+  Sparkles, 
+  Calendar, 
+  MessageSquare, 
+  Mail, 
+  BarChart3, 
+  Settings,
+  Bot
+} from 'lucide-react';
+
+const navigation = [
+  { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Nová kampaň', href: '/campaign/new', icon: Sparkles },
+  { name: 'Obsah kampaní', href: '/content', icon: MessageSquare },
+  { name: 'Plánovač', href: '/planner', icon: Calendar },
+  { name: 'Auto-odpovědi', href: '/autoresponses', icon: Bot },
+  { name: 'Email centrum', href: '/emails', icon: Mail },
+  { name: 'Analýzy', href: '/analytics', icon: BarChart3 },
+  { name: 'Nastavení', href: '/settings', icon: Settings },
+];
+
+interface SidebarProps {
+  currentPath: string;
+}
+
+export function Sidebar({ currentPath }: SidebarProps) {
+  return (
+    <div className="flex h-full w-64 flex-col bg-gradient-card border-r border-border">
+      {/* Logo */}
+      <div className="flex h-16 items-center px-6 border-b border-border">
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center">
+            <Bot className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+            Sofinity
+          </span>
+        </div>
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-2 p-4">
+        {navigation.map((item) => {
+          const isActive = currentPath === item.href;
+          return (
+            <Button
+              key={item.name}
+              variant={isActive ? "default" : "ghost"}
+              className={cn(
+                "w-full justify-start text-left font-medium",
+                isActive && "bg-primary text-primary-foreground shadow-soft"
+              )}
+              asChild
+            >
+              <a href={item.href}>
+                <item.icon className="w-5 h-5 mr-3" />
+                {item.name}
+              </a>
+            </Button>
+          );
+        })}
+      </nav>
+
+      {/* Footer */}
+      <div className="p-4 border-t border-border">
+        <div className="text-xs text-muted-foreground text-center">
+          AI Marketing Platform
+        </div>
+      </div>
+    </div>
+  );
+}

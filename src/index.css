@@ -2,41 +2,72 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+/* Sofinity Design System - AI Marketing & Communication Platform */
 
 @layer base {
   :root {
+    /* Sofinity Brand Colors */
+    --sofinity-purple: 258 100% 67%;
+    --sofinity-orange: 26 100% 51%;
+    --sofinity-dark: 240 6% 9%;
+    
+    /* Background & Surface */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 240 6% 9%;
+    --surface: 0 0% 98%;
+    --surface-variant: 240 4% 96%;
 
+    /* Brand Primary (Sofinity Purple) */
+    --primary: 258 100% 67%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 258 100% 62%;
+    --primary-light: 258 100% 85%;
+
+    /* Brand Secondary (Sofinity Orange) */
+    --secondary: 26 100% 51%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-hover: 26 100% 46%;
+    --secondary-light: 26 100% 85%;
+
+    /* Neutral System */
+    --muted: 240 4% 96%;
+    --muted-foreground: 240 3% 46%;
+    --accent: 240 4% 96%;
+    --accent-foreground: 240 6% 9%;
+
+    /* Interactive */
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
-
+    --card-foreground: 240 6% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 240 6% 9%;
+    --border: 240 6% 91%;
+    --input: 240 6% 91%;
+    --ring: 258 100% 67%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Status Colors */
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Gradients */
+    --gradient-primary: linear-gradient(90deg, hsl(var(--sofinity-purple)), hsl(var(--sofinity-orange)));
+    --gradient-surface: linear-gradient(135deg, hsl(var(--background)), hsl(var(--surface)));
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)), hsl(var(--surface-variant)));
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    /* Shadows */
+    --shadow-soft: 0 2px 10px -2px hsl(var(--sofinity-purple) / 0.1);
+    --shadow-medium: 0 8px 30px -6px hsl(var(--sofinity-purple) / 0.2);
+    --shadow-strong: 0 20px 40px -10px hsl(var(--sofinity-purple) / 0.3);
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
-
-    --radius: 0.5rem;
+    /* Spacing & Layout */
+    --radius: 0.75rem;
 
     --sidebar-background: 0 0% 98%;
 
