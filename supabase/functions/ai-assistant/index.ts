@@ -121,6 +121,45 @@ serve(async (req) => {
         throw new Error('Chyba při ukládání kampaně: ' + campaignError.message);
       }
       savedData = campaignData;
+
+      // Send webhook to Make.com for campaign automation
+      try {
+        const webhookPayload = {
+          name: campaignData.name,
+          targeting: campaignData.targeting,
+          email: campaignData.email,
+          post: campaignData.post,
+          video: campaignData.video,
+          project: data.project,
+          user_id: campaignData.user_id,
+          campaign_id: campaignData.id,
+          created_at: campaignData.created_at
+        };
+
+        const makeWebhookUrl = Deno.env.get('MAKE_WEBHOOK_URL');
+        if (makeWebhookUrl) {
+          console.log('Sending webhook to Make.com:', webhookPayload);
+          
+          const webhookResponse = await fetch(makeWebhookUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(webhookPayload),
+          });
+
+          if (webhookResponse.ok) {
+            console.log('Webhook sent successfully to Make.com');
+          } else {
+            console.error('Failed to send webhook to Make.com:', webhookResponse.status);
+          }
+        } else {
+          console.log('Make webhook URL not configured, skipping webhook');
+        }
+      } catch (webhookError) {
+        console.error('Error sending webhook to Make.com:', webhookError);
+        // Don't fail the main request if webhook fails
+      }
       
     } else if (type === 'email') {
       const { data: emailData, error: emailError } = await supabase
