@@ -9,7 +9,10 @@ import {
   Mail, 
   BarChart3, 
   Settings,
-  Bot
+  Bot,
+  Users,
+  FileText,
+  BrainCircuit
 } from 'lucide-react';
 
 const navigation = [
@@ -20,6 +23,15 @@ const navigation = [
   { name: 'Auto-odpovědi', href: '/autoresponses', icon: Bot },
   { name: 'Email centrum', href: '/emails', icon: Mail },
   { name: 'Analýzy', href: '/analytics', icon: BarChart3 },
+];
+
+const advancedNavigation = [
+  { name: 'AI Asistent', href: '/ai-assistant', icon: Bot },
+  { name: 'Onboarding', href: '/onboarding', icon: Users },
+  { name: 'Interní feed', href: '/internal-feed', icon: MessageSquare },
+  { name: 'Reporty kampaní', href: '/campaign-reports', icon: BarChart3 },
+  { name: 'Kalendář týmu', href: '/team-calendar', icon: Calendar },
+  { name: 'Správa uživatelů', href: '/user-management', icon: Users },
   { name: 'Nastavení', href: '/settings', icon: Settings },
 ];
 
@@ -43,26 +55,58 @@ export function Sidebar({ currentPath }: SidebarProps) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-2 p-4">
-        {navigation.map((item) => {
-          const isActive = currentPath === item.href;
-          return (
-            <Button
-              key={item.name}
-              variant={isActive ? "default" : "ghost"}
-              className={cn(
-                "w-full justify-start text-left font-medium",
-                isActive && "bg-primary text-primary-foreground shadow-soft"
-              )}
-              asChild
-            >
-              <a href={item.href}>
-                <item.icon className="w-5 h-5 mr-3" />
-                {item.name}
-              </a>
-            </Button>
-          );
-        })}
+      <nav className="flex-1 space-y-1 p-4">
+        {/* Core Marketing */}
+        <div className="mb-4">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Marketing
+          </h3>
+          {navigation.map((item) => {
+            const isActive = currentPath === item.href;
+            return (
+              <Button
+                key={item.name}
+                variant={isActive ? "default" : "ghost"}
+                className={cn(
+                  "w-full justify-start text-left font-medium mb-1",
+                  isActive && "bg-primary text-primary-foreground shadow-soft"
+                )}
+                asChild
+              >
+                <a href={item.href}>
+                  <item.icon className="w-5 h-5 mr-3" />
+                  {item.name}
+                </a>
+              </Button>
+            );
+          })}
+        </div>
+
+        {/* Advanced Features */}
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            AI Office
+          </h3>
+          {advancedNavigation.map((item) => {
+            const isActive = currentPath === item.href;
+            return (
+              <Button
+                key={item.name}
+                variant={isActive ? "default" : "ghost"}
+                className={cn(
+                  "w-full justify-start text-left font-medium mb-1",
+                  isActive && "bg-primary text-primary-foreground shadow-soft"
+                )}
+                asChild
+              >
+                <a href={item.href}>
+                  <item.icon className="w-5 h-5 mr-3" />
+                  {item.name}
+                </a>
+              </Button>
+            );
+          })}
+        </div>
       </nav>
 
       {/* Footer */}
