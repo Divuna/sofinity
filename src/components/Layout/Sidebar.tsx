@@ -12,7 +12,14 @@ import {
   Bot,
   Users,
   FileText,
-  BrainCircuit
+  BrainCircuit,
+  Handshake,
+  Receipt,
+  HeadphonesIcon,
+  Star,
+  Building2,
+  CreditCard,
+  LifeBuoy
 } from 'lucide-react';
 
 const navigation = [
@@ -32,6 +39,13 @@ const advancedNavigation = [
   { name: 'Reporty kampaní', href: '/campaign-reports', icon: BarChart3 },
   { name: 'Kalendář týmu', href: '/team-calendar', icon: Calendar },
   { name: 'Správa uživatelů', href: '/user-management', icon: Users },
+];
+
+const businessNavigation = [
+  { name: 'Partneři', href: '/partners', icon: Handshake },
+  { name: 'Fakturace', href: '/invoices', icon: Receipt },
+  { name: 'Zákaznická péče', href: '/customer-service', icon: HeadphonesIcon },
+  { name: 'Zpětná vazba', href: '/feedback', icon: Star },
   { name: 'Nastavení', href: '/settings', icon: Settings },
 ];
 
@@ -83,11 +97,37 @@ export function Sidebar({ currentPath }: SidebarProps) {
         </div>
 
         {/* Advanced Features */}
-        <div>
+        <div className="mb-4">
           <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
             AI Office
           </h3>
           {advancedNavigation.map((item) => {
+            const isActive = currentPath === item.href;
+            return (
+              <Button
+                key={item.name}
+                variant={isActive ? "default" : "ghost"}
+                className={cn(
+                  "w-full justify-start text-left font-medium mb-1",
+                  isActive && "bg-primary text-primary-foreground shadow-soft"
+                )}
+                asChild
+              >
+                <a href={item.href}>
+                  <item.icon className="w-5 h-5 mr-3" />
+                  {item.name}
+                </a>
+              </Button>
+            );
+          })}
+        </div>
+
+        {/* Business Operations */}
+        <div>
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+            Business
+          </h3>
+          {businessNavigation.map((item) => {
             const isActive = currentPath === item.href;
             return (
               <Button
