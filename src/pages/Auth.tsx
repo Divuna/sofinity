@@ -47,8 +47,8 @@ const Auth = () => {
   }, []);
 
   const handleRoleBasedRedirect = async (userId: string) => {
-    // Always redirect to main page after successful login
-    navigate('/');
+    // Always redirect to dashboard after successful login
+    navigate('/dashboard');
   };
 
   const handleSignIn = async (e: React.FormEvent) => {
