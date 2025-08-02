@@ -104,6 +104,33 @@ export default function Projects() {
     window.location.href = '/dashboard';
   };
 
+  const handleConnectOpravo = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.functions.invoke('connect-opravo-sofinity');
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Úspěch",
+        description: data.message,
+        variant: "default"
+      });
+      
+      // Refresh projects list
+      await fetchProjects();
+    } catch (error) {
+      console.error('Error connecting Opravo:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se připojit Opravo k Sofinity",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-surface flex items-center justify-center">
@@ -125,6 +152,13 @@ export default function Projects() {
             Přehled všech aktivních projektů a jejich výsledků
           </p>
         </div>
+        <Button 
+          onClick={handleConnectOpravo}
+          disabled={loading}
+          className="bg-gradient-to-r from-[#7F5AF0] to-[#FF8906] text-white border-0 hover:opacity-90"
+        >
+          Připojit Opravo k Sofinity
+        </Button>
       </div>
 
       {/* Projects Grid */}
