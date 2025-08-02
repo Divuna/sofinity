@@ -1,0 +1,344 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { 
+  ArrowLeft,
+  Mail,
+  Eye,
+  MousePointer,
+  Clock,
+  User,
+  Calendar,
+  BarChart3,
+  Share,
+  Copy
+} from 'lucide-react';
+
+interface EmailItem {
+  id: string;
+  content: string;
+  user_id: string;
+  recipient: string | null;
+  project: string | null;
+  type: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface EmailLog {
+  id: string;
+  recipient_email: string;
+  subject: string | null;
+  status: string | null;
+  message_id: string | null;
+  sent_at: string;
+  opened_at: string | null;
+  clicked_at: string | null;
+  campaign_id: string | null;
+}
+
+export default function EmailDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  const [email, setEmail] = useState<EmailItem | null>(null);
+  const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (id) {
+      fetchEmailData();
+    }
+  }, [id]);
+
+  const fetchEmailData = async () => {
+    try {
+      // Fetch email
+      const { data: emailData, error: emailError } = await supabase
+        .from('Emails')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (emailError) throw emailError;
+      setEmail(emailData);
+
+      // Fetch related email logs
+      const { data: logsData } = await supabase
+        .from('EmailLogs')
+        .select('*')
+        .eq('recipient_email', emailData.recipient || '')
+        .order('sent_at', { ascending: false });
+      
+      setEmailLogs(logsData || []);
+
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se načíst data e-mailu",
+        variant: "destructive"
+      });
+      navigate('/emails');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Zkopírováno",
+        description: "Obsah byl zkopírován do schránky"
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se zkopírovat obsah",
+        variant: "destructive"
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        <p className="mt-2 text-muted-foreground">Načítání e-mailu...</p>
+      </div>
+    );
+  }
+
+  if (!email) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">E-mail nenalezen</p>
+      </div>
+    );
+  }
+
+  const latestLog = emailLogs[0];
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/emails')}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Detail e-mailu</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant="outline">{email.type}</Badge>
+              {email.project && (
+                <Badge variant="secondary">{email.project}</Badge>
+              )}
+              <span className="text-muted-foreground text-sm">
+                Vytvořeno {new Date(email.created_at).toLocaleDateString('cs-CZ')}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => copyToClipboard(email.content)}>
+            <Copy className="w-4 h-4 mr-2" />
+            Kopírovat
+          </Button>
+          <Button variant="outline">
+            <Share className="w-4 h-4 mr-2" />
+            Sdílet
+          </Button>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        {/* Email Content */}
+        <div className="lg:col-span-2 space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Mail className="w-5 h-5" />
+                Obsah e-mailu
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="prose prose-sm max-w-none">
+                <div className="whitespace-pre-wrap font-mono text-sm p-4 bg-muted rounded-lg">
+                  {email.content}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Email Preview */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Náhled v e-mailovém klientovi</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="border border-border rounded-lg p-4 bg-card">
+                <div className="border-b border-border pb-4 mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <div>
+                      <div className="font-medium">Od: noreply@sofinity.com</div>
+                      <div className="text-muted-foreground">
+                        Komu: {email.recipient || 'Neurčeno'}
+                      </div>
+                    </div>
+                    <div className="text-muted-foreground">
+                      {new Date(email.created_at).toLocaleString('cs-CZ')}
+                    </div>
+                  </div>
+                </div>
+                <div className="whitespace-pre-wrap text-sm">
+                  {email.content}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Email Statistics */}
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Informace o příjemci
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">E-mail:</span>
+                <span className="text-sm font-medium">
+                  {email.recipient || 'Neurčeno'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Typ:</span>
+                <Badge variant="outline">{email.type}</Badge>
+              </div>
+              {email.project && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Projekt:</span>
+                  <Badge variant="secondary">{email.project}</Badge>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {latestLog && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Statistiky doručení
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4 text-primary" />
+                    <span className="text-sm">Odesláno</span>
+                  </div>
+                  <div className="text-sm text-muted-foreground">
+                    {new Date(latestLog.sent_at).toLocaleString('cs-CZ')}
+                  </div>
+                </div>
+
+                {latestLog.opened_at ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Eye className="w-4 h-4 text-primary" />
+                      <span className="text-sm">Otevřeno</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(latestLog.opened_at).toLocaleString('cs-CZ')}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Neotevřeno</span>
+                    </div>
+                  </div>
+                )}
+
+                {latestLog.clicked_at ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MousePointer className="w-4 h-4 text-success" />
+                      <span className="text-sm">Kliknuto</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {new Date(latestLog.clicked_at).toLocaleString('cs-CZ')}
+                    </div>
+                  </div>
+                ) : latestLog.opened_at ? (
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <MousePointer className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Nekliknuto</span>
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="pt-4 border-t border-border">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Stav:</span>
+                    <Badge variant={
+                      latestLog.clicked_at ? 'default' :
+                      latestLog.opened_at ? 'secondary' : 'outline'
+                    }>
+                      {latestLog.clicked_at ? 'Kliknuto' :
+                       latestLog.opened_at ? 'Otevřeno' : 'Odesláno'}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Email Timeline */}
+          {emailLogs.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5" />
+                  Historie událostí
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {emailLogs.map((log, index) => (
+                    <div key={log.id} className="flex items-start gap-3">
+                      <div className="w-2 h-2 bg-primary rounded-full mt-2"></div>
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">
+                          {log.clicked_at ? 'Kliknuto na odkaz' :
+                           log.opened_at ? 'E-mail otevřen' : 'E-mail odeslán'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(
+                            log.clicked_at || log.opened_at || log.sent_at
+                          ).toLocaleString('cs-CZ')}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,522 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { 
+  Save, 
+  Play, 
+  Pause, 
+  Calendar, 
+  BarChart3, 
+  MessageSquare, 
+  ArrowLeft,
+  Mail,
+  FileText,
+  Video,
+  Target
+} from 'lucide-react';
+
+interface Campaign {
+  id: string;
+  name: string;
+  status: 'draft' | 'active' | 'done';
+  targeting: string | null;
+  email: string | null;
+  post: string | null;
+  video: string | null;
+  created_at: string;
+  user_id: string;
+}
+
+interface CampaignSchedule {
+  id: string;
+  channel: string;
+  content: string;
+  publish_at: string;
+  published: boolean;
+}
+
+interface CampaignReport {
+  id: string;
+  open_rate: number | null;
+  click_rate: number | null;
+  summary_text: string | null;
+}
+
+interface CampaignFeedback {
+  id: string;
+  rating: number | null;
+  comment: string | null;
+  sentiment: string | null;
+  created_at: string;
+}
+
+export default function CampaignDetail() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [schedule, setSchedule] = useState<CampaignSchedule[]>([]);
+  const [reports, setReports] = useState<CampaignReport | null>(null);
+  const [feedback, setFeedback] = useState<CampaignFeedback[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (id) {
+      fetchCampaignData();
+    }
+  }, [id]);
+
+  const fetchCampaignData = async () => {
+    try {
+      // Fetch campaign
+      const { data: campaignData, error: campaignError } = await supabase
+        .from('Campaigns')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (campaignError) throw campaignError;
+      setCampaign(campaignData as Campaign);
+
+      // Fetch schedule
+      const { data: scheduleData } = await supabase
+        .from('CampaignSchedule')
+        .select('*')
+        .eq('campaign_id', id);
+      setSchedule(scheduleData || []);
+
+      // Fetch reports
+      const { data: reportsData } = await supabase
+        .from('CampaignReports')
+        .select('*')
+        .eq('campaign_id', id)
+        .single();
+      setReports(reportsData);
+
+      // Fetch feedback
+      const { data: feedbackData } = await supabase
+        .from('Feedback')
+        .select('*')
+        .eq('campaign_id', id)
+        .order('created_at', { ascending: false });
+      setFeedback(feedbackData || []);
+
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se načíst data kampaně",
+        variant: "destructive"
+      });
+      navigate('/campaigns');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!campaign) return;
+    
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('Campaigns')
+        .update({
+          name: campaign.name,
+          targeting: campaign.targeting,
+          email: campaign.email,
+          post: campaign.post,
+          video: campaign.video,
+          status: campaign.status
+        })
+        .eq('id', campaign.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Uloženo",
+        description: "Kampaň byla úspěšně aktualizována"
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se uložit změny",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleCampaignStatus = async () => {
+    if (!campaign) return;
+    
+    const newStatus = campaign.status === 'active' ? 'draft' : 'active';
+    
+    try {
+      const { error } = await supabase
+        .from('Campaigns')
+        .update({ status: newStatus })
+        .eq('id', campaign.id);
+
+      if (error) throw error;
+
+      setCampaign({ ...campaign, status: newStatus });
+      toast({
+        title: "Stav změněn",
+        description: `Kampaň je nyní ${newStatus === 'active' ? 'aktivní' : 'pozastavena'}`
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se změnit stav kampaně",
+        variant: "destructive"
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        <p className="mt-2 text-muted-foreground">Načítání kampaně...</p>
+      </div>
+    );
+  }
+
+  if (!campaign) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">Kampaň nenalezena</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/campaigns')}>
+            <ArrowLeft className="w-4 h-4" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">{campaign.name}</h1>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge variant={campaign.status === 'active' ? 'default' : 'secondary'}>
+                {campaign.status === 'active' ? 'Aktivní' : 
+                 campaign.status === 'done' ? 'Dokončeno' : 'Koncept'}
+              </Badge>
+              <span className="text-muted-foreground text-sm">
+                Vytvořeno {new Date(campaign.created_at).toLocaleDateString('cs-CZ')}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={toggleCampaignStatus}>
+            {campaign.status === 'active' ? (
+              <>
+                <Pause className="w-4 h-4 mr-2" />
+                Pozastavit
+              </>
+            ) : (
+              <>
+                <Play className="w-4 h-4 mr-2" />
+                Spustit
+              </>
+            )}
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            <Save className="w-4 h-4 mr-2" />
+            {saving ? 'Ukládání...' : 'Uložit'}
+          </Button>
+        </div>
+      </div>
+
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="overview">Přehled</TabsTrigger>
+          <TabsTrigger value="schedule">Plán kampaně</TabsTrigger>
+          <TabsTrigger value="reports">Výsledky</TabsTrigger>
+          <TabsTrigger value="feedback">Zpětná vazba</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Basic Info */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Základní informace</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Název kampaně</label>
+                  <Input
+                    value={campaign.name}
+                    onChange={(e) => setCampaign({ ...campaign, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Cílení</label>
+                  <Textarea
+                    value={campaign.targeting || ''}
+                    onChange={(e) => setCampaign({ ...campaign, targeting: e.target.value })}
+                    placeholder="Popište cílovou skupinu..."
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Stav</label>
+                  <Select 
+                    value={campaign.status} 
+                    onValueChange={(value: 'draft' | 'active' | 'done') => 
+                      setCampaign({ ...campaign, status: value })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Koncept</SelectItem>
+                      <SelectItem value="active">Aktivní</SelectItem>
+                      <SelectItem value="done">Dokončeno</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Content Overview */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Obsah kampaně</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Mail className="w-5 h-5 text-primary" />
+                    <span>E-mail</span>
+                  </div>
+                  <Badge variant={campaign.email ? 'default' : 'outline'}>
+                    {campaign.email ? 'Připraven' : 'Chybí'}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <FileText className="w-5 h-5 text-primary" />
+                    <span>Social post</span>
+                  </div>
+                  <Badge variant={campaign.post ? 'default' : 'outline'}>
+                    {campaign.post ? 'Připraven' : 'Chybí'}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between p-3 border border-border rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Video className="w-5 h-5 text-primary" />
+                    <span>Video</span>
+                  </div>
+                  <Badge variant={campaign.video ? 'default' : 'outline'}>
+                    {campaign.video ? 'Připraven' : 'Chybí'}
+                  </Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Content Details */}
+          <div className="grid gap-6">
+            {campaign.email && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="w-5 h-5" />
+                    E-mail obsah
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    value={campaign.email}
+                    onChange={(e) => setCampaign({ ...campaign, email: e.target.value })}
+                    rows={8}
+                    className="font-mono text-sm"
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {campaign.post && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="w-5 h-5" />
+                    Social post
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    value={campaign.post}
+                    onChange={(e) => setCampaign({ ...campaign, post: e.target.value })}
+                    rows={4}
+                  />
+                </CardContent>
+              </Card>
+            )}
+
+            {campaign.video && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Video className="w-5 h-5" />
+                    Video script
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Textarea
+                    value={campaign.video}
+                    onChange={(e) => setCampaign({ ...campaign, video: e.target.value })}
+                    rows={6}
+                  />
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        <TabsContent value="schedule">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Plán publikace
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {schedule.length > 0 ? (
+                <div className="space-y-4">
+                  {schedule.map((item) => (
+                    <div key={item.id} className="p-4 border border-border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">{item.channel}</Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(item.publish_at).toLocaleString('cs-CZ')}
+                          </span>
+                        </div>
+                        <Badge variant={item.published ? 'default' : 'secondary'}>
+                          {item.published ? 'Publikováno' : 'Čeká'}
+                        </Badge>
+                      </div>
+                      <p className="text-sm">{item.content}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">
+                  Žádné naplánované publikace
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="reports">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Výsledky kampaně
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {reports ? (
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="p-4 border border-border rounded-lg">
+                    <div className="text-2xl font-bold text-primary">
+                      {reports.open_rate ? `${reports.open_rate}%` : 'N/A'}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Míra otevření</div>
+                  </div>
+                  <div className="p-4 border border-border rounded-lg">
+                    <div className="text-2xl font-bold text-primary">
+                      {reports.click_rate ? `${reports.click_rate}%` : 'N/A'}
+                    </div>
+                    <div className="text-sm text-muted-foreground">Míra kliknutí</div>
+                  </div>
+                  {reports.summary_text && (
+                    <div className="md:col-span-2 p-4 border border-border rounded-lg">
+                      <h4 className="font-medium mb-2">Shrnutí výkonu</h4>
+                      <p className="text-sm text-muted-foreground">{reports.summary_text}</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">
+                  Zatím nejsou k dispozici žádné reporty
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="feedback">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                Zpětná vazba
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {feedback.length > 0 ? (
+                <div className="space-y-4">
+                  {feedback.map((item) => (
+                    <div key={item.id} className="p-4 border border-border rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {item.rating && (
+                            <Badge variant="outline">
+                              {item.rating}/5 ⭐
+                            </Badge>
+                          )}
+                          {item.sentiment && (
+                            <Badge variant={
+                              item.sentiment === 'positive' ? 'default' :
+                              item.sentiment === 'negative' ? 'destructive' : 'secondary'
+                            }>
+                              {item.sentiment === 'positive' ? 'Pozitivní' :
+                               item.sentiment === 'negative' ? 'Negativní' : 'Neutrální'}
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(item.created_at).toLocaleDateString('cs-CZ')}
+                        </span>
+                      </div>
+                      {item.comment && (
+                        <p className="text-sm">{item.comment}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground text-center py-8">
+                  Zatím není k dispozici žádná zpětná vazba
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
