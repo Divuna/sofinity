@@ -71,7 +71,7 @@ export default function CampaignSchedule() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>();
   const [newItem, setNewItem] = useState({
-    campaign_id: '',
+    campaign_id: null as string | null,
     channel: 'email',
     content: '',
     publish_at: '',
@@ -152,7 +152,7 @@ export default function CampaignSchedule() {
 
       setIsDialogOpen(false);
       setNewItem({
-        campaign_id: '',
+        campaign_id: null,
         channel: 'email',
         content: '',
         publish_at: '',
@@ -265,7 +265,7 @@ export default function CampaignSchedule() {
                 <label className="text-sm font-medium mb-2 block">Kampaň (volitelné)</label>
                 <Select
                   value={newItem.campaign_id || 'none'}
-                  onValueChange={(value) => setNewItem({ ...newItem, campaign_id: value === 'none' ? '' : value })}
+                  onValueChange={(value) => setNewItem({ ...newItem, campaign_id: value === 'none' ? null : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Vyberte kampaň..." />
