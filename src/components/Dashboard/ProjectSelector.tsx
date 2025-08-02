@@ -57,7 +57,7 @@ export function ProjectSelector() {
       setProjects(projectList);
       
       // Auto-select first project if none selected
-      if (!selectedProjectId && projectList.length > 0) {
+      if (!selectedProjectId && projectList.length > 0 && projectList[0].id && projectList[0].id.trim() !== '') {
         setSelectedProjectId(projectList[0].id);
       }
     } catch (error) {
