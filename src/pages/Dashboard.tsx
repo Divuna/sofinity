@@ -19,7 +19,10 @@ import {
   BarChart3,
   Target,
   Eye,
-  MousePointer
+  MousePointer,
+  FolderOpen,
+  Settings,
+  Plus
 } from 'lucide-react';
 
 interface Campaign {
@@ -29,7 +32,19 @@ interface Campaign {
   email: string | null;
   post: string | null;
   video: string | null;
+  project_id: string | null;
   created_at: string;
+}
+
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  is_active: boolean;
+  created_at: string;
+  campaignCount?: number;
+  emailCount?: number;
+  aiRequestCount?: number;
 }
 
 interface DashboardStats {
@@ -37,15 +52,18 @@ interface DashboardStats {
   totalEmails: number;
   totalContacts: number;
   avgOpenRate: number;
+  totalProjects: number;
 }
 
 export default function Dashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     activeCampaigns: 0,
     totalEmails: 0,
     totalContacts: 0,
-    avgOpenRate: 0
+    avgOpenRate: 0,
+    totalProjects: 0
   });
   const [loading, setLoading] = useState(true);
   const { selectedProjectId } = useApp();
@@ -57,14 +75,16 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      // Build query for campaigns
+      // Fetch campaigns with project_id
       let campaignsQuery = supabase
         .from('Campaigns')
-        .select('*')
+        .select('*, project_id')
         .order('created_at', { ascending: false })
         .limit(5);
       
-      // Project filtering disabled for now - campaigns table doesn't have projekt field
+      if (selectedProjectId) {
+        campaignsQuery = campaignsQuery.eq('project_id', selectedProjectId);
+      }
       
       const { data: campaignsData, error: campaignsError } = await campaignsQuery;
 
@@ -76,24 +96,64 @@ export default function Dashboard() {
         email: campaign.email,
         post: campaign.post,
         video: campaign.video,
+        project_id: campaign.project_id,
         created_at: campaign.created_at
       })));
 
-      // Fetch dashboard statistics with project filtering
+      // Fetch projects with counts
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('Projects')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (projectsError) throw projectsError;
+
+      // For each project, get counts of related data
+      const projectsWithCounts = await Promise.all(
+        (projectsData || []).map(async (project) => {
+          const [
+            { count: campaignCount },
+            { count: emailCount },
+            { count: aiRequestCount }
+          ] = await Promise.all([
+            supabase.from('Campaigns').select('*', { count: 'exact', head: true }).eq('project_id', project.id),
+            supabase.from('Emails').select('*', { count: 'exact', head: true }).eq('project_id', project.id),
+            supabase.from('AIRequests').select('*', { count: 'exact', head: true }).eq('project_id', project.id)
+          ]);
+
+          return {
+            ...project,
+            campaignCount: campaignCount || 0,
+            emailCount: emailCount || 0,
+            aiRequestCount: aiRequestCount || 0
+          };
+        })
+      );
+
+      setProjects(projectsWithCounts);
+
+      // Fetch dashboard statistics
       let activeCampaignsQuery = supabase.from('Campaigns').select('*', { count: 'exact', head: true }).eq('status', 'active');
       let emailsQuery = supabase.from('Emails').select('*', { count: 'exact', head: true });
-      
-      // Project filtering disabled for now - campaigns table doesn't have projekt field
+      let projectsQuery = supabase.from('Projects').select('*', { count: 'exact', head: true }).eq('is_active', true);
+
+      if (selectedProjectId) {
+        activeCampaignsQuery = activeCampaignsQuery.eq('project_id', selectedProjectId);
+        emailsQuery = emailsQuery.eq('project_id', selectedProjectId);
+      }
 
       const [
         { count: activeCampaignsCount },
         { count: totalEmailsCount },
         { count: totalContactsCount },
+        { count: totalProjectsCount },
         { data: emailLogsData }
       ] = await Promise.all([
         activeCampaignsQuery,
         emailsQuery,
         supabase.from('Contacts').select('*', { count: 'exact', head: true }).eq('subscribed', true),
+        projectsQuery,
         supabase.from('EmailLogs').select('opened_at').not('opened_at', 'is', null)
       ]);
 
@@ -106,7 +166,8 @@ export default function Dashboard() {
         activeCampaigns: activeCampaignsCount || 0,
         totalEmails: totalEmailsCount || 0,
         totalContacts: totalContactsCount || 0,
-        avgOpenRate: Math.round(avgOpenRate * 10) / 10
+        avgOpenRate: Math.round(avgOpenRate * 10) / 10,
+        totalProjects: totalProjectsCount || 0
       });
 
     } catch (error) {
@@ -286,49 +347,58 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Quick Actions */}
+        {/* Projects Overview */}
         <div>
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Rychlé akce</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg flex items-center">
+                <FolderOpen className="w-5 h-5 mr-2" />
+                Projekty
+              </CardTitle>
+              <Button variant="ghost" size="sm">
+                <Settings className="w-4 h-4" />
+              </Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <a href="/planovac-publikace">
-                  <Calendar className="w-4 h-4 mr-3" />
-                  Plánovač publikací
-                </a>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <a href="/emails">
-                  <Mail className="w-4 h-4 mr-3" />
-                  E-mailové centrum
-                </a>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <a href="/autoresponses">
-                  <MessageSquare className="w-4 h-4 mr-3" />
-                  Nastavit auto-odpověď
-                </a>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <a href="/contacts">
-                  <Users className="w-4 h-4 mr-3" />
-                  Spravovat kontakty
-                </a>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <a href="/templates">
-                  <MessageSquare className="w-4 h-4 mr-3" />
-                  Šablony obsahu
-                </a>
-              </Button>
-              <Button variant="outline" className="w-full justify-start" asChild>
-                <a href="/reports">
-                  <BarChart3 className="w-4 h-4 mr-3" />
-                  Zobrazit reporty
-                </a>
-              </Button>
+              {projects.length > 0 ? (
+                projects.map((project) => (
+                  <div
+                    key={project.id}
+                    className="p-3 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-foreground text-sm">{project.name}</h4>
+                      <Badge variant="outline" className="text-xs">
+                        {project.is_active ? 'Aktivní' : 'Neaktivní'}
+                      </Badge>
+                    </div>
+                    
+                    <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+                      {project.description}
+                    </p>
+                    
+                    <div className="grid grid-cols-3 gap-2 text-xs">
+                      <div className="text-center">
+                        <div className="font-medium text-foreground">{project.campaignCount || 0}</div>
+                        <div className="text-muted-foreground">Kampaně</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-foreground">{project.emailCount || 0}</div>
+                        <div className="text-muted-foreground">E-maily</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-medium text-foreground">{project.aiRequestCount || 0}</div>
+                        <div className="text-muted-foreground">AI žádosti</div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-4">
+                  <FolderOpen className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Žádné projekty</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

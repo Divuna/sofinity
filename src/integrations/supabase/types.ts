@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          project_id: string | null
           prompt: string
           response: string | null
           status: string
@@ -27,6 +28,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          project_id?: string | null
           prompt: string
           response?: string | null
           status?: string
@@ -36,13 +38,22 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          project_id?: string | null
           prompt?: string
           response?: string | null
           status?: string
           type?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "AIRequests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       AISettings: {
         Row: {
@@ -199,6 +210,7 @@ export type Database = {
           id: string
           name: string
           post: string | null
+          project_id: string | null
           status: string
           targeting: string | null
           user_id: string
@@ -210,6 +222,7 @@ export type Database = {
           id?: string
           name: string
           post?: string | null
+          project_id?: string | null
           status?: string
           targeting?: string | null
           user_id: string
@@ -221,12 +234,21 @@ export type Database = {
           id?: string
           name?: string
           post?: string | null
+          project_id?: string | null
           status?: string
           targeting?: string | null
           user_id?: string
           video?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "Campaigns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       CampaignSchedule: {
         Row: {
@@ -393,6 +415,7 @@ export type Database = {
           created_at: string
           id: string
           project: string | null
+          project_id: string | null
           recipient: string | null
           type: string
           updated_at: string
@@ -403,6 +426,7 @@ export type Database = {
           created_at?: string
           id?: string
           project?: string | null
+          project_id?: string | null
           recipient?: string | null
           type: string
           updated_at?: string
@@ -413,12 +437,21 @@ export type Database = {
           created_at?: string
           id?: string
           project?: string | null
+          project_id?: string | null
           recipient?: string | null
           type?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "Emails_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       external_integrations: {
         Row: {
