@@ -261,12 +261,12 @@ export function ProjectSelector() {
           <div className="text-center py-6">
             <Building2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-4">Zatím nemáte žádné projekty</p>
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="default" size="sm" className="w-full">
                     <Plus className="w-4 h-4 mr-2" />
-                    Vytvořit první projekt
+                    Vytvořit nový projekt
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-[425px]">
@@ -311,7 +311,7 @@ export function ProjectSelector() {
                 </DialogContent>
               </Dialog>
               <Button 
-                variant="secondary" 
+                variant="outline" 
                 size="sm" 
                 className="w-full"
                 onClick={createDefaultProjects}
