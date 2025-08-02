@@ -135,9 +135,6 @@ export default function Projects() {
   const isOpravoConnectedToSofinity = projects.some(project => 
     project.name === 'Opravo' && project.external_connection === 'sofinity'
   );
-  
-  console.log('Projects:', projects);
-  console.log('isOpravoConnectedToSofinity:', isOpravoConnectedToSofinity);
 
   if (loading) {
     return (
@@ -160,25 +157,14 @@ export default function Projects() {
             Přehled všech aktivních projektů a jejich výsledků
           </p>
         </div>
-        {!isOpravoConnectedToSofinity && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="outline"
-                  onClick={handleConnectOpravo}
-                  disabled={loading}
-                  className="rounded-lg"
-                >
-                  Připojit Opravo k Sofinity
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Tímto krokem napojíte projekt Opravo na AI platformu Sofinity.</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        )}
+        <Button 
+          variant="outline"
+          onClick={handleConnectOpravo}
+          disabled={loading}
+          className="rounded-lg"
+        >
+          Připojit Opravo k Sofinity
+        </Button>
       </div>
 
       {/* Projects Grid */}
