@@ -3,6 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useApp } from '@/contexts/AppContext';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +23,12 @@ interface Project {
 export function ProjectSelector() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: 'Opravo',
+    description: 'A mobile platform connecting customers and repair professionals.'
+  });
   const { selectedProjectId, setSelectedProjectId } = useApp();
   const { toast } = useToast();
 
@@ -69,6 +79,66 @@ export function ProjectSelector() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreating(true);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Chyba",
+          description: "Musíte být přihlášeni",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('Projects')
+        .insert({
+          name: formData.name,
+          description: formData.description,
+          is_active: true,
+          user_id: user.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Close modal and reset form
+      setIsModalOpen(false);
+      setFormData({
+        name: 'Opravo',
+        description: 'A mobile platform connecting customers and repair professionals.'
+      });
+
+      // Refresh projects list
+      await fetchProjects();
+
+      // Auto-select the new project
+      if (data?.id) {
+        setSelectedProjectId(data.id);
+      }
+
+      toast({
+        title: "Úspěch",
+        description: "Projekt byl úspěšně vytvořen"
+      });
+    } catch (error) {
+      console.error('Error creating project:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se vytvořit projekt",
+        variant: "destructive"
+      });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -149,10 +219,54 @@ export function ProjectSelector() {
           <div className="text-center py-6">
             <Building2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground mb-4">Zatím nemáte žádné projekty</p>
-            <Button variant="outline" size="sm" className="w-full">
-              <Plus className="w-4 h-4 mr-2" />
-              Vytvořit první projekt
-            </Button>
+            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="w-full">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Vytvořit první projekt
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Vytvořit nový projekt</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleCreateProject} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Název projektu</Label>
+                    <Input
+                      id="name"
+                      value={formData.name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                      placeholder="Název projektu"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="description">Popis projektu</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Popis projektu"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setIsModalOpen(false)}
+                      disabled={isCreating}
+                    >
+                      Zrušit
+                    </Button>
+                    <Button type="submit" disabled={isCreating}>
+                      {isCreating ? 'Vytváří se...' : 'Vytvořit projekt'}
+                    </Button>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
           </div>
         )}
       </CardContent>
