@@ -42,8 +42,7 @@ Deno.serve(async (req) => {
     const { data: deletedProjects, error: deleteError } = await supabase
       .from('Projects')
       .delete()
-      .eq('name', 'Opravo')
-      .is('user_id', null)
+      .match({ name: 'Opravo', user_id: null })
       .select()
 
     if (deleteError) {
