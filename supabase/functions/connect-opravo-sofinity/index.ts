@@ -38,7 +38,28 @@ Deno.serve(async (req) => {
 
     console.log('Processing Opravo-Sofinity connection for user:', user.id)
 
-    // Check if Opravo project exists for this user
+    // Step 1: Delete all anonymous Opravo projects (user_id IS NULL)
+    const { data: deletedProjects, error: deleteError } = await supabase
+      .from('Projects')
+      .delete()
+      .eq('name', 'Opravo')
+      .is('user_id', null)
+      .select()
+
+    if (deleteError) {
+      console.error('Error deleting anonymous projects:', deleteError)
+      return new Response(
+        JSON.stringify({ error: 'Error cleaning up anonymous projects' }),
+        { 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500 
+        }
+      )
+    }
+
+    console.log(`Deleted ${deletedProjects?.length || 0} anonymous Opravo projects`)
+
+    // Step 2: Check if Opravo project exists for this user
     const { data: existingProject, error: fetchError } = await supabase
       .from('Projects')
       .select('*')
@@ -66,7 +87,7 @@ Deno.serve(async (req) => {
         .from('Projects')
         .update({ 
           external_connection: 'sofinity',
-          is_active: true // Ensure it's active
+          is_active: true
         })
         .eq('id', existingProject.id)
         .select()
@@ -85,7 +106,7 @@ Deno.serve(async (req) => {
 
       result = updatedProject
       action = 'updated'
-      console.log('Updated existing Opravo project with Sofinity connection')
+      console.log('Found existing Opravo project - updated with Sofinity connection')
     } else {
       // Project doesn't exist, create new one
       const { data: newProject, error: createError } = await supabase
@@ -113,7 +134,7 @@ Deno.serve(async (req) => {
 
       result = newProject
       action = 'created'
-      console.log('Created new Opravo project with Sofinity connection')
+      console.log('No existing Opravo project found - created new one with Sofinity connection')
     }
 
     return new Response(
@@ -121,7 +142,7 @@ Deno.serve(async (req) => {
         success: true, 
         action,
         project: result,
-        message: `Project Opravo successfully ${action} with Sofinity connection`
+        message: 'Projekt Opravo byl propojen se Sofinity ✅'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
