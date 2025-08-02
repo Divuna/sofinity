@@ -143,21 +143,32 @@ export function ProjectSelector() {
   };
 
   const createDefaultProjects = async () => {
+    setIsCreating(true);
+    
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Chyba",
+          description: "Musíte být přihlášeni",
+          variant: "destructive"
+        });
+        return;
+      }
       
       const defaultProjects = [
         {
           name: "BikeShare24",
           description: "Bike sharing platform for daily commuters and tourists.",
           is_active: true,
-          user_id: user?.id || null
+          user_id: user.id
         },
         {
           name: "CoDneska", 
           description: "A daily inspiration and event guide for locals.",
           is_active: true,
-          user_id: user?.id || null
+          user_id: user.id
         }
       ];
 
@@ -181,6 +192,8 @@ export function ProjectSelector() {
         description: "Nepodařilo se vytvořit výchozí projekty",
         variant: "destructive"
       });
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -188,7 +201,10 @@ export function ProjectSelector() {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Projekty</CardTitle>
+          <CardTitle className="text-lg flex items-center">
+            <Building2 className="w-5 h-5 mr-2" />
+            Projekty
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center py-8">
