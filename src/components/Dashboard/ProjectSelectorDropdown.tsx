@@ -84,14 +84,14 @@ export function ProjectSelectorDropdown() {
   return (
     <div className="flex items-center space-x-2">
       <Building2 className="w-4 h-4 text-muted-foreground" />
-      <Select value={selectedProjectId || ''} onValueChange={setSelectedProjectId}>
+      <Select value={selectedProjectId || 'all'} onValueChange={(value) => setSelectedProjectId(value === 'all' ? null : value)}>
         <SelectTrigger className="min-w-48 bg-surface border-border">
           <SelectValue 
             placeholder="Vyberte projekt"
           />
         </SelectTrigger>
         <SelectContent className="bg-popover border-border">
-          <SelectItem value="" className="text-muted-foreground">
+          <SelectItem value="all" className="text-muted-foreground">
             Všechny projekty
           </SelectItem>
           {projects.map((project) => (
