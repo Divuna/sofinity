@@ -1,84 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Brain, Mail, Sparkles, Bot, Loader2 } from 'lucide-react';
+import { Bot, Loader2, MessageSquare, Clock, CheckCircle, Calendar } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { formatDistanceToNow } from 'date-fns';
+import { cs } from 'date-fns/locale';
+
+interface AIRequest {
+  id: string;
+  type: string;
+  prompt: string;
+  response: string | null;
+  status: string;
+  created_at: string;
+}
 
 export default function AIAssistant() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const [campaignForm, setCampaignForm] = useState({
-    project: '',
-    goal: ''
-  });
-  const [emailForm, setEmailForm] = useState({
-    emailType: '',
-    project: '',
-    purpose: ''
-  });
+  const [promptText, setPromptText] = useState('');
+  const [requestType, setRequestType] = useState('');
+  const [aiRequests, setAiRequests] = useState<AIRequest[]>([]);
+  const [loadingRequests, setLoadingRequests] = useState(true);
 
-  const handleCampaignGenerate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!campaignForm.project || !campaignForm.goal) {
-      toast({
-        title: "Chyba",
-        description: "Vyplňte všechna povinná pole",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsLoading(true);
+  const fetchAIRequests = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        throw new Error('Musíte být přihlášeni');
-      }
+      if (!user) return;
 
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: {
-          type: 'campaign',
-          data: campaignForm,
-          user_id: user.id
-        }
-      });
+      const { data, error } = await supabase
+        .from('AIRequests')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data.error) {
-        throw new Error(data.error);
-      }
-
-      toast({
-        title: "Úspěch!",
-        description: "Kampaň byla úspěšně vygenerována a uložena",
-      });
-
-      setCampaignForm({ project: '', goal: '' });
-
+      if (error) throw error;
+      setAiRequests(data || []);
     } catch (error) {
-      console.error('Campaign generation error:', error);
-      toast({
-        title: "Chyba",
-        description: error.message || "Nepodařilo se vygenerovat kampaň",
-        variant: "destructive"
-      });
+      console.error('Error fetching AI requests:', error);
     } finally {
-      setIsLoading(false);
+      setLoadingRequests(false);
     }
   };
 
-  const handleEmailGenerate = async (e: React.FormEvent) => {
+  useEffect(() => {
+    fetchAIRequests();
+  }, []);
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'campaign_generator':
+        return 'Generátor kampaní';
+      case 'email_assistant':
+        return 'Email asistent';
+      case 'autoresponder':
+        return 'Autoresponder';
+      default:
+        return type;
+    }
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'campaign_generator':
+        return <MessageSquare className="h-4 w-4" />;
+      case 'email_assistant':
+        return <Bot className="h-4 w-4" />;
+      case 'autoresponder':
+        return <Clock className="h-4 w-4" />;
+      default:
+        return <MessageSquare className="h-4 w-4" />;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailForm.emailType || !emailForm.project || !emailForm.purpose) {
+    if (!promptText.trim() || !requestType) {
       toast({
         title: "Chyba",
         description: "Vyplňte všechna povinná pole",
@@ -96,9 +97,8 @@ export default function AIAssistant() {
 
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: {
-          type: 'email',
-          data: emailForm,
-          user_id: user.id
+          type: requestType,
+          prompt: promptText,
         }
       });
 
@@ -112,16 +112,22 @@ export default function AIAssistant() {
 
       toast({
         title: "Úspěch!",
-        description: "Email byl úspěšně vygenerován a uložen",
+        description: "AI požadavek byl úspěšně zpracován",
       });
 
-      setEmailForm({ emailType: '', project: '', purpose: '' });
+      setPromptText('');
+      setRequestType('');
+      
+      // Refresh the list
+      setTimeout(() => {
+        fetchAIRequests();
+      }, 1000);
 
     } catch (error) {
-      console.error('Email generation error:', error);
+      console.error('AI request error:', error);
       toast({
         title: "Chyba",
-        description: error.message || "Nepodařilo se vygenerovat email",
+        description: error.message || "Nepodařilo se zpracovat AI požadavek",
         variant: "destructive"
       });
     } finally {
@@ -136,188 +142,137 @@ export default function AIAssistant() {
           <Bot className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-foreground">AI Asistent</h1>
+          <h1 className="text-3xl font-bold text-foreground">AI Assistant Hub</h1>
           <p className="text-muted-foreground mt-1">
-            Inteligentní nástroje pro marketing a komunikaci
+            Centrální hub pro všechny AI požadavky
           </p>
         </div>
       </div>
 
-      <Tabs defaultValue="campaign" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="campaign" className="flex items-center gap-2">
-            <Brain className="h-4 w-4" />
-            Generátor kampaní
-          </TabsTrigger>
-          <TabsTrigger value="email" className="flex items-center gap-2">
-            <Mail className="h-4 w-4" />
-            Email asistent
-          </TabsTrigger>
-        </TabsList>
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* AI Request Form */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Bot className="h-5 w-5" />
+              Nový AI požadavek
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="requestType">Typ požadavku *</Label>
+                <Select value={requestType} onValueChange={setRequestType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Vyberte typ požadavku" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="campaign_generator">Generátor kampaní</SelectItem>
+                    <SelectItem value="email_assistant">Email asistent</SelectItem>
+                    <SelectItem value="autoresponder">Autoresponder</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-        <TabsContent value="campaign">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Sparkles className="h-5 w-5" />
-                Generátor marketingových kampaní
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Zadejte projekt a cíl. AI vytvoří kompletní marketingovou kampaň včetně názvů, cílení, emailů a příspěvků.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleCampaignGenerate} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="project">Název projektu *</Label>
-                    <Select 
-                      value={campaignForm.project} 
-                      onValueChange={(value) => setCampaignForm(prev => ({ ...prev, project: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte projekt" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Opravo">Opravo</SelectItem>
-                        <SelectItem value="BikeShare24">BikeShare24</SelectItem>
-                        <SelectItem value="CoDneska">CoDneska</SelectItem>
-                        <SelectItem value="FitnessCentrum">FitnessCentrum</SelectItem>
-                        <SelectItem value="EcoShop">EcoShop</SelectItem>
-                      </SelectContent>
-                    </Select>
+              <div className="space-y-2">
+                <Label htmlFor="promptText">Prompt text *</Label>
+                <Textarea
+                  id="promptText"
+                  placeholder="Zadejte váš požadavek pro AI..."
+                  value={promptText}
+                  onChange={(e) => setPromptText(e.target.value)}
+                  required
+                  rows={4}
+                />
+              </div>
+
+              <Button type="submit" disabled={isLoading} className="w-full">
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Zpracovávám...
+                  </>
+                ) : (
+                  <>
+                    <Bot className="w-4 h-4 mr-2" />
+                    Spustit AI
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* AI Requests List */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <MessageSquare className="h-5 w-5" />
+              Historie AI požadavků
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loadingRequests ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : aiRequests.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Zatím žádné AI požadavky</p>
+              </div>
+            ) : (
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {aiRequests.map((request) => (
+                  <div key={request.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {getTypeIcon(request.type)}
+                        <span className="font-medium text-sm">
+                          {getTypeLabel(request.type)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {request.status === 'completed' ? (
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <Clock className="h-4 w-4 text-yellow-500" />
+                        )}
+                        <span className="text-xs text-muted-foreground">
+                          {formatDistanceToNow(new Date(request.created_at), { 
+                            addSuffix: true, 
+                            locale: cs 
+                          })}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Prompt:</p>
+                      <p className="text-sm bg-muted/50 p-2 rounded">
+                        {request.prompt.length > 100 
+                          ? `${request.prompt.substring(0, 100)}...` 
+                          : request.prompt}
+                      </p>
+                    </div>
+
+                    {request.response && (
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground mb-1">Odpověď:</p>
+                        <p className="text-sm bg-green-50 p-2 rounded border-l-2 border-green-200">
+                          {request.response.length > 150 
+                            ? `${request.response.substring(0, 150)}...` 
+                            : request.response}
+                        </p>
+                      </div>
+                    )}
                   </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="goal">Hlavní cíl kampaně *</Label>
-                    <Input
-                      id="goal"
-                      placeholder="např. zvýšit počet registrací o 30%"
-                      value={campaignForm.goal}
-                      onChange={(e) => setCampaignForm(prev => ({ ...prev, goal: e.target.value }))}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <Button type="submit" disabled={isLoading} className="w-full">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Generuji kampaň...
-                    </>
-                  ) : (
-                    <>
-                      <Brain className="w-4 h-4 mr-2" />
-                      Vygenerovat kampaň
-                    </>
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="email">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Email asistent
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">
-                Vytvořte profesionální emaily pro různé účely. AI vytvoří obsah přizpůsobený vašemu projektu a cíli.
-              </p>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleEmailGenerate} className="space-y-4">
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div className="space-y-2">
-                    <Label htmlFor="emailType">Typ emailu *</Label>
-                    <Select 
-                      value={emailForm.emailType} 
-                      onValueChange={(value) => setEmailForm(prev => ({ ...prev, emailType: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte typ emailu" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="promo">Promo email</SelectItem>
-                        <SelectItem value="onboarding">Onboarding email</SelectItem>
-                        <SelectItem value="follow-up">Follow-up email</SelectItem>
-                        <SelectItem value="newsletter">Newsletter</SelectItem>
-                        <SelectItem value="reminder">Připomínka</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="emailProject">Projekt *</Label>
-                    <Select 
-                      value={emailForm.project} 
-                      onValueChange={(value) => setEmailForm(prev => ({ ...prev, project: value }))}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Vyberte projekt" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Opravo">Opravo</SelectItem>
-                        <SelectItem value="BikeShare24">BikeShare24</SelectItem>
-                        <SelectItem value="CoDneska">CoDneska</SelectItem>
-                        <SelectItem value="FitnessCentrum">FitnessCentrum</SelectItem>
-                        <SelectItem value="EcoShop">EcoShop</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="purpose">Účel emailu *</Label>
-                  <Textarea
-                    id="purpose"
-                    placeholder="např. připomenutí dokončení registrace, představení nových funkcí"
-                    value={emailForm.purpose}
-                    onChange={(e) => setEmailForm(prev => ({ ...prev, purpose: e.target.value }))}
-                    required
-                    rows={3}
-                  />
-                </div>
-
-                <Button type="submit" disabled={isLoading} className="w-full">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Generuji email...
-                    </>
-                  ) : (
-                    <>
-                      <Mail className="w-4 h-4 mr-2" />
-                      Vygenerovat email
-                    </>
-                  )}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
-
-      {/* Webhook Integration Info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Make.com Integrace</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            Všechny vygenerované kampaně a emaily se automaticky ukládají do databáze a mohou být použity 
-            pro webhook integraci s Make.com pro automatickou publikaci.
-          </p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-            <span>AI asistent je připraven k použití</span>
-          </div>
-        </CardContent>
-      </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
