@@ -420,6 +420,39 @@ export type Database = {
         }
         Relationships: []
       }
+      external_integrations: {
+        Row: {
+          created_at: string
+          external_email: string | null
+          external_system: string
+          external_user_id: string | null
+          id: string
+          mapping_data: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          external_email?: string | null
+          external_system: string
+          external_user_id?: string | null
+          id?: string
+          mapping_data?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          external_email?: string | null
+          external_system?: string
+          external_user_id?: string | null
+          id?: string
+          mapping_data?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       Feedback: {
         Row: {
           campaign_id: string | null

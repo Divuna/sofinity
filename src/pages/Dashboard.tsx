@@ -29,7 +29,6 @@ interface Campaign {
   email: string | null;
   post: string | null;
   video: string | null;
-  project_id: string | null;
   created_at: string;
 }
 
@@ -65,10 +64,7 @@ export default function Dashboard() {
         .order('created_at', { ascending: false })
         .limit(5);
       
-      // Filter by project if selected
-      if (selectedProjectId) {
-        campaignsQuery = campaignsQuery.eq('project_id', selectedProjectId);
-      }
+      // Project filtering disabled for now - campaigns table doesn't have projekt field
       
       const { data: campaignsData, error: campaignsError } = await campaignsQuery;
 
@@ -80,7 +76,6 @@ export default function Dashboard() {
         email: campaign.email,
         post: campaign.post,
         video: campaign.video,
-        project_id: (campaign as any).project_id || null,
         created_at: campaign.created_at
       })));
 
@@ -88,10 +83,7 @@ export default function Dashboard() {
       let activeCampaignsQuery = supabase.from('Campaigns').select('*', { count: 'exact', head: true }).eq('status', 'active');
       let emailsQuery = supabase.from('Emails').select('*', { count: 'exact', head: true });
       
-      if (selectedProjectId) {
-        activeCampaignsQuery = activeCampaignsQuery.eq('project_id', selectedProjectId);
-        emailsQuery = emailsQuery.eq('project', selectedProjectId);
-      }
+      // Project filtering disabled for now - campaigns table doesn't have projekt field
 
       const [
         { count: activeCampaignsCount },

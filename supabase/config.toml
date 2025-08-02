@@ -32,3 +32,6 @@ enabled = false
 
 [functions.ai-assistant]
 verify_jwt = true
+
+[functions.opravo-integration]
+verify_jwt = false
