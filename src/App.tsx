@@ -34,46 +34,46 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <AppProvider>
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
         <BrowserRouter>
-        <Routes>
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/" element={<Index />} />
-          <Route path="/dashboard" element={<Index />} />
-          
-          {/* Campaign routes */}
-          <Route path="/campaigns" element={<CampaignsOverview />} />
-          <Route path="/campaign/new" element={<CampaignNew />} />
-          <Route path="/campaign/:id" element={<CampaignDetail />} />
-          <Route path="/campaign-review" element={<CampaignReview />} />
-          <Route path="/campaigns/:id/schedule" element={<CampaignSchedule />} />
-          <Route path="/campaigns/:id/reports" element={<CampaignReports />} />
-          
-          {/* Email routes */}
-          <Route path="/emails" element={<EmailCenter />} />
-          <Route path="/email/:id" element={<EmailDetail />} />
-          
-          {/* Other feature routes */}
-          <Route path="/autoresponses" element={<AutoresponsesManager />} />
-          <Route path="/schedule" element={<CampaignSchedule />} />
-          <Route path="/planovac-publikace" element={<PlanovacPublikace />} />
-          <Route path="/reports" element={<CampaignReports />} />
-          <Route path="/contacts" element={<Contacts />} />
-          <Route path="/templates" element={<Templates />} />
-          <Route path="/notifications" element={<NotificationCenter />} />
-          
-          {/* Existing routes */}
-          <Route path="/team-feedback" element={<TeamFeedback />} />
-          <Route path="/version-tracker" element={<VersionTracker />} />
-          <Route path="/ai-assistant" element={<AIAssistant />} />
-          <Route path="/knowledge-base" element={<KnowledgeBase />} />
-          <Route path="/setup-wizard" element={<SetupWizard />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Index />} />
+            
+            {/* Campaign routes */}
+            <Route path="/campaigns" element={<CampaignsOverview />} />
+            <Route path="/campaign/new" element={<CampaignNew />} />
+            <Route path="/campaign/:id" element={<CampaignDetail />} />
+            <Route path="/campaign-review" element={<CampaignReview />} />
+            <Route path="/campaigns/:id/schedule" element={<CampaignSchedule />} />
+            <Route path="/campaigns/:id/reports" element={<CampaignReports />} />
+            
+            {/* Email routes */}
+            <Route path="/emails" element={<EmailCenter />} />
+            <Route path="/email/:id" element={<EmailDetail />} />
+            
+            {/* Other feature routes */}
+            <Route path="/autoresponses" element={<AutoresponsesManager />} />
+            <Route path="/schedule" element={<CampaignSchedule />} />
+            <Route path="/planovac-publikace" element={<PlanovacPublikace />} />
+            <Route path="/reports" element={<CampaignReports />} />
+            <Route path="/contacts" element={<Contacts />} />
+            <Route path="/templates" element={<Templates />} />
+            <Route path="/notifications" element={<NotificationCenter />} />
+            
+            {/* Existing routes */}
+            <Route path="/team-feedback" element={<TeamFeedback />} />
+            <Route path="/version-tracker" element={<VersionTracker />} />
+            <Route path="/ai-assistant" element={<AIAssistant />} />
+            <Route path="/knowledge-base" element={<KnowledgeBase />} />
+            <Route path="/setup-wizard" element={<SetupWizard />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
     </AppProvider>
   </QueryClientProvider>
 );
