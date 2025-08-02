@@ -1,118 +1,146 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { 
   BarChart3, 
   TrendingUp, 
   TrendingDown, 
-  Download, 
-  FileText, 
+  Eye, 
+  MousePointer, 
   Mail,
-  Users,
-  MousePointer,
-  Eye,
-  Share2,
+  Download,
   Calendar,
-  ArrowUpRight,
-  ArrowDownRight,
-  Brain,
   Target
 } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell
+} from 'recharts';
 
-const campaignReports = [
-  {
-    id: 1,
-    name: 'Opravo - Letní promo 2024',
-    period: '1.7. - 31.7.2024',
-    status: 'completed',
-    channels: ['Email', 'Instagram', 'Facebook'],
-    metrics: {
-      sent: 2450,
-      delivered: 2389,
-      opened: 596,
-      clicked: 119,
-      conversions: 23,
-      openRate: 24.9,
-      clickRate: 20.0,
-      conversionRate: 19.3,
-      revenue: 45600
-    },
-    trend: 'positive',
-    aiInsights: [
-      'Nejvyšší engagement ve čtvrtek mezi 18-20h',
-      'Mobilní uživatelé měli o 35% vyšší konverzi',
-      'Subject linky s čísly měly o 12% vyšší otevírací míru'
-    ]
-  },
-  {
-    id: 2,
-    name: 'BikeShare24 - Nové lokace',
-    period: '15.7. - 15.8.2024',
-    status: 'active',
-    channels: ['Email', 'YouTube', 'LinkedIn'],
-    metrics: {
-      sent: 1890,
-      delivered: 1845,
-      opened: 387,
-      clicked: 58,
-      conversions: 12,
-      openRate: 21.0,
-      clickRate: 15.0,
-      conversionRate: 20.7,
-      revenue: 18900
-    },
-    trend: 'neutral',
-    aiInsights: [
-      'LinkedIn posty mají 3x vyšší dosah než očekáváno',
-      'Video obsah generuje 45% více kliků',
-      'Víkendové posty mají nižší engagement'
-    ]
-  },
-  {
-    id: 3,
-    name: 'CoDneska - Víkendové akce',
-    period: '1.8. - 31.8.2024',
-    status: 'draft',
-    channels: ['Instagram', 'Facebook', 'Push'],
-    metrics: {
-      sent: 3200,
-      delivered: 3156,
-      opened: 474,
-      clicked: 76,
-      conversions: 8,
-      openRate: 15.0,
-      clickRate: 16.0,
-      conversionRate: 10.5,
-      revenue: 8400
-    },
-    trend: 'negative',
-    aiInsights: [
-      'Push notifikace mají nejnižší engagement',
-      'Potřeba optimalizace cílení pro víkendy',
-      'Stories formát převyšuje běžné posty o 25%'
-    ]
-  }
-];
+interface CampaignReport {
+  id: string;
+  campaign_id: string | null;
+  open_rate: number | null;
+  click_rate: number | null;
+  export_link: string | null;
+  summary_text: string | null;
+  created_at: string;
+}
+
+interface Campaign {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface ChartData {
+  name: string;
+  value: number;
+  openRate: number;
+  clickRate: number;
+}
+
+const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', 'hsl(var(--success))', 'hsl(var(--warning))'];
 
 export default function CampaignReports() {
-  const [selectedReport, setSelectedReport] = useState(campaignReports[0]);
+  const [reports, setReports] = useState<CampaignReport[]>([]);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedCampaign, setSelectedCampaign] = useState<string>('all');
+  const [dateRange, setDateRange] = useState<string>('30');
+  const { toast } = useToast();
 
-  const getTrendIcon = (trend: string) => {
-    switch (trend) {
-      case 'positive': return <ArrowUpRight className="w-4 h-4 text-success" />;
-      case 'negative': return <ArrowDownRight className="w-4 h-4 text-destructive" />;
-      default: return <TrendingUp className="w-4 h-4 text-muted-foreground" />;
+  useEffect(() => {
+    fetchReports();
+    fetchCampaigns();
+  }, []);
+
+  const fetchReports = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('CampaignReports')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setReports(data || []);
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se načíst reporty",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const getTrendColor = (trend: string) => {
-    switch (trend) {
-      case 'positive': return 'text-success';
-      case 'negative': return 'text-destructive';
-      default: return 'text-muted-foreground';
+  const fetchCampaigns = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('Campaigns')
+        .select('id, name, status')
+        .order('name');
+
+      if (error) throw error;
+      setCampaigns(data || []);
+    } catch (error) {
+      console.error('Error fetching campaigns:', error);
     }
+  };
+
+  const filteredReports = reports.filter(report => {
+    if (selectedCampaign === 'all') return true;
+    return report.campaign_id === selectedCampaign;
+  });
+
+  // Calculate overall statistics
+  const totalReports = filteredReports.length;
+  const avgOpenRate = totalReports > 0 
+    ? filteredReports.reduce((sum, r) => sum + (r.open_rate || 0), 0) / totalReports 
+    : 0;
+  const avgClickRate = totalReports > 0 
+    ? filteredReports.reduce((sum, r) => sum + (r.click_rate || 0), 0) / totalReports 
+    : 0;
+
+  // Prepare chart data
+  const chartData: ChartData[] = filteredReports.slice(0, 10).map((report, index) => {
+    const campaign = campaigns.find(c => c.id === report.campaign_id);
+    return {
+      name: campaign?.name.substring(0, 15) + '...' || `Report ${index + 1}`,
+      value: report.open_rate || 0,
+      openRate: report.open_rate || 0,
+      clickRate: report.click_rate || 0
+    };
+  });
+
+  const pieData = [
+    { name: 'Otevřeno', value: avgOpenRate, color: COLORS[0] },
+    { name: 'Kliknuto', value: avgClickRate, color: COLORS[1] },
+    { name: 'Neotevřeno', value: Math.max(0, 100 - avgOpenRate), color: COLORS[2] }
+  ];
+
+  const handleExportPDF = async (reportId: string) => {
+    toast({
+      title: "Export",
+      description: "Export do PDF bude implementován",
+    });
   };
 
   return (
@@ -120,233 +148,273 @@ export default function CampaignReports() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Reporty kampaní</h1>
+          <h1 className="text-3xl font-bold text-foreground">Reporty a analýzy</h1>
           <p className="text-muted-foreground mt-1">
-            Detailní analýzy výkonu s AI doporučeními
+            Přehled výkonu kampaní a statistiky otevření
           </p>
         </div>
-        <div className="flex space-x-3">
-          <Button variant="outline">
-            <Download className="w-4 h-4 mr-2" />
-            Export PDF
-          </Button>
-          <Button variant="gradient">
-            <Brain className="w-4 h-4 mr-2" />
-            AI analýza
-          </Button>
-        </div>
+        <Button variant="gradient" className="shadow-strong">
+          <Download className="w-4 h-4 mr-2" />
+          Export všech reportů
+        </Button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Campaign List */}
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Kampaně</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {campaignReports.map((campaign) => (
-                <div
-                  key={campaign.id}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all duration-300 ${
-                    selectedReport.id === campaign.id
-                      ? 'border-primary bg-primary/5 shadow-soft'
-                      : 'border-border hover:border-primary/50 hover:bg-surface'
-                  }`}
-                  onClick={() => setSelectedReport(campaign)}
+      {/* Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Select value={selectedCampaign} onValueChange={setSelectedCampaign}>
+              <SelectTrigger className="w-full sm:w-[250px]">
+                <SelectValue placeholder="Filtr podle kampaně" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Všechny kampaně</SelectItem>
+                {campaigns.map(campaign => (
+                  <SelectItem key={campaign.id} value={campaign.id}>
+                    {campaign.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={dateRange} onValueChange={setDateRange}>
+              <SelectTrigger className="w-full sm:w-[200px]">
+                <SelectValue placeholder="Časové období" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Posledních 7 dní</SelectItem>
+                <SelectItem value="30">Posledních 30 dní</SelectItem>
+                <SelectItem value="90">Posledních 90 dní</SelectItem>
+                <SelectItem value="365">Poslední rok</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Overview Statistics */}
+      <div className="grid gap-6 md:grid-cols-4">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <BarChart3 className="w-4 h-4 text-primary" />
+              <div className="text-2xl font-bold">{totalReports}</div>
+            </div>
+            <p className="text-xs text-muted-foreground">Celkem reportů</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <Eye className="w-4 h-4 text-primary" />
+              <div className="text-2xl font-bold">
+                {avgOpenRate.toFixed(1)}%
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Průměrná míra otevření</p>
+            <div className="flex items-center text-xs mt-1">
+              {avgOpenRate > 20 ? (
+                <TrendingUp className="w-3 h-3 text-success mr-1" />
+              ) : (
+                <TrendingDown className="w-3 h-3 text-destructive mr-1" />
+              )}
+              <span className={avgOpenRate > 20 ? "text-success" : "text-destructive"}>
+                {avgOpenRate > 20 ? "Dobrý" : "Nízký"} výkon
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <MousePointer className="w-4 h-4 text-success" />
+              <div className="text-2xl font-bold">
+                {avgClickRate.toFixed(1)}%
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Průměrná míra kliknutí</p>
+            <div className="flex items-center text-xs mt-1">
+              {avgClickRate > 5 ? (
+                <TrendingUp className="w-3 h-3 text-success mr-1" />
+              ) : (
+                <TrendingDown className="w-3 h-3 text-destructive mr-1" />
+              )}
+              <span className={avgClickRate > 5 ? "text-success" : "text-destructive"}>
+                {avgClickRate > 5 ? "Dobrý" : "Nízký"} výkon
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <Target className="w-4 h-4 text-primary" />
+              <div className="text-2xl font-bold">
+                {avgClickRate > 0 ? ((avgClickRate / avgOpenRate) * 100).toFixed(1) : 0}%
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Konverzní poměr</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Line Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Vývoj výkonu kampaní</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" />
+                <YAxis />
+                <Tooltip />
+                <Line 
+                  type="monotone" 
+                  dataKey="openRate" 
+                  stroke="hsl(var(--primary))" 
+                  strokeWidth={2}
+                  name="Míra otevření (%)"
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="clickRate" 
+                  stroke="hsl(var(--secondary))" 
+                  strokeWidth={2}
+                  name="Míra kliknutí (%)"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+
+        {/* Pie Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Rozdělení interakcí</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={pieData}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value.toFixed(1)}%`}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge 
-                      variant={
-                        campaign.status === 'completed' ? 'default' :
-                        campaign.status === 'active' ? 'secondary' : 'outline'
-                      }
-                      className="text-xs"
-                    >
-                      {campaign.status === 'completed' ? 'Dokončeno' :
-                       campaign.status === 'active' ? 'Aktivní' : 'Koncept'}
-                    </Badge>
-                    {getTrendIcon(campaign.trend)}
-                  </div>
-                  <h3 className="font-medium text-sm text-foreground mb-1">{campaign.name}</h3>
-                  <p className="text-xs text-muted-foreground">{campaign.period}</p>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {campaign.channels.slice(0, 2).map((channel) => (
-                      <Badge key={channel} variant="outline" className="text-xs">
-                        {channel}
-                      </Badge>
-                    ))}
-                    {campaign.channels.length > 2 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{campaign.channels.length - 2}
-                      </Badge>
+                  {pieData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Reports List */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5" />
+            Detailní reporty ({filteredReports.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-muted-foreground">Načítání reportů...</p>
+            </div>
+          ) : filteredReports.length > 0 ? (
+            <div className="space-y-4">
+              {filteredReports.map((report) => {
+                const campaign = campaigns.find(c => c.id === report.campaign_id);
+                return (
+                  <div
+                    key={report.id}
+                    className="p-4 border border-border rounded-lg hover:shadow-soft transition-all duration-300"
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div>
+                        <h3 className="font-medium">
+                          {campaign?.name || 'Neznámá kampaň'}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline">
+                            {campaign?.status === 'active' ? 'Aktivní' : 
+                             campaign?.status === 'done' ? 'Dokončeno' : 'Koncept'}
+                          </Badge>
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(report.created_at).toLocaleDateString('cs-CZ')}
+                          </span>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExportPDF(report.id)}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export PDF
+                      </Button>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3">
+                      <div className="text-center p-3 bg-muted rounded-lg">
+                        <div className="text-2xl font-bold text-primary">
+                          {report.open_rate ? `${report.open_rate}%` : 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Míra otevření</div>
+                      </div>
+                      <div className="text-center p-3 bg-muted rounded-lg">
+                        <div className="text-2xl font-bold text-secondary">
+                          {report.click_rate ? `${report.click_rate}%` : 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Míra kliknutí</div>
+                      </div>
+                      <div className="text-center p-3 bg-muted rounded-lg">
+                        <div className="text-2xl font-bold text-success">
+                          {report.open_rate && report.click_rate ? 
+                            `${((report.click_rate / report.open_rate) * 100).toFixed(1)}%` : 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Konverzní poměr</div>
+                      </div>
+                      <div className="text-center p-3 bg-muted rounded-lg">
+                        <div className="text-2xl font-bold text-warning">
+                          {report.open_rate ? 
+                            (report.open_rate > 20 ? 'Dobrý' : 'Nízký') : 'N/A'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Výkon</div>
+                      </div>
+                    </div>
+
+                    {report.summary_text && (
+                      <div className="p-3 bg-surface rounded-lg">
+                        <h4 className="font-medium mb-2">Shrnutí výkonu</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {report.summary_text}
+                        </p>
+                      </div>
                     )}
                   </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Report Details */}
-        <div className="lg:col-span-3">
-          {/* Overview Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Odesláno</p>
-                    <p className="text-xl font-bold">{selectedReport.metrics.sent.toLocaleString()}</p>
-                  </div>
-                  <Mail className="w-8 h-8 text-sofinity-purple" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Otevřeno</p>
-                    <p className="text-xl font-bold">{selectedReport.metrics.openRate}%</p>
-                  </div>
-                  <Eye className="w-8 h-8 text-sofinity-orange" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Kliknuto</p>
-                    <p className="text-xl font-bold">{selectedReport.metrics.clickRate}%</p>
-                  </div>
-                  <MousePointer className="w-8 h-8 text-primary" />
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Konverze</p>
-                    <p className="text-xl font-bold">{selectedReport.metrics.conversionRate}%</p>
-                  </div>
-                  <Target className="w-8 h-8 text-success" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Main Report */}
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>{selectedReport.name}</CardTitle>
-                <div className="flex items-center space-x-2">
-                  <span className="text-sm text-muted-foreground">{selectedReport.period}</span>
-                  {getTrendIcon(selectedReport.trend)}
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Performance Funnel */}
-                <div>
-                  <h3 className="font-semibold mb-4">Výkonnostní trychtýř</h3>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Doručeno</span>
-                        <span>{selectedReport.metrics.delivered} / {selectedReport.metrics.sent}</span>
-                      </div>
-                      <Progress value={(selectedReport.metrics.delivered / selectedReport.metrics.sent) * 100} />
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Otevřeno</span>
-                        <span>{selectedReport.metrics.opened} / {selectedReport.metrics.delivered}</span>
-                      </div>
-                      <Progress value={selectedReport.metrics.openRate} />
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Kliknuto</span>
-                        <span>{selectedReport.metrics.clicked} / {selectedReport.metrics.opened}</span>
-                      </div>
-                      <Progress value={selectedReport.metrics.clickRate} />
-                    </div>
-                    
-                    <div>
-                      <div className="flex justify-between text-sm mb-1">
-                        <span>Konvertováno</span>
-                        <span>{selectedReport.metrics.conversions} / {selectedReport.metrics.clicked}</span>
-                      </div>
-                      <Progress value={selectedReport.metrics.conversionRate} />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Revenue & ROI */}
-                <div>
-                  <h3 className="font-semibold mb-4">Finanční výsledky</h3>
-                  <div className="space-y-4">
-                    <div className="p-4 rounded-lg bg-surface border border-border">
-                      <div className="text-2xl font-bold text-foreground">
-                        {selectedReport.metrics.revenue.toLocaleString()} Kč
-                      </div>
-                      <div className="text-sm text-muted-foreground">Celkový příjem</div>
-                    </div>
-                    
-                    <div className="p-4 rounded-lg bg-surface border border-border">
-                      <div className="text-2xl font-bold text-success">
-                        {Math.round(selectedReport.metrics.revenue / selectedReport.metrics.conversions).toLocaleString()} Kč
-                      </div>
-                      <div className="text-sm text-muted-foreground">Příjem na konverzi</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* AI Insights */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Brain className="w-5 h-5 mr-2 text-sofinity-purple" />
-                AI Doporučení
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {selectedReport.aiInsights.map((insight, index) => (
-                  <div key={index} className="flex items-start space-x-3 p-3 rounded-lg bg-surface border border-border">
-                    <div className="w-2 h-2 rounded-full bg-gradient-primary mt-2 flex-shrink-0" />
-                    <p className="text-sm text-foreground">{insight}</p>
-                  </div>
-                ))}
-              </div>
-              
-              <div className="flex space-x-3 mt-6">
-                <Button variant="gradient" size="sm">
-                  <Brain className="w-4 h-4 mr-2" />
-                  Generovat detailní analýzu
-                </Button>
-                <Button variant="outline" size="sm">
-                  <FileText className="w-4 h-4 mr-2" />
-                  Export reportu
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <BarChart3 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">Žádné reporty nenalezeny</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

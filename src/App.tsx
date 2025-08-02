@@ -14,6 +14,18 @@ import KnowledgeBase from "./pages/KnowledgeBase";
 import SetupWizard from "./pages/SetupWizard";
 import NotFound from "./pages/NotFound";
 
+// Import new pages
+import CampaignsOverview from "./pages/CampaignsOverview";
+import CampaignDetail from "./pages/CampaignDetail";
+import EmailCenter from "./pages/EmailCenter";
+import EmailDetail from "./pages/EmailDetail";
+import AutoresponsesManager from "./pages/AutoresponsesManager";
+import CampaignSchedule from "./pages/CampaignSchedule";
+import CampaignReports from "./pages/CampaignReports";
+import Contacts from "./pages/Contacts";
+import Templates from "./pages/Templates";
+import NotificationCenter from "./pages/NotificationCenter";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -26,8 +38,28 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           <Route path="/" element={<Index />} />
           <Route path="/dashboard" element={<Index />} />
+          
+          {/* Campaign routes */}
+          <Route path="/campaigns" element={<CampaignsOverview />} />
           <Route path="/campaign/new" element={<CampaignNew />} />
+          <Route path="/campaign/:id" element={<CampaignDetail />} />
           <Route path="/campaign-review" element={<CampaignReview />} />
+          <Route path="/campaigns/:id/schedule" element={<CampaignSchedule />} />
+          <Route path="/campaigns/:id/reports" element={<CampaignReports />} />
+          
+          {/* Email routes */}
+          <Route path="/emails" element={<EmailCenter />} />
+          <Route path="/email/:id" element={<EmailDetail />} />
+          
+          {/* Other feature routes */}
+          <Route path="/autoresponses" element={<AutoresponsesManager />} />
+          <Route path="/schedule" element={<CampaignSchedule />} />
+          <Route path="/reports" element={<CampaignReports />} />
+          <Route path="/contacts" element={<Contacts />} />
+          <Route path="/templates" element={<Templates />} />
+          <Route path="/notifications" element={<NotificationCenter />} />
+          
+          {/* Existing routes */}
           <Route path="/team-feedback" element={<TeamFeedback />} />
           <Route path="/version-tracker" element={<VersionTracker />} />
           <Route path="/ai-assistant" element={<AIAssistant />} />

@@ -24,29 +24,33 @@ import {
   Database,
   Shield,
   Download,
-  BarChart2
+  BarChart2,
+  Target,
+  Bell,
+  CheckCircle,
+  BookOpen
 } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
+  { name: 'Kampaně', href: '/campaigns', icon: Target },
   { name: 'Nová kampaň', href: '/campaign/new', icon: Sparkles },
-  { name: 'Obsah kampaní', href: '/content', icon: MessageSquare },
-  { name: 'Schvalování', href: '/campaign-review', icon: FileText },
-  { name: 'Plánovač', href: '/planner', icon: Calendar },
+  { name: 'Plánování', href: '/schedule', icon: Calendar },
   { name: 'Auto-odpovědi', href: '/autoresponses', icon: Bot },
   { name: 'Email centrum', href: '/emails', icon: Mail },
-  { name: 'Analýzy', href: '/analytics', icon: BarChart3 },
+  { name: 'Kontakty', href: '/contacts', icon: Users },
+  { name: 'Šablony', href: '/templates', icon: FileText },
+  { name: 'Reporty', href: '/reports', icon: BarChart3 },
 ];
 
 const advancedNavigation = [
   { name: 'AI Asistent', href: '/ai-assistant', icon: Bot },
-  { name: 'Onboarding', href: '/onboarding', icon: Users },
-  { name: 'Interní feed', href: '/internal-feed', icon: MessageSquare },
+  { name: 'Notifikace', href: '/notifications', icon: Bell },
   { name: 'Týmová zpětná vazba', href: '/team-feedback', icon: MessageSquare },
   { name: 'Historie verzí', href: '/version-tracker', icon: FileText },
-  { name: 'Reporty kampaní', href: '/campaign-reports', icon: BarChart3 },
+  { name: 'Schvalování', href: '/campaign-review', icon: CheckCircle },
   { name: 'Kalendář týmu', href: '/team-calendar', icon: Calendar },
-  { name: 'Správa uživatelů', href: '/user-management', icon: Users },
+  { name: 'Znalostní báze', href: '/knowledge-base', icon: BookOpen },
 ];
 
 const businessNavigation = [
