@@ -110,19 +110,36 @@ export default function Projects() {
       
       // Získání session
       const session = await supabase.auth.getSession();
+      console.log('Current session:', session.data.session);
+      
+      if (!session.data.session?.access_token) {
+        console.error('No access token found in session');
+        toast({
+          title: "Chyba",
+          description: "Nejste přihlášeni. Prosím přihlaste se znovu.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      console.log('Access token found, calling edge function...');
       
       // Volání edge funkce s tokenem
       const { data, error } = await supabase.functions.invoke('connect-opravo-sofinity', {
-        headers: { Authorization: `Bearer ${session.data.session?.access_token}` }
+        headers: { Authorization: `Bearer ${session.data.session.access_token}` }
       });
       
       console.log('Funkce odpověděla:', data);
+      console.log('Chyba funkce:', error);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Edge function error:', error);
+        throw error;
+      }
       
       toast({
         title: "Úspěch",
-        description: "Projekt Opravo byl úspěšně propojen se Sofinity ✅",
+        description: data?.message || "Projekt Opravo byl úspěšně propojen se Sofinity ✅",
         variant: "default"
       });
       
