@@ -135,6 +135,9 @@ export default function Projects() {
   const isOpravoConnectedToSofinity = projects.some(project => 
     project.name === 'Opravo' && project.external_connection === 'sofinity'
   );
+  
+  console.log('Projects:', projects);
+  console.log('isOpravoConnectedToSofinity:', isOpravoConnectedToSofinity);
 
   if (loading) {
     return (
