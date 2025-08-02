@@ -36,14 +36,23 @@ export function ProjectSelector() {
 
       if (error) throw error;
 
-      // Transform data and set basic project info first
-      const projectList = (data || []).map(project => ({
-        id: project.id,
-        name: project.name,
-        description: project.description,
-        is_active: project.is_active,
-        campaigns_count: 0
-      }));
+      // Transform data and get campaign counts for each project
+      const projectList = await Promise.all(
+        (data || []).map(async (project) => {
+          const { count: campaignsCount } = await supabase
+            .from('Campaigns')
+            .select('*', { count: 'exact', head: true })
+            .eq('project_id', project.id);
+
+          return {
+            id: project.id,
+            name: project.name,
+            description: project.description,
+            is_active: project.is_active,
+            campaigns_count: campaignsCount || 0
+          };
+        })
+      );
 
       setProjects(projectList);
       

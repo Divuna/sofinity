@@ -61,7 +61,7 @@ const businessNavigation = [
 ];
 
 const managementNavigation = [
-  { name: 'Projekty', href: '/project-switcher', icon: Building2 },
+  { name: 'Projekty', href: '/projects', icon: Building2 },
   { name: 'Reporting dashboard', href: '/reporting-dashboard', icon: BarChart2 },
   { name: 'Export centrum', href: '/export-center', icon: Download },
   { name: 'Správa přístupů', href: '/access-control', icon: Shield },
