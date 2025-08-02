@@ -99,11 +99,12 @@ export function ProjectSelector() {
         {projects.length > 0 ? (
           <>
             <div>
-              <Select value={selectedProjectId || ''} onValueChange={setSelectedProjectId}>
+              <Select value={selectedProjectId || 'none'} onValueChange={(value) => setSelectedProjectId(value === 'none' ? null : value)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Vyberte projekt" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">Všechny projekty</SelectItem>
                   {projects.map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       <div className="flex items-center justify-between w-full">
