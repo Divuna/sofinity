@@ -107,7 +107,16 @@ export default function Projects() {
   const handleConnectOpravo = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke('connect-opravo-sofinity');
+      
+      // Získání session
+      const session = await supabase.auth.getSession();
+      
+      // Volání edge funkce s tokenem
+      const { data, error } = await supabase.functions.invoke('connect-opravo-sofinity', {
+        headers: { Authorization: `Bearer ${session.data.session?.access_token}` }
+      });
+      
+      console.log('Funkce odpověděla:', data);
       
       if (error) throw error;
       
