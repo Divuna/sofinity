@@ -11,6 +11,7 @@ import CampaignReview from "./pages/CampaignReview";
 import TeamFeedback from "./pages/TeamFeedback";
 import VersionTracker from "./pages/VersionTracker";
 import AIAssistant from "./pages/AIAssistant";
+import AIRequestDetail from "./pages/AIRequestDetail";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import SetupWizard from "./pages/SetupWizard";
 import NotFound from "./pages/NotFound";
@@ -67,6 +68,7 @@ const App = () => (
             <Route path="/team-feedback" element={<TeamFeedback />} />
             <Route path="/version-tracker" element={<VersionTracker />} />
             <Route path="/ai-assistant" element={<AIAssistant />} />
+            <Route path="/ai-assistant/:id" element={<AIRequestDetail />} />
             <Route path="/knowledge-base" element={<KnowledgeBase />} />
             <Route path="/setup-wizard" element={<SetupWizard />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

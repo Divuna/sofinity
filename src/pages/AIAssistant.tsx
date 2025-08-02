@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -20,6 +21,7 @@ interface AIRequest {
 }
 
 export default function AIAssistant() {
+  const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [promptText, setPromptText] = useState('');
@@ -224,7 +226,11 @@ export default function AIAssistant() {
             ) : (
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {aiRequests.map((request) => (
-                  <div key={request.id} className="border rounded-lg p-4 space-y-3">
+                  <div 
+                    key={request.id} 
+                    className="border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => navigate(`/ai-assistant/${request.id}`)}
+                  >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {getTypeIcon(request.type)}
