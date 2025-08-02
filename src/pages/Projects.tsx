@@ -113,7 +113,7 @@ export default function Projects() {
       
       toast({
         title: "Úspěch",
-        description: data.message,
+        description: "Projekt Opravo byl úspěšně propojen se Sofinity ✅",
         variant: "default"
       });
       
@@ -157,14 +157,19 @@ export default function Projects() {
             Přehled všech aktivních projektů a jejich výsledků
           </p>
         </div>
-        <Button 
-          variant="outline"
-          onClick={handleConnectOpravo}
-          disabled={loading}
-          className="rounded-lg"
-        >
-          Připojit Opravo k Sofinity
-        </Button>
+        {projects.some(project => 
+          project.name === 'Opravo' && 
+          (project.external_connection === null || project.external_connection !== 'sofinity')
+        ) && (
+          <Button 
+            onClick={handleConnectOpravo}
+            disabled={loading}
+            className="rounded-lg font-bold text-white"
+            style={{ backgroundColor: '#FF8906', padding: '10px', marginTop: '10px' }}
+          >
+            Připojit Opravo k Sofinity
+          </Button>
+        )}
       </div>
 
       {/* Projects Grid */}
