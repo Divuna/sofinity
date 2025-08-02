@@ -47,39 +47,8 @@ const Auth = () => {
   }, []);
 
   const handleRoleBasedRedirect = async (userId: string) => {
-    try {
-      const { data: profile, error } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error fetching user profile:', error);
-        return;
-      }
-
-      if (profile) {
-        const userRole = profile.role;
-        
-        // Role-based navigation
-        switch (userRole) {
-          case 'admin':
-            navigate('/dashboard');
-            break;
-          case 'marketing':
-            navigate('/campaign-review');
-            break;
-          case 'team_lead':
-            navigate('/team-feedback');
-            break;
-          default:
-            navigate('/dashboard');
-        }
-      }
-    } catch (error) {
-      console.error('Error during role-based redirect:', error);
-    }
+    // Always redirect to dashboard after successful login
+    navigate('/dashboard');
   };
 
   const handleSignIn = async (e: React.FormEvent) => {

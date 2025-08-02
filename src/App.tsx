@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppProvider } from "@/contexts/AppContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import AuthGuard from "./components/Layout/AuthGuard";
+import Dashboard from "./pages/Dashboard";
 import CampaignNew from "./pages/CampaignNew";
 import CampaignReview from "./pages/CampaignReview";
 import TeamFeedback from "./pages/TeamFeedback";
@@ -41,7 +43,7 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<Index />} />
+            <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
             
             {/* Campaign routes */}
             <Route path="/campaigns" element={<CampaignsOverview />} />
