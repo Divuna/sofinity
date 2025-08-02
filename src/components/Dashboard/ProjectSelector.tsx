@@ -183,7 +183,7 @@ export function ProjectSelector() {
 
       toast({
         title: "Úspěch",
-        description: "Výchozí projekty byly vytvořeny"
+        description: "Ukázkové projekty byly vytvořeny"
       });
     } catch (error) {
       console.error('Error creating default projects:', error);
@@ -272,6 +272,67 @@ export function ProjectSelector() {
                 })()}
               </div>
             )}
+
+            <div className="flex gap-2 pt-2">
+              <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Vytvořit nový projekt
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Vytvořit nový projekt</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleCreateProject} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="name">Název projektu</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                        placeholder="Název projektu"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Popis projektu</Label>
+                      <Textarea
+                        id="description"
+                        value={formData.description}
+                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Popis projektu"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="flex justify-end space-x-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsModalOpen(false)}
+                        disabled={isCreating}
+                      >
+                        Zrušit
+                      </Button>
+                      <Button type="submit" disabled={isCreating}>
+                        {isCreating ? 'Vytváří se...' : 'Vytvořit projekt'}
+                      </Button>
+                    </div>
+                  </form>
+                </DialogContent>
+              </Dialog>
+              
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={createDefaultProjects}
+                disabled={isCreating}
+              >
+                <Building2 className="w-4 h-4 mr-2" />
+                Vytvořit ukázkové projekty
+              </Button>
+            </div>
           </>
         ) : (
           <div className="text-center py-6">
