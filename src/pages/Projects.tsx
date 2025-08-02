@@ -131,6 +131,11 @@ export default function Projects() {
     }
   };
 
+  // Check if Opravo is already connected to Sofinity
+  const isOpravoConnectedToSofinity = projects.some(project => 
+    project.name === 'Opravo' && project.external_connection === 'sofinity'
+  );
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-surface flex items-center justify-center">
@@ -152,13 +157,25 @@ export default function Projects() {
             Přehled všech aktivních projektů a jejich výsledků
           </p>
         </div>
-        <Button 
-          onClick={handleConnectOpravo}
-          disabled={loading}
-          className="bg-gradient-to-r from-[#7F5AF0] to-[#FF8906] text-white border-0 hover:opacity-90"
-        >
-          Připojit Opravo k Sofinity
-        </Button>
+        {!isOpravoConnectedToSofinity && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button 
+                  variant="outline"
+                  onClick={handleConnectOpravo}
+                  disabled={loading}
+                  className="rounded-lg"
+                >
+                  Připojit Opravo k Sofinity
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Tímto krokem napojíte projekt Opravo na AI platformu Sofinity.</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
 
       {/* Projects Grid */}
