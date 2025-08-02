@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { User, Session } from '@supabase/supabase-js';
 import { useNavigate } from 'react-router-dom';
+import { cleanupAuthState } from '@/lib/auth-cleanup';
 
 
 const Auth = () => {
@@ -56,6 +57,16 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      // Clean up existing state before signing in
+      cleanupAuthState();
+      
+      // Attempt global sign out first
+      try {
+        await supabase.auth.signOut({ scope: 'global' });
+      } catch (err) {
+        // Continue even if this fails
+      }
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -63,10 +74,10 @@ const Auth = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Přihlášení úspěšné",
-        description: "Byli jste úspěšně přihlášeni.",
-      });
+      if (data.user) {
+        // Force page reload for clean state
+        window.location.href = '/';
+      }
     } catch (error: any) {
       toast({
         title: "Chyba při přihlašování",

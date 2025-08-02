@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
+import { robustSignOut } from '@/lib/auth-cleanup';
 
 export function Header() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
@@ -67,19 +68,11 @@ export function Header() {
 
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
-      
-      toast({
-        title: "Odhlášení úspěšné",
-        description: "Byli jste úspěšně odhlášeni.",
-      });
+      await robustSignOut(supabase);
     } catch (error: any) {
-      toast({
-        title: "Chyba při odhlašování",
-        description: error.message,
-        variant: "destructive",
-      });
+      // If even robust sign out fails, force redirect
+      console.error('Complete sign out failure:', error);
+      window.location.href = '/auth';
     }
   };
 
