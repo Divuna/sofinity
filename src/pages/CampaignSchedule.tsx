@@ -264,14 +264,14 @@ export default function CampaignSchedule() {
               <div>
                 <label className="text-sm font-medium mb-2 block">Kampaň (volitelné)</label>
                 <Select
-                  value={newItem.campaign_id}
-                  onValueChange={(value) => setNewItem({ ...newItem, campaign_id: value })}
+                  value={newItem.campaign_id || 'none'}
+                  onValueChange={(value) => setNewItem({ ...newItem, campaign_id: value === 'none' ? '' : value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Vyberte kampaň..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Obecná publikace</SelectItem>
+                    <SelectItem value="none">Obecná publikace</SelectItem>
                     {campaigns.map(campaign => (
                       <SelectItem key={campaign.id} value={campaign.id}>
                         {campaign.name}
