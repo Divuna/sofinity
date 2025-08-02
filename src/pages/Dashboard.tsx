@@ -3,8 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatsCard } from '@/components/Dashboard/StatsCard';
+import { ProjectSelector } from '@/components/Dashboard/ProjectSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useApp } from '@/contexts/AppContext';
 import { 
   TrendingUp, 
   Users, 
@@ -27,6 +29,7 @@ interface Campaign {
   email: string | null;
   post: string | null;
   video: string | null;
+  project_id: string | null;
   created_at: string;
 }
 
@@ -46,33 +49,58 @@ export default function Dashboard() {
     avgOpenRate: 0
   });
   const [loading, setLoading] = useState(true);
+  const { selectedProjectId } = useApp();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [selectedProjectId]);
 
   const fetchDashboardData = async () => {
     try {
-      // Fetch recent campaigns - RLS automatically filters by auth.uid()
-      const { data: campaignsData, error: campaignsError } = await supabase
+      // Build query for campaigns
+      let campaignsQuery = supabase
         .from('Campaigns')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(5);
+      
+      // Filter by project if selected
+      if (selectedProjectId) {
+        campaignsQuery = campaignsQuery.eq('project_id', selectedProjectId);
+      }
+      
+      const { data: campaignsData, error: campaignsError } = await campaignsQuery;
 
       if (campaignsError) throw campaignsError;
-      setCampaigns((campaignsData || []) as Campaign[]);
+      setCampaigns((campaignsData || []).map(campaign => ({
+        id: campaign.id,
+        name: campaign.name,
+        status: campaign.status as 'draft' | 'active' | 'done',
+        email: campaign.email,
+        post: campaign.post,
+        video: campaign.video,
+        project_id: (campaign as any).project_id || null,
+        created_at: campaign.created_at
+      })));
 
-      // Fetch dashboard statistics
+      // Fetch dashboard statistics with project filtering
+      let activeCampaignsQuery = supabase.from('Campaigns').select('*', { count: 'exact', head: true }).eq('status', 'active');
+      let emailsQuery = supabase.from('Emails').select('*', { count: 'exact', head: true });
+      
+      if (selectedProjectId) {
+        activeCampaignsQuery = activeCampaignsQuery.eq('project_id', selectedProjectId);
+        emailsQuery = emailsQuery.eq('project', selectedProjectId);
+      }
+
       const [
         { count: activeCampaignsCount },
         { count: totalEmailsCount },
         { count: totalContactsCount },
         { data: emailLogsData }
       ] = await Promise.all([
-        supabase.from('Campaigns').select('*', { count: 'exact', head: true }).eq('status', 'active'),
-        supabase.from('Emails').select('*', { count: 'exact', head: true }),
+        activeCampaignsQuery,
+        emailsQuery,
         supabase.from('Contacts').select('*', { count: 'exact', head: true }).eq('subscribed', true),
         supabase.from('EmailLogs').select('opened_at').not('opened_at', 'is', null)
       ]);
@@ -174,7 +202,12 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 lg:grid-cols-4">
+        {/* Project Selector */}
+        <div>
+          <ProjectSelector />
+        </div>
+
         {/* Recent Campaigns */}
         <div className="lg:col-span-2">
           <Card>
@@ -269,9 +302,9 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-3">
               <Button variant="outline" className="w-full justify-start" asChild>
-                <a href="/schedule">
+                <a href="/planovac-publikace">
                   <Calendar className="w-4 h-4 mr-3" />
-                  Naplánovat publikaci
+                  Plánovač publikací
                 </a>
               </Button>
               <Button variant="outline" className="w-full justify-start" asChild>

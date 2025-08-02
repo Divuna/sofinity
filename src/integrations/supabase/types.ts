@@ -488,6 +488,45 @@ export type Database = {
         }
         Relationships: []
       }
+      posts: {
+        Row: {
+          channel: string
+          created_at: string
+          format: string
+          id: string
+          project_id: string | null
+          publish_date: string
+          status: string
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          channel: string
+          created_at?: string
+          format?: string
+          id?: string
+          project_id?: string | null
+          publish_date: string
+          status?: string
+          text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          channel?: string
+          created_at?: string
+          format?: string
+          id?: string
+          project_id?: string | null
+          publish_date?: string
+          status?: string
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
