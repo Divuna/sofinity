@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useApp } from '@/contexts/AppContext';
@@ -12,6 +13,7 @@ interface Project {
   name: string;
   description: string | null;
   is_active: boolean;
+  external_connection: string | null;
   created_at: string;
   campaignCount: number;
   emailCount: number;
@@ -33,7 +35,6 @@ export default function Projects() {
       const { data: projectsData, error } = await supabase
         .from('Projects')
         .select('*')
-        .eq('is_active', true)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -70,6 +71,31 @@ export default function Projects() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getProjectStatus = (project: Project) => {
+    if (project.is_active && project.external_connection) {
+      return {
+        label: "🟢 Aktivní (propojeno se Sofinity)",
+        variant: "default" as const,
+        className: "bg-gradient-to-r from-[#7F5AF0] to-[#FF8906] text-white border-0",
+        tooltip: "Projekt je aktivní a propojen s externí službou Sofinity"
+      };
+    } else if (project.is_active && !project.external_connection) {
+      return {
+        label: "🟡 Aktivní (bez napojení)",
+        variant: "secondary" as const,
+        className: "bg-muted text-muted-foreground",
+        tooltip: "Projekt je aktivní ale není propojen s externí službou"
+      };
+    } else {
+      return {
+        label: "🔴 Neaktivní",
+        variant: "destructive" as const,
+        className: "bg-destructive/10 text-destructive border-destructive/20",
+        tooltip: "Projekt je neaktivní"
+      };
     }
   };
 
@@ -115,9 +141,21 @@ export default function Projects() {
                     <div>
                       <CardTitle className="text-lg font-semibold">{project.name}</CardTitle>
                       <div className="flex items-center space-x-2 mt-1">
-                        <Badge variant={project.is_active ? "default" : "secondary"} className="text-xs">
-                          {project.is_active ? "Aktivní" : "Neaktivní"}
-                        </Badge>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge 
+                                variant={getProjectStatus(project).variant} 
+                                className={`text-xs ${getProjectStatus(project).className}`}
+                              >
+                                {getProjectStatus(project).label}
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{getProjectStatus(project).tooltip}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     </div>
                   </div>
