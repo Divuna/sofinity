@@ -105,7 +105,7 @@ export function ProjectSelector() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Všechny projekty</SelectItem>
-                  {projects.map((project) => (
+                  {projects.filter(project => project.id && project.id.trim() !== '').map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       <div className="flex items-center justify-between w-full">
                         <span>{project.name}</span>

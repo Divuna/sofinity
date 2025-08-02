@@ -94,7 +94,7 @@ export function ProjectSelectorDropdown() {
           <SelectItem value="all" className="text-muted-foreground">
             Všechny projekty
           </SelectItem>
-          {projects.map((project) => (
+          {projects.filter(project => project.id && project.id.trim() !== '').map((project) => (
             <SelectItem key={project.id} value={project.id}>
               <div className="flex items-center justify-between w-full">
                 <span className="text-foreground">{project.name}</span>
