@@ -7,6 +7,7 @@ import { ProjectSelector } from '@/components/Dashboard/ProjectSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useApp } from '@/contexts/AppContext';
+import { getCurrentUser, isAdmin } from '@/lib/auth';
 import { 
   TrendingUp, 
   Users, 
@@ -70,12 +71,23 @@ export default function Dashboard() {
     totalProjects: 0
   });
   const [loading, setLoading] = useState(true);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const { selectedProjectId } = useApp();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchDashboardData();
+    loadUserProfile();
   }, [selectedProjectId]);
+
+  const loadUserProfile = async () => {
+    try {
+      const user = await getCurrentUser();
+      setUserProfile(user);
+    } catch (error) {
+      console.error('Error loading user profile:', error);
+    }
+  };
 
   const fetchDashboardData = async () => {
     try {
@@ -195,6 +207,51 @@ export default function Dashboard() {
     if (campaign.video) completed++;
     
     return Math.round((completed / total) * 100);
+  };
+
+  const handleProjectConnection = async (project: Project) => {
+    try {
+      const session = await supabase.auth.getSession();
+      
+      if (project.external_connection) {
+        const confirmed = confirm("Opravdu chcete odpojit projekt od Sofinity?");
+        if (!confirmed) return;
+
+        const { error } = await supabase
+          .from("Projects")
+          .update({ external_connection: null })
+          .eq("id", project.id);
+
+        if (error) throw error;
+
+        toast({ title: "Projekt byl odpojen od Sofinity." });
+        await fetchDashboardData();
+      } else {
+        const { data, error } = await supabase.functions.invoke("connect-opravo-sofinity", {
+          headers: {
+            Authorization: `Bearer ${session.data.session?.access_token}`,
+          },
+        });
+
+        if (error) {
+          toast({ 
+            title: "Chyba při připojení", 
+            description: error.message, 
+            variant: "destructive" 
+          });
+        } else {
+          toast({ title: "Projekt byl znovu propojen se Sofinity ✅" });
+          await fetchDashboardData();
+        }
+      }
+    } catch (error) {
+      console.error('Error handling project connection:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se změnit stav připojení projektu",
+        variant: "destructive"
+      });
+    }
   };
 
   if (loading) {
@@ -395,9 +452,21 @@ export default function Dashboard() {
                            </Tooltip>
                          </TooltipProvider>
                        </div>
-                       <Badge variant="outline" className="text-xs">
-                         {project.is_active ? 'Aktivní' : 'Neaktivní'}
-                       </Badge>
+                       <div className="flex items-center space-x-2">
+                         <Badge variant="outline" className="text-xs">
+                           {project.is_active ? 'Aktivní' : 'Neaktivní'}
+                         </Badge>
+                         {isAdmin(userProfile) && (
+                           <Button
+                             variant="secondary"
+                             size="sm"
+                             className="text-xs px-2 py-1 h-6"
+                             onClick={() => handleProjectConnection(project)}
+                           >
+                             {project.external_connection ? "Odpojit" : "Připojit"}
+                           </Button>
+                         )}
+                       </div>
                      </div>
                     
                     <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
