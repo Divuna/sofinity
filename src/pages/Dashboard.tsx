@@ -22,8 +22,11 @@ import {
   MousePointer,
   FolderOpen,
   Settings,
-  Plus
+  Plus,
+  Link,
+  Link2Off
 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Campaign {
   id: string;
@@ -41,6 +44,7 @@ interface Project {
   name: string;
   description: string;
   is_active: boolean;
+  external_connection: string | null;
   created_at: string;
   campaignCount?: number;
   emailCount?: number;
@@ -366,12 +370,35 @@ export default function Dashboard() {
                     key={project.id}
                     className="p-3 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-medium text-foreground text-sm">{project.name}</h4>
-                      <Badge variant="outline" className="text-xs">
-                        {project.is_active ? 'Aktivní' : 'Neaktivní'}
-                      </Badge>
-                    </div>
+                     <div className="flex items-center justify-between mb-2">
+                       <div className="flex items-center space-x-2">
+                         <h4 className="font-medium text-foreground text-sm">{project.name}</h4>
+                         <TooltipProvider>
+                           <Tooltip>
+                             <TooltipTrigger>
+                               {project.external_connection ? (
+                                 <Link className="w-3 h-3 text-success" />
+                                ) : (
+                                  <Link2Off className="w-3 h-3 text-muted-foreground" />
+                                )}
+                             </TooltipTrigger>
+                             <TooltipContent>
+                               {project.external_connection ? (
+                                 <div>
+                                   <p className="font-medium">Propojeno se Sofinity</p>
+                                   <p className="text-xs text-muted-foreground">ID: {project.external_connection}</p>
+                                 </div>
+                               ) : (
+                                 <p>Nepřipojeno k Sofinity</p>
+                               )}
+                             </TooltipContent>
+                           </Tooltip>
+                         </TooltipProvider>
+                       </div>
+                       <Badge variant="outline" className="text-xs">
+                         {project.is_active ? 'Aktivní' : 'Neaktivní'}
+                       </Badge>
+                     </div>
                     
                     <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
                       {project.description}
