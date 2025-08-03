@@ -35,3 +35,6 @@ verify_jwt = true
 
 [functions.opravo-integration]
 verify_jwt = false
+
+[functions.on-project-connection]
+verify_jwt = false
