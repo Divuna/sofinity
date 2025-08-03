@@ -432,57 +432,54 @@ export default function Dashboard() {
                   >
                      <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold text-sm">{project.name}</h4>
-                        <div className="flex items-center gap-1">
-                          {project.external_connection ? (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-8 w-8 p-0"
-                                    onClick={async () => {
+                        <div className="flex items-center gap-2">
+                          {project.external_connection && (
+                            <div className="text-xs text-success font-medium">
+                              Propojeno se Sofinity ({project.external_connection})
+                            </div>
+                          )}
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-8 w-8 p-0"
+                                  onClick={async () => {
+                                    if (project.external_connection) {
                                       if (confirm('Opravdu chcete odpojit tento projekt od Sofinity?')) {
-                                        const res = await supabase
+                                        const { error } = await supabase
                                           .from('Projects')
                                           .update({ external_connection: null })
                                           .eq('id', project.id);
-                                        if (!res.error) {
+                                        
+                                        if (!error) {
                                           toast({ title: 'Projekt byl úspěšně odpojen.' });
-                                          fetchDashboardData();
+                                          await fetchDashboardData();
                                         } else {
                                           toast({ title: 'Chyba při odpojování projektu.', variant: 'destructive' });
                                         }
                                       }
-                                    }}
-                                  >
+                                    } else {
+                                      await handleProjectConnection(project);
+                                    }
+                                  }}
+                                >
+                                  {project.external_connection ? (
                                     <Link2 className="w-4 h-4 text-success" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  Propojeno se Sofinity – klikněte pro odpojení
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          ) : (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    className="h-8 w-8 p-0"
-                                    onClick={() => handleProjectConnection(project)}
-                                  >
+                                  ) : (
                                     <Link2Off className="w-4 h-4 text-muted-foreground" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  Není propojeno se Sofinity – klikněte pro připojení
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {project.external_connection 
+                                  ? 'Klikněte pro odpojení' 
+                                  : 'Klikněte pro připojení'
+                                }
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                         </div>
                       </div>
                       
