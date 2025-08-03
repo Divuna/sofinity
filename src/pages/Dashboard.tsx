@@ -25,6 +25,7 @@ import {
   Settings,
   Plus,
   Link,
+  Link2,
   Link2Off
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -425,56 +426,71 @@ export default function Dashboard() {
                 projects.map((project) => (
                   <div
                     key={project.id}
-                    className="p-3 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
+                    className={`p-3 rounded-lg border bg-surface-variant hover:shadow-soft transition-all duration-300 ${
+                      project.external_connection ? 'border-success border-2' : 'border-border'
+                    }`}
                   >
                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          <h4 className="font-medium text-foreground text-sm">{project.name}</h4>
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger 
-                                className="cursor-pointer hover:opacity-70 transition-opacity"
-                                onClick={() => handleProjectConnection(project)}
-                              >
-                                {project.external_connection ? (
-                                  <Link className="w-3 h-3 text-success" />
-                                 ) : (
-                                   <Link2Off className="w-3 h-3 text-muted-foreground" />
-                                 )}
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {project.external_connection ? (
-                                  <div>
-                                    <p className="font-medium">Propojeno se Sofinity</p>
-                                    <p className="text-xs text-muted-foreground">ID: {project.external_connection}</p>
-                                    <p className="text-xs text-muted-foreground mt-1">Klikněte pro odpojení</p>
-                                  </div>
-                                ) : (
-                                  <div>
-                                    <p>Nepřipojeno k Sofinity</p>
-                                    <p className="text-xs text-muted-foreground mt-1">Klikněte pro připojení</p>
-                                  </div>
-                                )}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
+                        <h4 className="font-semibold text-sm">{project.name}</h4>
+                        <div className="flex items-center gap-1">
+                          {project.external_connection ? (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    onClick={async () => {
+                                      if (confirm('Opravdu chcete odpojit tento projekt od Sofinity?')) {
+                                        const res = await supabase
+                                          .from('Projects')
+                                          .update({ external_connection: null })
+                                          .eq('id', project.id);
+                                        if (!res.error) {
+                                          toast({ title: 'Projekt byl úspěšně odpojen.' });
+                                          fetchDashboardData();
+                                        } else {
+                                          toast({ title: 'Chyba při odpojování projektu.', variant: 'destructive' });
+                                        }
+                                      }
+                                    }}
+                                  >
+                                    <Link2 className="w-4 h-4 text-success" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Propojeno se Sofinity – klikněte pro odpojení
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          ) : (
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => handleProjectConnection(project)}
+                                  >
+                                    <Link2Off className="w-4 h-4 text-muted-foreground" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  Není propojeno se Sofinity – klikněte pro připojení
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          )}
                         </div>
-                       <div className="flex items-center space-x-2">
-                         <Badge variant="outline" className="text-xs">
-                           {project.is_active ? 'Aktivní' : 'Neaktivní'}
-                         </Badge>
-                         {isAdmin(userProfile) && (
-                           <Button
-                             variant="secondary"
-                             size="sm"
-                             className="text-xs px-2 py-1 h-6"
-                             onClick={() => handleProjectConnection(project)}
-                           >
-                             {project.external_connection ? "Odpojit" : "Připojit"}
-                           </Button>
-                         )}
-                       </div>
-                     </div>
+                      </div>
+                      
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="outline" className="text-xs">
+                          {project.is_active ? 'Aktivní' : 'Neaktivní'}
+                        </Badge>
+                      </div>
                     
                     <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
                       {project.description}
