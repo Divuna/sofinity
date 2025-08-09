@@ -325,11 +325,15 @@ export type Database = {
       }
       Contacts: {
         Row: {
+          city: string | null
           created_at: string | null
           email: string
+          full_name: string | null
           id: string
           name: string | null
           phone: string | null
+          project_id: string | null
+          role: string | null
           source: string | null
           subscribed: boolean | null
           tags: string[] | null
@@ -337,11 +341,15 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          city?: string | null
           created_at?: string | null
           email: string
+          full_name?: string | null
           id?: string
           name?: string | null
           phone?: string | null
+          project_id?: string | null
+          role?: string | null
           source?: string | null
           subscribed?: boolean | null
           tags?: string[] | null
@@ -349,18 +357,30 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          city?: string | null
           created_at?: string | null
           email?: string
+          full_name?: string | null
           id?: string
           name?: string | null
           phone?: string | null
+          project_id?: string | null
+          role?: string | null
           source?: string | null
           subscribed?: boolean | null
           tags?: string[] | null
           unsubscribed_at?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "Contacts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       EmailLogs: {
         Row: {
