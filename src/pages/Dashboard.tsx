@@ -155,13 +155,25 @@ export default function Dashboard() {
       let emailsQuery = supabase.from('Emails').select('*', { count: 'exact', head: true });
       let contactsQuery = supabase.from('Contacts').select('*', { count: 'exact', head: true }).eq('subscribed', true);
       let projectsQuery = supabase.from('Projects').select('*', { count: 'exact', head: true }).eq('is_active', true);
-      let emailLogsQuery = supabase.from('EmailLogs').select('opened_at').not('opened_at', 'is', null);
+      let emailLogsQuery = supabase.from('EmailLogs').select('opened_at, campaign_id').not('opened_at', 'is', null);
+      let totalEmailLogsQuery = supabase.from('EmailLogs').select('*', { count: 'exact', head: true });
 
       if (selectedProjectId) {
         activeCampaignsQuery = activeCampaignsQuery.eq('project_id', selectedProjectId);
         emailsQuery = emailsQuery.eq('project_id', selectedProjectId);
         contactsQuery = contactsQuery.eq('project_id', selectedProjectId);
-        emailLogsQuery = emailLogsQuery.eq('campaign_id', 'in', '(select id from "Campaigns" where project_id = ' + selectedProjectId + ')');
+        
+        // Filter email logs by campaigns in the selected project
+        const { data: projectCampaigns } = await supabase
+          .from('Campaigns')
+          .select('id')
+          .eq('project_id', selectedProjectId);
+        
+        const campaignIds = projectCampaigns?.map(c => c.id) || [];
+        if (campaignIds.length > 0) {
+          emailLogsQuery = emailLogsQuery.in('campaign_id', campaignIds);
+          totalEmailLogsQuery = totalEmailLogsQuery.in('campaign_id', campaignIds);
+        }
       }
 
       const [
@@ -169,19 +181,21 @@ export default function Dashboard() {
         { count: totalEmailsCount },
         { count: totalContactsCount },
         { count: totalProjectsCount },
-        { data: emailLogsData }
+        { data: emailLogsData },
+        { count: totalSentEmails }
       ] = await Promise.all([
         activeCampaignsQuery,
         emailsQuery,
         contactsQuery,
         projectsQuery,
-        emailLogsQuery
+        emailLogsQuery,
+        totalEmailLogsQuery
       ]);
 
-      // Calculate average open rate
-      const totalEmails = totalEmailsCount || 0;
+      // Calculate average open rate based on sent emails vs opened emails
+      const sentEmailsCount = totalSentEmails || 0;
       const openedEmails = emailLogsData?.length || 0;
-      const avgOpenRate = totalEmails > 0 ? (openedEmails / totalEmails) * 100 : 0;
+      const avgOpenRate = sentEmailsCount > 0 ? (openedEmails / sentEmailsCount) * 100 : 0;
 
       setStats({
         activeCampaigns: activeCampaignsCount || 0,
@@ -301,14 +315,14 @@ export default function Dashboard() {
         <StatsCard
           title="Celkem kontaktů"
           value={stats.totalContacts.toString()}
-          change="Aktivní odběratelé"
+          change={selectedProjectId ? "V aktuálním projektu" : "Aktivní odběratelé"}
           changeType="positive"
           icon={Users}
         />
         <StatsCard
-          title="E-maily odeslané"
+          title="Odeslané e-maily"
           value={stats.totalEmails.toString()}
-          change="Celkem v systému"
+          change={selectedProjectId ? "V aktuálním projektu" : "Celkem v systému"}
           changeType="positive"
           icon={Mail}
         />
