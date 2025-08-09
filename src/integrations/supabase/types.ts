@@ -554,6 +554,42 @@ export type Database = {
         }
         Relationships: []
       }
+      opravo_jobs: {
+        Row: {
+          created_at: string | null
+          fotky: string[] | null
+          id: string
+          kategorie: string | null
+          latitude: number | null
+          lokalita: string | null
+          longitude: number | null
+          popis: string | null
+          urgentni: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          fotky?: string[] | null
+          id: string
+          kategorie?: string | null
+          latitude?: number | null
+          lokalita?: string | null
+          longitude?: number | null
+          popis?: string | null
+          urgentni?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          fotky?: string[] | null
+          id?: string
+          kategorie?: string | null
+          latitude?: number | null
+          lokalita?: string | null
+          longitude?: number | null
+          popis?: string | null
+          urgentni?: boolean | null
+        }
+        Relationships: []
+      }
       posts: {
         Row: {
           channel: string
