@@ -35,6 +35,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Kampaně', href: '/campaigns', icon: Target },
   { name: 'Nová kampaň', href: '/campaign/new', icon: Sparkles },
+  { name: 'Nabídky', href: '/offers', icon: Handshake },
   { name: 'Plánování', href: '/schedule', icon: Calendar },
   { name: 'Auto-odpovědi', href: '/autoresponses', icon: Bot },
   { name: 'Email centrum', href: '/emails', icon: Mail },
@@ -51,6 +52,7 @@ const advancedNavigation = [
   { name: 'Schvalování', href: '/campaign-review', icon: CheckCircle },
   { name: 'Kalendář týmu', href: '/team-calendar', icon: Calendar },
   { name: 'Znalostní báze', href: '/knowledge-base', icon: BookOpen },
+  { name: 'Opravo API Test', href: '/offers-api', icon: Database },
 ];
 
 const businessNavigation = [

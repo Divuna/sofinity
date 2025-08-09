@@ -359,7 +359,7 @@ export default function Dashboard() {
           title="Úspěšnost nabídek"
           value={`${stats.offersSuccessRate}%`}
           change={`${stats.acceptedOffers} vyhrané z ${stats.totalOffers}`}
-          changeType={stats.offersSuccessRate > 50 ? "positive" : stats.offersSuccessRate > 25 ? "neutral" : "negative"}
+          changeType={stats.offersSuccessRate > 50 ? "positive" : stats.offersSuccessRate >= 25 ? "neutral" : "negative"}
           icon={TrendingUp}
         />
       </div>

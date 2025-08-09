@@ -31,6 +31,8 @@ import Templates from "./pages/Templates";
 import NotificationCenter from "./pages/NotificationCenter";
 import PlanovacPublikace from "./pages/PlanovacPublikace";
 import Projects from "./pages/Projects";
+import Offers from "./pages/Offers";
+import OffersAPI from "./pages/OffersAPI";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +69,8 @@ const App = () => (
             <Route path="/templates" element={<Templates />} />
             <Route path="/notifications" element={<NotificationCenter />} />
             <Route path="/projects" element={<Projects />} />
+            <Route path="/offers" element={<Offers />} />
+            <Route path="/offers-api" element={<OffersAPI />} />
             
             {/* Existing routes */}
             <Route path="/team-feedback" element={<TeamFeedback />} />
