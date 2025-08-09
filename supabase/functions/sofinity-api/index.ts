@@ -13,19 +13,18 @@ serve(async (req) => {
   }
 
   try {
-    // Get the API key from environment
-    const expectedApiKey = Deno.env.get('SOFINITY_INTERNAL_API_KEY');
-    
-    // Verify API key from header
-    const providedApiKey = req.headers.get('x-api-key');
-    if (!providedApiKey || providedApiKey !== expectedApiKey) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }), 
-        { 
-          status: 401, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+    // Get the API key from environment and verify authentication
+    const expected = Deno.env.get('SOFINITY_INTERNAL_API_KEY') ?? '';
+    const h = req.headers;
+    const keyFromX   = h.get('x-api-key') ?? '';
+    const authHeader = h.get('authorization') ?? '';
+    const keyFromAuth = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7) : '';
+    const provided = keyFromX || keyFromAuth;
+    if (!provided || provided !== expected) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     // Parse URL to get the path
