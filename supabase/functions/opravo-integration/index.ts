@@ -18,9 +18,33 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // Parse the incoming webhook data from Opravo
-    const { request, user } = await req.json()
+    const webhookData = await req.json()
     
-    console.log('Received Opravo webhook:', { request, user })
+    console.log('Received Opravo webhook:', { type: webhookData.type, data: Object.keys(webhookData) })
+
+    // Handle different event types
+    if (webhookData.type === 'RequestCreated' || webhookData.type === 'OfferCreated') {
+      const { request, user } = webhookData
+      
+      // Validate required fields for contact ingestion
+      if (!request || !user?.email) {
+        return new Response(
+          JSON.stringify({ error: 'Missing required fields: request and user.email for contact ingestion' }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
+
+      // Process contact ingestion
+      return await handleContactIngestion(supabase, request, user, corsHeaders)
+    }
+
+    // Fallback to original AI request creation for other events
+    const { request, user } = webhookData
+    
+    console.log('Processing as AI request:', { request, user })
 
     // Validate required fields
     if (!request || !user?.email) {
@@ -162,3 +186,155 @@ Deno.serve(async (req) => {
     )
   }
 })
+
+// Handle contact ingestion for RequestCreated and OfferCreated events
+async function handleContactIngestion(supabase: any, request: any, user: any, corsHeaders: any) {
+  try {
+    // Find user in Sofinity by email
+    let { data: integration, error: integrationError } = await supabase
+      .from('external_integrations')
+      .select('user_id')
+      .eq('external_email', user.email)
+      .eq('external_system', 'opravo')
+      .maybeSingle()
+
+    if (integrationError) {
+      console.error('Error finding integration:', integrationError)
+      return new Response(
+        JSON.stringify({ error: 'Database error while finding integration' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // If no integration found, try to find user by email in profiles
+    let sofinity_user_id = integration?.user_id
+
+    if (!sofinity_user_id) {
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('email', user.email)
+        .maybeSingle()
+
+      if (profile) {
+        sofinity_user_id = profile.user_id
+        
+        // Create integration mapping for future use
+        await supabase
+          .from('external_integrations')
+          .insert({
+            user_id: sofinity_user_id,
+            external_system: 'opravo',
+            external_user_id: user.id || null,
+            external_email: user.email,
+            mapping_data: { linked_at: new Date().toISOString() }
+          })
+      }
+    }
+
+    if (!sofinity_user_id) {
+      console.log('No Sofinity user found for email:', user.email)
+      return new Response(
+        JSON.stringify({ 
+          error: 'No matching Sofinity user found for this email',
+          suggestion: 'User needs to register in Sofinity first'
+        }),
+        { 
+          status: 404, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Find or create project for this request
+    let project_id = null
+    const projectName = `Opravo: ${request.kategorie || 'Zakázka'}`
+    
+    const { data: existingProject, error: projectFindError } = await supabase
+      .from('Projects')
+      .select('id')
+      .eq('name', projectName)
+      .eq('user_id', sofinity_user_id)
+      .maybeSingle()
+
+    if (existingProject) {
+      project_id = existingProject.id
+    } else {
+      const { data: newProject, error: projectCreateError } = await supabase
+        .from('Projects')
+        .insert({
+          name: projectName,
+          description: `Automaticky vytvořeno z Opravo (${request.kategorie || 'Obecná kategorie'})`,
+          user_id: sofinity_user_id,
+          external_connection: 'opravo'
+        })
+        .select('id')
+        .single()
+
+      if (projectCreateError) {
+        console.warn('Warning: Could not create project:', projectCreateError)
+      } else {
+        project_id = newProject.id
+      }
+    }
+
+    // Extract contact information
+    const contactData = {
+      user_id: sofinity_user_id,
+      email: user.email,
+      full_name: user.jmeno || user.name || null,
+      role: request.typ || null,
+      city: request.mesto || request.lokalita || request.adresa || null,
+      project_id: project_id,
+      source: 'opravo'
+    }
+
+    // Insert or update contact (upsert)
+    const { data: contact, error: contactError } = await supabase
+      .from('Contacts')
+      .upsert(contactData, { 
+        onConflict: 'user_id,email',
+        ignoreDuplicates: false 
+      })
+      .select()
+      .maybeSingle()
+
+    if (contactError) {
+      console.error('Error upserting contact:', contactError)
+      return new Response(
+        JSON.stringify({ error: 'Failed to create/update contact' }),
+        { 
+          status: 500, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    console.log('Successfully processed contact:', { email: user.email, project_id })
+
+    return new Response(
+      JSON.stringify({ 
+        success: true,
+        contact_id: contact?.id || null,
+        project_id: project_id,
+        message: 'Contact processed successfully from Opravo'
+      }),
+      { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+
+  } catch (error) {
+    console.error('Error in contact ingestion:', error)
+    return new Response(
+      JSON.stringify({ error: 'Internal server error during contact processing' }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    )
+  }
+}

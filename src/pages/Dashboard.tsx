@@ -153,11 +153,15 @@ export default function Dashboard() {
       // Fetch dashboard statistics
       let activeCampaignsQuery = supabase.from('Campaigns').select('*', { count: 'exact', head: true }).eq('status', 'active');
       let emailsQuery = supabase.from('Emails').select('*', { count: 'exact', head: true });
+      let contactsQuery = supabase.from('Contacts').select('*', { count: 'exact', head: true }).eq('subscribed', true);
       let projectsQuery = supabase.from('Projects').select('*', { count: 'exact', head: true }).eq('is_active', true);
+      let emailLogsQuery = supabase.from('EmailLogs').select('opened_at').not('opened_at', 'is', null);
 
       if (selectedProjectId) {
         activeCampaignsQuery = activeCampaignsQuery.eq('project_id', selectedProjectId);
         emailsQuery = emailsQuery.eq('project_id', selectedProjectId);
+        contactsQuery = contactsQuery.eq('project_id', selectedProjectId);
+        emailLogsQuery = emailLogsQuery.eq('campaign_id', 'in', '(select id from "Campaigns" where project_id = ' + selectedProjectId + ')');
       }
 
       const [
@@ -169,9 +173,9 @@ export default function Dashboard() {
       ] = await Promise.all([
         activeCampaignsQuery,
         emailsQuery,
-        supabase.from('Contacts').select('*', { count: 'exact', head: true }).eq('subscribed', true),
+        contactsQuery,
         projectsQuery,
-        supabase.from('EmailLogs').select('opened_at').not('opened_at', 'is', null)
+        emailLogsQuery
       ]);
 
       // Calculate average open rate
