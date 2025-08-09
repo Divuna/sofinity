@@ -59,6 +59,9 @@ interface DashboardStats {
   totalContacts: number;
   avgOpenRate: number;
   totalProjects: number;
+  totalOffers: number;
+  acceptedOffers: number;
+  offersSuccessRate: number;
 }
 
 export default function Dashboard() {
@@ -69,7 +72,10 @@ export default function Dashboard() {
     totalEmails: 0,
     totalContacts: 0,
     avgOpenRate: 0,
-    totalProjects: 0
+    totalProjects: 0,
+    totalOffers: 0,
+    acceptedOffers: 0,
+    offersSuccessRate: 0
   });
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -157,11 +163,15 @@ export default function Dashboard() {
       let projectsQuery = supabase.from('Projects').select('*', { count: 'exact', head: true }).eq('is_active', true);
       let emailLogsQuery = supabase.from('EmailLogs').select('opened_at, campaign_id').not('opened_at', 'is', null);
       let totalEmailLogsQuery = supabase.from('EmailLogs').select('*', { count: 'exact', head: true });
+      let offersQuery = supabase.from('offers').select('*', { count: 'exact', head: true });
+      let acceptedOffersQuery = supabase.from('offers').select('*', { count: 'exact', head: true }).eq('status', 'accepted');
 
       if (selectedProjectId) {
         activeCampaignsQuery = activeCampaignsQuery.eq('project_id', selectedProjectId);
         emailsQuery = emailsQuery.eq('project_id', selectedProjectId);
         contactsQuery = contactsQuery.eq('project_id', selectedProjectId);
+        offersQuery = offersQuery.eq('project_id', selectedProjectId);
+        acceptedOffersQuery = acceptedOffersQuery.eq('project_id', selectedProjectId);
         
         // Filter email logs by campaigns in the selected project
         const { data: projectCampaigns } = await supabase
@@ -182,14 +192,18 @@ export default function Dashboard() {
         { count: totalContactsCount },
         { count: totalProjectsCount },
         { data: emailLogsData },
-        { count: totalSentEmails }
+        { count: totalSentEmails },
+        { count: totalOffersCount },
+        { count: acceptedOffersCount }
       ] = await Promise.all([
         activeCampaignsQuery,
         emailsQuery,
         contactsQuery,
         projectsQuery,
         emailLogsQuery,
-        totalEmailLogsQuery
+        totalEmailLogsQuery,
+        offersQuery,
+        acceptedOffersQuery
       ]);
 
       // Calculate average open rate based on sent emails vs opened emails
@@ -197,12 +211,20 @@ export default function Dashboard() {
       const openedEmails = emailLogsData?.length || 0;
       const avgOpenRate = sentEmailsCount > 0 ? (openedEmails / sentEmailsCount) * 100 : 0;
 
+      // Calculate offers success rate
+      const totalOffers = totalOffersCount || 0;
+      const acceptedOffers = acceptedOffersCount || 0;
+      const offersSuccessRate = totalOffers > 0 ? (acceptedOffers / totalOffers) * 100 : 0;
+
       setStats({
         activeCampaigns: activeCampaignsCount || 0,
         totalEmails: totalEmailsCount || 0,
         totalContacts: totalContactsCount || 0,
         avgOpenRate: Math.round(avgOpenRate * 10) / 10,
-        totalProjects: totalProjectsCount || 0
+        totalProjects: totalProjectsCount || 0,
+        totalOffers: totalOffers,
+        acceptedOffers: acceptedOffers,
+        offersSuccessRate: Math.round(offersSuccessRate * 10) / 10
       });
 
     } catch (error) {
@@ -303,7 +325,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
         <StatsCard
           title="Aktivní kampaně"
           value={stats.activeCampaigns.toString()}
@@ -327,11 +349,18 @@ export default function Dashboard() {
           icon={Mail}
         />
         <StatsCard
-          title="Průměrné otevření"
-          value={`${stats.avgOpenRate}%`}
-          change={stats.avgOpenRate > 20 ? "Dobrý výkon" : "Potřeba zlepšení"}
-          changeType={stats.avgOpenRate > 20 ? "positive" : "negative"}
-          icon={Eye}
+          title="Celkem nabídek"
+          value={stats.totalOffers.toString()}
+          change={selectedProjectId ? "V aktuálním projektu" : "Celkem v systému"}
+          changeType="positive"
+          icon={MessageSquare}
+        />
+        <StatsCard
+          title="Úspěšnost nabídek"
+          value={`${stats.offersSuccessRate}%`}
+          change={`${stats.acceptedOffers} vyhrané z ${stats.totalOffers}`}
+          changeType={stats.offersSuccessRate > 50 ? "positive" : stats.offersSuccessRate > 25 ? "neutral" : "negative"}
+          icon={TrendingUp}
         />
       </div>
 

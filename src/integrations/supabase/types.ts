@@ -574,6 +574,39 @@ export type Database = {
         }
         Relationships: []
       }
+      offers: {
+        Row: {
+          created_at: string
+          id: string
+          price: number | null
+          project_id: string | null
+          repairer_id: string | null
+          request_id: string | null
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          price?: number | null
+          project_id?: string | null
+          repairer_id?: string | null
+          request_id?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          price?: number | null
+          project_id?: string | null
+          repairer_id?: string | null
+          request_id?: string | null
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       opravo_jobs: {
         Row: {
           created_at: string | null
