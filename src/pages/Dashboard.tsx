@@ -23,6 +23,7 @@ import {
   MousePointer,
   FolderOpen,
   Settings,
+  Key,
   Plus,
   Link,
   Link2,
@@ -417,9 +418,21 @@ export default function Dashboard() {
                 <FolderOpen className="w-5 h-5 mr-2" />
                 Projekty
               </CardTitle>
-              <Button variant="ghost" size="sm">
-                <Settings className="w-4 h-4" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button variant="default" size="sm" asChild>
+                  <a
+                    href="https://app.sofinity.com/settings/api-keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Key className="w-4 h-4 mr-2" />
+                    Vytvořit API klíč v Sofinity
+                  </a>
+                </Button>
+                <Button variant="ghost" size="sm">
+                  <Settings className="w-4 h-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent className="space-y-3">
               {projects.length > 0 ? (
