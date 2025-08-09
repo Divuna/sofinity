@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useApp } from '@/contexts/AppContext';
+import { getCurrentUser } from '@/lib/auth';
 import { 
   Handshake, 
   Search, 
@@ -49,6 +50,7 @@ export default function Offers() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
+  const [userProfile, setUserProfile] = useState<any>(null);
   const { selectedProjectId } = useApp();
   const { toast } = useToast();
 
@@ -60,6 +62,14 @@ export default function Offers() {
     try {
       setLoading(true);
 
+      // Get current user profile for role-based filtering
+      const currentUser = await getCurrentUser();
+      setUserProfile(currentUser);
+
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
+
       // Fetch projects
       const { data: projectsData, error: projectsError } = await supabase
         .from('Projects')
@@ -69,20 +79,55 @@ export default function Offers() {
       if (projectsError) throw projectsError;
       setProjects(projectsData || []);
 
-      // Fetch offers
+      // Fetch offers with role-based filtering
       let offersQuery = supabase
         .from('offers')
         .select('*')
         .order('created_at', { ascending: false });
 
+      // Apply project filter if selected
       if (selectedProjectId) {
         offersQuery = offersQuery.eq('project_id', selectedProjectId);
       }
 
+      // Apply role-based filtering
+      const userRole = currentUser?.profile?.role;
+      if (userRole === 'customer') {
+        // Customer: Show only offers linked to their own requests
+        // Need to join with requests table to check customer_id
+        offersQuery = supabase
+          .from('offers')
+          .select(`
+            *,
+            opravo_jobs!inner(*)
+          `)
+          .eq('opravo_jobs.customer_id', currentUser.id)
+          .order('created_at', { ascending: false });
+          
+        if (selectedProjectId) {
+          offersQuery = offersQuery.eq('project_id', selectedProjectId);
+        }
+      } else if (userRole === 'repairer') {
+        // Repairer: Show only offers they created
+        offersQuery = offersQuery.eq('repairer_id', currentUser.id);
+      }
+      // Admin: Show all offers (no additional filtering)
+
       const { data: offersData, error: offersError } = await offersQuery;
 
       if (offersError) throw offersError;
-      setOffers(offersData || []);
+      
+      // Extract offers data if joined with opravo_jobs
+      const extractedOffers = offersData?.map((item: any) => {
+        if (item.opravo_jobs) {
+          // Remove the joined data and return just the offer
+          const { opravo_jobs, ...offer } = item;
+          return offer;
+        }
+        return item;
+      }) || [];
+      
+      setOffers(extractedOffers);
 
     } catch (error) {
       console.error('Error fetching offers data:', error);
