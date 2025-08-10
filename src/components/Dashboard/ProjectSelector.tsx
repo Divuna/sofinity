@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useSelectedProject } from '@/providers/ProjectProvider';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Wifi, WifiOff } from 'lucide-react';
-import { checkOpravoIntegration, startOpravoStatusMonitoring, stopOpravoStatusMonitoring } from '@/lib/integrations';
+import { Building2, Wifi, WifiOff, Bug } from 'lucide-react';
+import { checkOpravoIntegration, startOpravoStatusMonitoring, stopOpravoStatusMonitoring, getOpravoStatusFromCache } from '@/lib/integrations';
 
 interface Project {
   id: string;
@@ -35,7 +35,17 @@ export function ProjectSelector() {
   useEffect(() => {
     // Start monitoring when Opravo project is selected
     if (selectedProject?.name === 'Opravo') {
+      console.log('🎯 [ProjectSelector.tsx] Starting Opravo monitoring for selected project');
+      
+      // Check cache first
+      const cachedStatus = getOpravoStatusFromCache();
+      if (cachedStatus) {
+        console.log('💾 [ProjectSelector.tsx] Using cached status:', cachedStatus);
+        setOpravoStatus(cachedStatus);
+      }
+      
       startOpravoStatusMonitoring((status) => {
+        console.log('🔄 [ProjectSelector.tsx] Received status update:', status);
         setOpravoStatus(status);
       });
     } else {
@@ -195,19 +205,34 @@ export function ProjectSelector() {
                           </Badge>
                         )}
                       </div>
-                      {selected.description && (
-                        <div className="text-sm text-muted-foreground mt-1">
-                          {selected.description}
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="text-sm text-muted-foreground">
-                          {selected.campaigns_count} kampaní
-                        </span>
-                        <Badge variant="outline" className="text-xs">
-                          Aktivní
-                        </Badge>
-                      </div>
+                       {selected.description && (
+                         <div className="text-sm text-muted-foreground mt-1">
+                           {selected.description}
+                         </div>
+                       )}
+                       
+                       {/* Debug Info for Opravo projects - TEMPORARY */}
+                       {selected.isOpravoProject && opravoStatus && (
+                         <div className="p-2 bg-muted/50 rounded-lg border text-xs space-y-1 mt-2">
+                           <div className="flex items-center gap-1 font-medium text-muted-foreground">
+                             <Bug className="w-3 h-3" />
+                             Debug Info (dočasné)
+                           </div>
+                           <div>Poslední kontrola: {opravoStatus.lastChecked.toLocaleString('cs-CZ')}</div>
+                           {opravoStatus.error && (
+                             <div className="text-destructive">Chyba: {opravoStatus.error}</div>
+                           )}
+                         </div>
+                       )}
+                       
+                       <div className="flex items-center justify-between mt-2">
+                         <span className="text-sm text-muted-foreground">
+                           {selected.campaigns_count} kampaní
+                         </span>
+                         <Badge variant="outline" className="text-xs">
+                           Aktivní
+                         </Badge>
+                       </div>
                     </div>
                   ) : null;
                 })()}
