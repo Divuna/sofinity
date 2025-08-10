@@ -28,7 +28,8 @@ import {
   Target,
   Bell,
   CheckCircle,
-  BookOpen
+  BookOpen,
+  Bug
 } from 'lucide-react';
 
 const navigation = [
@@ -53,6 +54,7 @@ const advancedNavigation = [
   { name: 'Kalendář týmu', href: '/team-calendar', icon: Calendar },
   { name: 'Znalostní báze', href: '/knowledge-base', icon: BookOpen },
   { name: 'Opravo API Test', href: '/offers-api', icon: Database },
+  { name: 'Opravo API Debug', href: '/opravo-api-debug', icon: Bug },
 ];
 
 const businessNavigation = [
