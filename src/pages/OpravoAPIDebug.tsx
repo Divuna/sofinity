@@ -175,17 +175,17 @@ export default function OpravoAPIDebug() {
               </code>
             </div>
           </div>
-          <div>
-            <label className="text-sm font-medium text-muted-foreground">Request Headers</label>
-            <pre className="p-2 bg-muted rounded text-sm font-mono mt-1">
+            <div>
+              <label className="text-sm font-medium text-muted-foreground">Request Headers</label>
+              <pre className="p-2 bg-muted rounded text-sm font-mono mt-1">
 {JSON.stringify({
   'Content-Type': 'application/json'
 }, null, 2)}
-            </pre>
-            <p className="text-xs text-muted-foreground mt-1">
-              * Authorization header se přidává automaticky v edge function
-            </p>
-          </div>
+              </pre>
+              <p className="text-xs text-muted-foreground mt-1">
+                * Authorization header se přidává automaticky v edge function pomocí SOFINITY_API_KEY
+              </p>
+            </div>
         </CardContent>
       </Card>
 

@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const expected = Deno.env.get("SOFINITY_INTERNAL_API_KEY") ?? "";
+    const expected = Deno.env.get("SOFINITY_API_KEY") ?? "";
     const norm = (s = "") => s.replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000]/g, " ")
                              .replace(/\s+/g, " ").trim();
     const x = norm(req.headers.get("x-api-key") ?? "");
