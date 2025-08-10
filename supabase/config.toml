@@ -42,5 +42,8 @@ verify_jwt = false
 [functions.sofinity-api]
 verify_jwt = false
 
+[functions.opravo-status]
+verify_jwt = false
+
 [functions.sofinity-opravo-status]
 verify_jwt = false
