@@ -1,111 +1,71 @@
-interface OpravoStatus {
+import { supabase } from '@/integrations/supabase/client';
+
+export interface OpravoStatus {
   isConnected: boolean;
-  lastChecked: Date;
+  lastChecked: string;
   error?: string;
 }
 
-const SUPABASE_URL = "https://rrmvxsldrjgbdxluklka.supabase.co";
-
-let opravoStatusCache: OpravoStatus | null = null;
-let statusCheckTimeout: NodeJS.Timeout | null = null;
-
-export const checkOpravoIntegration = async (): Promise<OpravoStatus> => {
+// Shared helper to get Opravo status via edge function
+export const getOpravoStatus = async (projectId?: string): Promise<OpravoStatus> => {
   try {
-    console.log('🔍 [Opravo Integration] Starting API check via edge function...', { 
-      timestamp: new Date().toISOString()
+    const { data, error } = await supabase.functions.invoke('sofinity-opravo-status', {
+      body: projectId ? { projectId } : {}
     });
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout for edge function
-
-    const response = await fetch(`${SUPABASE_URL}/functions/v1/sofinity-opravo-status`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    console.log('📡 [Opravo Integration] Edge function response:', {
-      ok: response.ok,
-      status: response.status,
-      statusText: response.statusText,
-      timestamp: new Date().toISOString()
-    });
-
-    if (!response.ok) {
-      throw new Error(`Edge function error: ${response.status} ${response.statusText}`);
+    if (error) {
+      console.error('❌ [getOpravoStatus] Supabase function error:', error);
+      return {
+        isConnected: false,
+        lastChecked: new Date().toISOString(),
+        error: error.message || 'Chyba volání edge function'
+      };
     }
 
-    const responseData = await response.json();
+    // Normalize response from edge function
+    const p = data?.OpravoApiResult ?? data ?? {};
     
-    console.log('📦 [Opravo Integration] Response data:', responseData);
-
-    const status: OpravoStatus = {
-      isConnected: responseData.isConnected === true,
-      lastChecked: new Date(responseData.lastChecked || new Date()),
-      error: responseData.error,
+    const result: OpravoStatus = {
+      isConnected: !!p.isConnected,
+      lastChecked: p.lastChecked ?? new Date().toISOString(),
+      error: p.error
     };
 
-    opravoStatusCache = status;
-    
-    console.log('✅ [Opravo Integration] Final status object:', {
-      ...status,
-      lastChecked: status.lastChecked.toISOString()
-    });
+    console.log('✅ [getOpravoStatus] Normalized result:', result);
+    return result;
 
-    return status;
   } catch (error) {
-    console.error('❌ [Opravo Integration] Error during check:', error);
-
-    const status: OpravoStatus = {
+    console.error('❌ [getOpravoStatus] Unexpected error:', error);
+    return {
       isConnected: false,
-      lastChecked: new Date(),
-      error: error instanceof Error ? error.message : 'Neznámá chyba',
+      lastChecked: new Date().toISOString(),
+      error: error instanceof Error ? error.message : 'Neznámá chyba'
     };
-
-    opravoStatusCache = status;
-    
-    console.log('🔴 [Opravo Integration] Error status object:', {
-      ...status,
-      lastChecked: status.lastChecked.toISOString()
-    });
-
-    return status;
   }
 };
 
-export const getOpravoStatusFromCache = (): OpravoStatus | null => {
-  return opravoStatusCache;
+// Utility to check if project is Opravo
+export const isOpravoProject = (projectName?: string): boolean => {
+  return (projectName || '').trim().toLowerCase() === 'opravo';
 };
 
-export const startOpravoStatusMonitoring = (onStatusUpdate: (status: OpravoStatus) => void) => {
-  console.log('🚀 [Opravo Integration] Starting status monitoring...');
-  
-  // Clear any existing timeout to prevent duplicates
-  if (statusCheckTimeout) {
-    console.log('🔄 [Opravo Integration] Clearing existing monitoring interval');
-    clearInterval(statusCheckTimeout);
+// LocalStorage helpers for status persistence
+const STORAGE_KEY = 'opravo-status';
+
+export const saveOpravoStatusToStorage = (status: OpravoStatus): void => {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(status));
+  } catch (error) {
+    console.warn('Failed to save Opravo status to localStorage:', error);
   }
-
-  // Start periodic checks every 60 seconds
-  statusCheckTimeout = setInterval(async () => {
-    console.log('⏰ [Opravo Integration] Periodic check triggered');
-    const status = await checkOpravoIntegration();
-    onStatusUpdate(status);
-  }, 60000);
-
-  // Initial check
-  console.log('🎯 [Opravo Integration] Running initial check');
-  checkOpravoIntegration().then(onStatusUpdate);
 };
 
-export const stopOpravoStatusMonitoring = () => {
-  if (statusCheckTimeout) {
-    console.log('🛑 [Opravo Integration] Stopping status monitoring');
-    clearInterval(statusCheckTimeout);
-    statusCheckTimeout = null;
+export const loadOpravoStatusFromStorage = (): OpravoStatus | null => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    return stored ? JSON.parse(stored) : null;
+  } catch (error) {
+    console.warn('Failed to load Opravo status from localStorage:', error);
+    return null;
   }
 };

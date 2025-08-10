@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSelectedProject } from '@/providers/ProjectProvider';
 import { useToast } from '@/hooks/use-toast';
 import { Building2, Wifi, WifiOff, Bug } from 'lucide-react';
-import { checkOpravoIntegration, startOpravoStatusMonitoring, stopOpravoStatusMonitoring, getOpravoStatusFromCache } from '@/lib/integrations';
+import { getOpravoStatus, isOpravoProject, saveOpravoStatusToStorage, loadOpravoStatusFromStorage, type OpravoStatus } from '@/lib/integrations';
 
 interface Project {
   id: string;
@@ -20,7 +20,8 @@ interface Project {
 export function ProjectSelector() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [opravoStatus, setOpravoStatus] = useState<{isConnected: boolean; lastChecked: Date; error?: string} | null>(null);
+  const [opravoStatus, setOpravoStatus] = useState<OpravoStatus | null>(null);
+  const [statusPolling, setStatusPolling] = useState<NodeJS.Timeout | null>(null);
   const { selectedProject, setSelectedProject } = useSelectedProject();
   const { toast } = useToast();
 
@@ -28,28 +29,47 @@ export function ProjectSelector() {
     fetchProjects();
     
     return () => {
-      stopOpravoStatusMonitoring();
+      if (statusPolling) {
+        clearInterval(statusPolling);
+      }
     };
   }, []);
 
   useEffect(() => {
     // Start monitoring when Opravo project is selected
-    if (selectedProject?.name === 'Opravo') {
-      console.log('🎯 [ProjectSelector.tsx] Starting Opravo monitoring for selected project');
+    if (selectedProject && isOpravoProject(selectedProject.name)) {
+      console.log('🎯 [ProjectSelector] Starting Opravo monitoring for selected project');
       
-      // Check cache first
-      const cachedStatus = getOpravoStatusFromCache();
+      // Load from localStorage first to avoid flicker
+      const cachedStatus = loadOpravoStatusFromStorage();
       if (cachedStatus) {
-        console.log('💾 [ProjectSelector.tsx] Using cached status:', cachedStatus);
+        console.log('💾 [ProjectSelector] Using cached status:', cachedStatus);
         setOpravoStatus(cachedStatus);
       }
       
-      startOpravoStatusMonitoring((status) => {
-        console.log('🔄 [ProjectSelector.tsx] Received status update:', status);
-        setOpravoStatus(status);
-      });
+      // Start polling
+      const checkStatus = async () => {
+        try {
+          const status = await getOpravoStatus(selectedProject.id);
+          console.log('🔄 [ProjectSelector] Received status update:', status);
+          setOpravoStatus(status);
+          saveOpravoStatusToStorage(status);
+        } catch (error) {
+          console.error('Error checking Opravo status:', error);
+        }
+      };
+
+      // Initial check
+      checkStatus();
+
+      // Poll every 60 seconds
+      const interval = setInterval(checkStatus, 60000);
+      setStatusPolling(interval);
     } else {
-      stopOpravoStatusMonitoring();
+      if (statusPolling) {
+        clearInterval(statusPolling);
+        setStatusPolling(null);
+      }
       setOpravoStatus(null);
     }
   }, [selectedProject]);
@@ -78,7 +98,7 @@ export function ProjectSelector() {
             description: project.description,
             is_active: project.is_active,
             campaigns_count: campaignsCount || 0,
-            isOpravoProject: project.name === 'Opravo'
+            isOpravoProject: isOpravoProject(project.name)
           };
         })
       );
@@ -103,7 +123,6 @@ export function ProjectSelector() {
       setLoading(false);
     }
   };
-
 
   if (loading) {
     return (
@@ -218,7 +237,9 @@ export function ProjectSelector() {
                              <Bug className="w-3 h-3" />
                              Debug Info (dočasné)
                            </div>
-                           <div>Poslední kontrola: {opravoStatus.lastChecked.toLocaleString('cs-CZ')}</div>
+                           <div>
+                             Poslední kontrola: {new Date(opravoStatus.lastChecked).toLocaleString('cs-CZ')}
+                           </div>
                            {opravoStatus.error && (
                              <div className="text-destructive">Chyba: {opravoStatus.error}</div>
                            )}

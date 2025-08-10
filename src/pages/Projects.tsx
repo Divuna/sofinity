@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Building2, Calendar, Mail, Target, Bot, Wifi, WifiOff, Bug } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { checkOpravoIntegration, startOpravoStatusMonitoring, stopOpravoStatusMonitoring, getOpravoStatusFromCache } from '@/lib/integrations';
+import { getOpravoStatus, isOpravoProject, saveOpravoStatusToStorage, loadOpravoStatusFromStorage, type OpravoStatus } from '@/lib/integrations';
 
 interface Project {
   id: string;
@@ -22,7 +22,8 @@ interface Project {
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [opravoStatus, setOpravoStatus] = useState<{isConnected: boolean; lastChecked: Date; error?: string} | null>(null);
+  const [opravoStatus, setOpravoStatus] = useState<OpravoStatus | null>(null);
+  const [statusPolling, setStatusPolling] = useState<NodeJS.Timeout | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -30,28 +31,48 @@ export default function Projects() {
     fetchProjects();
     
     return () => {
-      stopOpravoStatusMonitoring();
+      if (statusPolling) {
+        clearInterval(statusPolling);
+      }
     };
   }, []);
 
   useEffect(() => {
     // Start monitoring for Opravo projects
-    const opravoProjects = projects.filter(p => p.name === 'Opravo');
+    const opravoProjects = projects.filter(p => isOpravoProject(p.name));
     if (opravoProjects.length > 0) {
-      console.log('📋 [Projects.tsx] Starting Opravo monitoring for projects list');
+      console.log('📋 [Projects] Starting Opravo monitoring for projects list');
       
-      // Check cache first
-      const cachedStatus = getOpravoStatusFromCache();
+      // Load from localStorage first to avoid flicker
+      const cachedStatus = loadOpravoStatusFromStorage();
       if (cachedStatus) {
-        console.log('💾 [Projects.tsx] Using cached status:', cachedStatus);
+        console.log('💾 [Projects] Using cached status:', cachedStatus);
         setOpravoStatus(cachedStatus);
       }
       
-      startOpravoStatusMonitoring((status) => {
-        console.log('🔄 [Projects.tsx] Received status update:', status);
-        setOpravoStatus(status);
-      });
+      // Start polling
+      const checkStatus = async () => {
+        try {
+          const status = await getOpravoStatus();
+          console.log('🔄 [Projects] Received status update:', status);
+          setOpravoStatus(status);
+          saveOpravoStatusToStorage(status);
+        } catch (error) {
+          console.error('Error checking Opravo status:', error);
+        }
+      };
+
+      // Initial check
+      checkStatus();
+
+      // Poll every 60 seconds
+      const interval = setInterval(checkStatus, 60000);
+      setStatusPolling(interval);
     } else {
+      if (statusPolling) {
+        clearInterval(statusPolling);
+        setStatusPolling(null);
+      }
       setOpravoStatus(null);
     }
   }, [projects]);
@@ -94,7 +115,7 @@ export default function Projects() {
             campaignCount: (campaignCountById || 0) + (campaignCountByName || 0),
             emailCount: (emailCountById || 0) + (emailCountByName || 0),
             aiRequestCount: (aiRequestCountById || 0) + (aiRequestCountByName || 0),
-            isOpravoProject: project.name === 'Opravo'
+            isOpravoProject: isOpravoProject(project.name)
           };
         })
       );
@@ -223,7 +244,7 @@ export default function Projects() {
                       <Bug className="w-3 h-3" />
                       Debug Info (dočasné)
                     </div>
-                    <div>Poslední kontrola: {opravoStatus.lastChecked.toLocaleString('cs-CZ')}</div>
+                    <div>Poslední kontrola: {new Date(opravoStatus.lastChecked).toLocaleString('cs-CZ')}</div>
                     {opravoStatus.error && (
                       <div className="text-destructive">Chyba: {opravoStatus.error}</div>
                     )}
