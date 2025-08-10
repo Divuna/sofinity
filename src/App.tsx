@@ -57,8 +57,8 @@ const App = () => (
             <Route path="/campaigns/:id/reports" element={<CampaignReports />} />
             
             {/* Email routes */}
-            <Route path="/emails" element={<EmailCenter />} />
-            <Route path="/email/:id" element={<EmailDetail />} />
+            <Route path="/emails" element={<AuthGuard><EmailCenter /></AuthGuard>} />
+            <Route path="/emails/:id" element={<AuthGuard><EmailDetail /></AuthGuard>} />
             
             {/* Other feature routes */}
             <Route path="/autoresponses" element={<AutoresponsesManager />} />

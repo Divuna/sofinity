@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -14,8 +15,9 @@ import {
   User,
   Calendar,
   BarChart3,
-  Share,
-  Copy
+  Copy,
+  Save,
+  Send
 } from 'lucide-react';
 
 interface EmailItem {
@@ -49,6 +51,8 @@ export default function EmailDetail() {
   const [email, setEmail] = useState<EmailItem | null>(null);
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -58,11 +62,15 @@ export default function EmailDetail() {
 
   const fetchEmailData = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
       // Fetch email
       const { data: emailData, error: emailError } = await supabase
         .from('Emails')
         .select('*')
         .eq('id', id)
+        .eq('user_id', user.id)
         .single();
 
       if (emailError) throw emailError;
@@ -72,7 +80,7 @@ export default function EmailDetail() {
       const { data: logsData } = await supabase
         .from('EmailLogs')
         .select('*')
-        .eq('recipient_email', emailData.recipient || '')
+        .eq('user_id', user.id)
         .order('sent_at', { ascending: false });
       
       setEmailLogs(logsData || []);
@@ -103,6 +111,50 @@ export default function EmailDetail() {
         variant: "destructive"
       });
     }
+  };
+
+  const handleSave = async () => {
+    if (!email) return;
+    
+    setSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
+      const { error } = await supabase
+        .from('Emails')
+        .update({
+          content: email.content,
+          type: email.type,
+          project: email.project
+        })
+        .eq('id', email.id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Uloženo",
+        description: "E-mail byl úspěšně aktualizován"
+      });
+      setIsEditing(false);
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se uložit změny",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleTestSend = async () => {
+    // Placeholder for test send functionality
+    toast({
+      title: "Test odeslání",
+      description: "Funkce test odeslání bude implementována",
+    });
   };
 
   if (loading) {
@@ -148,11 +200,23 @@ export default function EmailDetail() {
         <div className="flex items-center gap-2">
           <Button variant="outline" onClick={() => copyToClipboard(email.content)}>
             <Copy className="w-4 h-4 mr-2" />
-            Kopírovat
+            Kopírovat obsah
           </Button>
-          <Button variant="outline">
-            <Share className="w-4 h-4 mr-2" />
-            Sdílet
+          <Button 
+            variant={isEditing ? "default" : "outline"}
+            onClick={() => setIsEditing(!isEditing)}
+          >
+            {isEditing ? "Zrušit úpravy" : "Upravit a uložit"}
+          </Button>
+          {isEditing && (
+            <Button onClick={handleSave} disabled={saving}>
+              <Save className="w-4 h-4 mr-2" />
+              {saving ? 'Ukládání...' : 'Uložit'}
+            </Button>
+          )}
+          <Button variant="outline" onClick={handleTestSend}>
+            <Send className="w-4 h-4 mr-2" />
+            Odeslat test
           </Button>
         </div>
       </div>
@@ -168,10 +232,19 @@ export default function EmailDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="prose prose-sm max-w-none">
-                <div className="whitespace-pre-wrap font-mono text-sm p-4 bg-muted rounded-lg">
-                  {email.content}
-                </div>
+              <div className="space-y-4">
+                {isEditing ? (
+                  <Textarea
+                    value={email.content}
+                    onChange={(e) => setEmail({ ...email, content: e.target.value })}
+                    rows={12}
+                    className="font-mono text-sm"
+                  />
+                ) : (
+                  <div className="whitespace-pre-wrap font-mono text-sm p-4 bg-muted rounded-lg">
+                    {email.content}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

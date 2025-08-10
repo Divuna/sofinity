@@ -63,9 +63,13 @@ export default function EmailCenter() {
 
   const fetchEmails = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
       let query = supabase
         .from('Emails')
         .select('*')
+        .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
       if (selectedProject?.id) {
@@ -89,9 +93,13 @@ export default function EmailCenter() {
 
   const fetchEmailLogs = async () => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('EmailLogs')
         .select('*')
+        .eq('user_id', user.id)
         .order('sent_at', { ascending: false });
 
       if (error) throw error;
@@ -156,16 +164,12 @@ export default function EmailCenter() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">
-            E-mailové centrum{selectedProject ? ` — ${selectedProject.name}` : ''}
+            E-maily{selectedProject ? ` — ${selectedProject.name}` : ''}
           </h1>
           <p className="text-muted-foreground mt-1">
             Správa e-mailů a sledování jejich doručení
           </p>
         </div>
-        <Button variant="gradient" className="shadow-strong">
-          <Mail className="w-4 h-4 mr-2" />
-          Nový e-mail
-        </Button>
       </div>
 
       {/* Statistics */}
@@ -234,10 +238,11 @@ export default function EmailCenter() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Všechny typy</SelectItem>
-                <SelectItem value="campaign">Kampaň</SelectItem>
+                <SelectItem value="promo">Promo</SelectItem>
+                <SelectItem value="onboarding">Onboarding</SelectItem>
+                <SelectItem value="follow-up">Follow-up</SelectItem>
                 <SelectItem value="newsletter">Newsletter</SelectItem>
-                <SelectItem value="notification">Notifikace</SelectItem>
-                <SelectItem value="autoresponse">Auto-odpověď</SelectItem>
+                <SelectItem value="reminder">Reminder</SelectItem>
               </SelectContent>
             </Select>
             <Select value={projectFilter} onValueChange={setProjectFilter}>
@@ -273,8 +278,6 @@ export default function EmailCenter() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Stav</TableHead>
-                  <TableHead>Příjemce</TableHead>
                   <TableHead>Typ</TableHead>
                   <TableHead>Projekt</TableHead>
                   <TableHead>Náhled obsahu</TableHead>
@@ -285,17 +288,6 @@ export default function EmailCenter() {
               <TableBody>
                 {filteredEmails.map((email) => (
                   <TableRow key={email.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        {getEmailStatusIcon(email)}
-                        {getEmailStatus(email)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">
-                        {email.recipient || 'Neurčeno'}
-                      </div>
-                    </TableCell>
                     <TableCell>
                       <Badge variant="outline">
                         {email.type}
@@ -308,7 +300,7 @@ export default function EmailCenter() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm text-muted-foreground max-w-xs truncate">
-                        {email.content.substring(0, 100)}...
+                        {email.content.substring(0, 120)}...
                       </div>
                     </TableCell>
                     <TableCell>
@@ -317,35 +309,19 @@ export default function EmailCenter() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/email/${email.id}`)}
-                        >
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleForward(email)}
-                        >
-                          <Forward className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/email/${email.id}/stats`)}
-                        >
-                          <BarChart3 className="w-4 h-4" />
-                        </Button>
-                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => navigate(`/emails/${email.id}`)}
+                      >
+                        Detail
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
                 {filteredEmails.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       <p className="text-muted-foreground">Žádné e-maily nenalezeny</p>
                     </TableCell>
                   </TableRow>
