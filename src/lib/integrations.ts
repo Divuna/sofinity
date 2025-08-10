@@ -44,7 +44,7 @@ export const checkOpravoIntegration = async (): Promise<OpravoStatus> => {
     console.log('📦 [Opravo Integration] Response data:', responseData);
 
     const status: OpravoStatus = {
-      isConnected: responseData.isConnected || false,
+      isConnected: responseData.isConnected === true,
       lastChecked: new Date(responseData.lastChecked || new Date()),
       error: responseData.error,
     };
