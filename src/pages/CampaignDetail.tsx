@@ -20,7 +20,8 @@ import {
   Mail,
   FileText,
   Video,
-  Target
+  Target,
+  Plus
 } from 'lucide-react';
 
 interface Campaign {
@@ -223,6 +224,10 @@ export default function CampaignDetail() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate(`/campaigns/${id}/schedule`)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Přidat do plánu
+          </Button>
           <Button variant="outline" onClick={toggleCampaignStatus}>
             {campaign.status === 'active' ? (
               <>
@@ -246,8 +251,8 @@ export default function CampaignDetail() {
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
           <TabsTrigger value="overview">Přehled</TabsTrigger>
-          <TabsTrigger value="schedule">Plán kampaně</TabsTrigger>
-          <TabsTrigger value="reports">Výsledky</TabsTrigger>
+          <TabsTrigger value="schedule" onClick={() => navigate(`/campaigns/${id}/schedule`)}>Plán kampaně</TabsTrigger>
+          <TabsTrigger value="reports" onClick={() => navigate(`/campaigns/${id}/reports`)}>Výsledky</TabsTrigger>
           <TabsTrigger value="feedback">Zpětná vazba</TabsTrigger>
         </TabsList>
 

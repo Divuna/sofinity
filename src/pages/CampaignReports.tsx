@@ -38,6 +38,8 @@ interface CampaignReport {
   campaign_id: string | null;
   open_rate: number | null;
   click_rate: number | null;
+  impressions: number | null;
+  conversions: number | null;
   export_link: string | null;
   summary_text: string | null;
   created_at: string;
@@ -148,7 +150,7 @@ export default function CampaignReports() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Reporty a analýzy</h1>
+          <h1 className="text-3xl font-bold text-foreground">Výsledky kampaně</h1>
           <p className="text-muted-foreground mt-1">
             Přehled výkonu kampaní a statistiky otevření
           </p>
@@ -192,7 +194,7 @@ export default function CampaignReports() {
       </Card>
 
       {/* Overview Statistics */}
-      <div className="grid gap-6 md:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-5">
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center space-x-2">
@@ -210,7 +212,7 @@ export default function CampaignReports() {
                 {avgOpenRate.toFixed(1)}%
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Průměrná míra otevření</p>
+            <p className="text-xs text-muted-foreground">Míra otevření</p>
             <div className="flex items-center text-xs mt-1">
               {avgOpenRate > 20 ? (
                 <TrendingUp className="w-3 h-3 text-success mr-1" />
@@ -231,7 +233,7 @@ export default function CampaignReports() {
                 {avgClickRate.toFixed(1)}%
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Průměrná míra kliknutí</p>
+            <p className="text-xs text-muted-foreground">Míra kliknutí</p>
             <div className="flex items-center text-xs mt-1">
               {avgClickRate > 5 ? (
                 <TrendingUp className="w-3 h-3 text-success mr-1" />
@@ -247,12 +249,23 @@ export default function CampaignReports() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-center space-x-2">
-              <Target className="w-4 h-4 text-primary" />
+              <Eye className="w-4 h-4 text-primary" />
               <div className="text-2xl font-bold">
-                {avgClickRate > 0 ? ((avgClickRate / avgOpenRate) * 100).toFixed(1) : 0}%
+                {filteredReports.reduce((sum, r) => sum + (r.impressions || 0), 0).toLocaleString()}
               </div>
             </div>
-            <p className="text-xs text-muted-foreground">Konverzní poměr</p>
+            <p className="text-xs text-muted-foreground">Zobrazení</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-center space-x-2">
+              <Target className="w-4 h-4 text-primary" />
+              <div className="text-2xl font-bold">
+                {filteredReports.reduce((sum, r) => sum + (r.conversions || 0), 0).toLocaleString()}
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">Konverze</p>
           </CardContent>
         </Card>
       </div>
@@ -380,18 +393,16 @@ export default function CampaignReports() {
                         <div className="text-xs text-muted-foreground">Míra kliknutí</div>
                       </div>
                       <div className="text-center p-3 bg-muted rounded-lg">
-                        <div className="text-2xl font-bold text-success">
-                          {report.open_rate && report.click_rate ? 
-                            `${((report.click_rate / report.open_rate) * 100).toFixed(1)}%` : 'N/A'}
+                        <div className="text-2xl font-bold text-primary">
+                          {report.impressions ? report.impressions.toLocaleString() : 'N/A'}
                         </div>
-                        <div className="text-xs text-muted-foreground">Konverzní poměr</div>
+                        <div className="text-xs text-muted-foreground">Zobrazení</div>
                       </div>
                       <div className="text-center p-3 bg-muted rounded-lg">
-                        <div className="text-2xl font-bold text-warning">
-                          {report.open_rate ? 
-                            (report.open_rate > 20 ? 'Dobrý' : 'Nízký') : 'N/A'}
+                        <div className="text-2xl font-bold text-success">
+                          {report.conversions ? report.conversions.toLocaleString() : 'N/A'}
                         </div>
-                        <div className="text-xs text-muted-foreground">Výkon</div>
+                        <div className="text-xs text-muted-foreground">Konverze</div>
                       </div>
                     </div>
 

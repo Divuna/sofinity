@@ -166,9 +166,11 @@ export type Database = {
         Row: {
           campaign_id: string | null
           click_rate: number | null
+          conversions: number | null
           created_at: string | null
           export_link: string | null
           id: string
+          impressions: number | null
           open_rate: number | null
           summary_text: string | null
           user_id: string | null
@@ -176,9 +178,11 @@ export type Database = {
         Insert: {
           campaign_id?: string | null
           click_rate?: number | null
+          conversions?: number | null
           created_at?: string | null
           export_link?: string | null
           id?: string
+          impressions?: number | null
           open_rate?: number | null
           summary_text?: string | null
           user_id?: string | null
@@ -186,9 +190,11 @@ export type Database = {
         Update: {
           campaign_id?: string | null
           click_rate?: number | null
+          conversions?: number | null
           created_at?: string | null
           export_link?: string | null
           id?: string
+          impressions?: number | null
           open_rate?: number | null
           summary_text?: string | null
           user_id?: string | null

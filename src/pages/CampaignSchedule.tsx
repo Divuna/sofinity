@@ -253,7 +253,7 @@ export default function CampaignSchedule() {
           <DialogTrigger asChild>
             <Button variant="gradient" className="shadow-strong">
               <Plus className="w-4 h-4 mr-2" />
-              Naplánovat publikaci
+              Přidat publikaci
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-2xl">
@@ -291,12 +291,11 @@ export default function CampaignSchedule() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="email">E-mail</SelectItem>
-                    <SelectItem value="instagram">Instagram</SelectItem>
+                    <SelectItem value="email">Email</SelectItem>
                     <SelectItem value="facebook">Facebook</SelectItem>
+                    <SelectItem value="instagram">Instagram</SelectItem>
                     <SelectItem value="youtube">YouTube</SelectItem>
-                    <SelectItem value="linkedin">LinkedIn</SelectItem>
-                    <SelectItem value="website">Web</SelectItem>
+                    <SelectItem value="push">Push</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -334,7 +333,7 @@ export default function CampaignSchedule() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Čas</label>
+                  <label className="text-sm font-medium mb-2 block">Čas publikace</label>
                   <Input
                     type="time"
                     value={newItem.time}
@@ -400,15 +399,15 @@ export default function CampaignSchedule() {
                               <span className="text-sm text-muted-foreground">
                                 {format(new Date(item.publish_at), 'HH:mm')}
                               </span>
-                              {item.published ? (
+                               {item.published ? (
                                 <Badge className="bg-success text-success-foreground">
                                   Publikováno
                                 </Badge>
-                              ) : (
+                               ) : (
                                 <Badge variant="secondary">
                                   Čeká
                                 </Badge>
-                              )}
+                               )}
                             </div>
                             
                             <div className="text-sm font-medium mb-1">
@@ -422,10 +421,11 @@ export default function CampaignSchedule() {
                         </div>
 
                         <div className="flex items-center gap-2 flex-shrink-0">
-                          <Button
+                           <Button
                             variant="ghost"
                             size="icon"
                             onClick={() => togglePublished(item.id, item.published)}
+                            title={item.published ? "Označit jako nepublikováno" : "Označit jako publikováno"}
                           >
                             {item.published ? (
                               <Pause className="w-4 h-4" />
