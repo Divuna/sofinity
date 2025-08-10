@@ -9,13 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
-import { ExternalLink, Calendar, MessageCircle, Search, Filter, Download, Eye } from "lucide-react";
+import { ExternalLink, Calendar, MessageCircle, Search, Filter, Download, Eye, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, subWeeks, subMonths } from "date-fns";
 import { cs } from "date-fns/locale";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
+import Papa from 'papaparse';
 
 interface OpravoJob {
   id: string;
@@ -121,7 +122,7 @@ export default function OpravoDataHub() {
     }
   }, [filters]);
 
-  const { data: jobs = [], isLoading: jobsLoading } = useQuery({
+  const { data: jobs = [], isLoading: jobsLoading, error: jobsError } = useQuery({
     queryKey: ['opravo-jobs', filters],
     queryFn: async () => {
       let query = supabase
@@ -167,10 +168,13 @@ export default function OpravoDataHub() {
       const { data, error } = await query;
       if (error) throw error;
       return data as OpravoJob[];
-    }
+    },
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 30000
   });
 
-  const { data: offers = [], isLoading: offersLoading } = useQuery({
+  const { data: offers = [], isLoading: offersLoading, error: offersError } = useQuery({
     queryKey: ['opravo-offers', filters],
     queryFn: async () => {
       let query = supabase
@@ -204,7 +208,10 @@ export default function OpravoDataHub() {
       const { data, error } = await query;
       if (error) throw error;
       return data as OpravoOffer[];
-    }
+    },
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    staleTime: 30000
   });
 
   // Statistics calculations
@@ -242,41 +249,68 @@ export default function OpravoDataHub() {
   };
 
   const exportToCSV = (data: any[], filename: string, type: 'jobs' | 'offers') => {
-    const headers = type === 'jobs' 
-      ? ['Popis', 'Lokalita', 'Urgentní', 'Stav', 'Vybraný opravář', 'Datum vytvoření']
-      : ['Popis', 'Cena', 'Finalizováno', 'Vybráno', 'Datum vytvoření'];
-    
-    const csvContent = [
-      headers.join(','),
-      ...data.map(item => {
+    try {
+      const formattedData = data.map(item => {
         if (type === 'jobs') {
           const job = item as OpravoJob;
-          return [
-            `"${job.popis || ''}"`,
-            `"${job.lokalita || ''}"`,
-            job.urgentni ? 'Ano' : 'Ne',
-            job.status === 'published' ? 'Publikováno' : 'Čeká',
-            job.vybrany_opravar ? 'Vybrán' : 'Nevybrán',
-            job.created_at ? format(new Date(job.created_at), 'dd.MM.yyyy HH:mm', { locale: cs }) : ''
-          ].join(',');
+          return {
+            'Popis': job.popis || '',
+            'Lokalita': job.lokalita || '',
+            'Urgentní': job.urgentni ? 'Ano' : 'Ne',
+            'Stav': job.status === 'published' ? 'Publikováno' : 'Čeká',
+            'Vybraný opravář': job.vybrany_opravar ? 'Vybrán' : 'Nevybrán',
+            'Datum vytvoření': job.created_at ? 
+              new Intl.DateTimeFormat('cs-CZ', {
+                year: 'numeric',
+                month: '2-digit', 
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              }).format(new Date(job.created_at)) : ''
+          };
         } else {
           const offer = item as OpravoOffer;
-          return [
-            `"${offer.popis || ''}"`,
-            offer.cena || 0,
-            offer.finalizovana ? 'Ano' : 'Ne',
-            offer.vybrana ? 'Ano' : 'Ne',
-            offer.created_at ? format(new Date(offer.created_at), 'dd.MM.yyyy HH:mm', { locale: cs }) : ''
-          ].join(',');
+          return {
+            'Popis': offer.popis || '',
+            'Cena': offer.cena ? 
+              new Intl.NumberFormat('cs-CZ', { 
+                style: 'currency', 
+                currency: 'CZK' 
+              }).format(offer.cena) : '',
+            'Finalizováno': offer.finalizovana ? 'Ano' : 'Ne',
+            'Vybráno': offer.vybrana ? 'Ano' : 'Ne',
+            'Datum vytvoření': offer.created_at ? 
+              new Intl.DateTimeFormat('cs-CZ', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+              }).format(new Date(offer.created_at)) : ''
+          };
         }
-      })
-    ].join('\n');
+      });
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${filename}.csv`;
-    link.click();
+      const csv = Papa.unparse(formattedData, {
+        encoding: 'utf-8',
+        header: true
+      });
+
+      const blob = new Blob(['\uFEFF' + csv], { 
+        type: 'text/csv;charset=utf-8;' 
+      });
+      
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `${filename}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      toast.error('Chyba při exportu CSV souboru');
+    }
   };
 
   const handleFilterChange = (key: keyof Filters, value: string) => {
@@ -722,6 +756,21 @@ export default function OpravoDataHub() {
           </CardTitle>
         </CardHeader>
         <CardContent>
+          {/* Error Display */}
+          {(jobsError || offersError) && (
+            <Card className="mb-6 border-destructive">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="font-medium">Chyba při načítání dat</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Zkuste obnovit stránku nebo kontaktujte podporu, pokud problém přetrvává.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+          
           <FiltersPanel />
           
           <Tabs defaultValue="zakazky" className="w-full">
