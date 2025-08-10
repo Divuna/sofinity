@@ -146,6 +146,27 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Create OpravoJobs record
+    const { data: opravoJob, error: jobError } = await supabase
+      .from('opravojobs')
+      .insert({
+        request_id: request.id,
+        popis: request.popis,
+        vytvoreno: request.created_at || new Date().toISOString(),
+        urgentni: request.urgentni || false,
+        lokalita: request.lokalita || request.adresa,
+        zadavatel_id: request.zadavatel_id,
+        status: 'pending',
+        project_id: null, // Will be set below if project creation succeeds
+        user_id: sofinity_user_id
+      })
+      .select()
+      .single()
+
+    if (jobError) {
+      console.error('Error creating OpravoJob:', jobError)
+    }
+
     // Optionally create a Project record for better organization
     const { data: project, error: projectError } = await supabase
       .from('Projects')
@@ -159,6 +180,35 @@ Deno.serve(async (req) => {
 
     if (projectError) {
       console.warn('Warning: Could not create project record:', projectError)
+    } else if (opravoJob) {
+      // Update OpravoJob with project_id
+      await supabase
+        .from('opravojobs')
+        .update({ project_id: project.id })
+        .eq('id', opravoJob.id)
+    }
+
+    // Auto-generate campaign schedule
+    if (opravoJob) {
+      const campaignContent = `${request.popis || 'Nová zakázka'} v lokalitě ${request.lokalita || request.adresa || 'neuvedeno'}${urgencyText}`
+      const channel = request.urgentni ? 'email' : 'facebook'
+      const publishAt = new Date()
+      publishAt.setDate(publishAt.getDate() + 1) // Tomorrow
+
+      const { error: scheduleError } = await supabase
+        .from('CampaignSchedule')
+        .insert({
+          campaign_id: null, // No specific campaign
+          channel: channel,
+          content: campaignContent,
+          publish_at: publishAt.toISOString(),
+          published: false,
+          user_id: sofinity_user_id
+        })
+
+      if (scheduleError) {
+        console.warn('Warning: Could not create campaign schedule:', scheduleError)
+      }
     }
 
     console.log('Successfully created AI request:', aiRequest.id)
@@ -167,8 +217,9 @@ Deno.serve(async (req) => {
       JSON.stringify({ 
         success: true,
         ai_request_id: aiRequest.id,
+        opravo_job_id: opravoJob?.id || null,
         project_id: project?.id || null,
-        message: 'AI request created successfully in Sofinity'
+        message: 'OpravoJob and AI request created successfully in Sofinity'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

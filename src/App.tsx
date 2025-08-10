@@ -33,6 +33,7 @@ import PlanovacPublikace from "./pages/PlanovacPublikace";
 import Projects from "./pages/Projects";
 import Offers from "./pages/Offers";
 import OffersAPI from "./pages/OffersAPI";
+import OpravoDataHub from "./pages/OpravoDataHub";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,7 @@ const App = () => (
             <Route path="/projects" element={<Projects />} />
             <Route path="/offers" element={<Offers />} />
             <Route path="/offers-api" element={<OffersAPI />} />
+            <Route path="/opravo-data-hub" element={<OpravoDataHub />} />
             
             {/* Existing routes */}
             <Route path="/team-feedback" element={<TeamFeedback />} />

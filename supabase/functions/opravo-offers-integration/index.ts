@@ -155,7 +155,27 @@ async function handleOfferEvent(supabase: any, webhookData: any, corsHeaders: an
       }
     }
 
-    // Extract offer data
+    // Create OpravoOffers record
+    const { data: opravoOffer, error: opravoOfferError } = await supabase
+      .from('opravooffers')
+      .insert({
+        offer_id: offer.id,
+        zakazka_id: offer.request_id || offer.pozadavek_id,
+        opravar_id: offer.repairer_id || offer.opravce_id,
+        cena: offer.price || offer.cena,
+        popis: offer.popis || offer.description || 'Nová nabídka',
+        finalizovana: false,
+        vybrana: false,
+        user_id: sofinity_user_id
+      })
+      .select()
+      .single()
+
+    if (opravoOfferError) {
+      console.error('Error creating OpravoOffer:', opravoOfferError)
+    }
+
+    // Extract offer data for legacy offers table
     const offerData = {
       id: offer.id,
       request_id: offer.request_id || offer.pozadavek_id,
@@ -167,7 +187,7 @@ async function handleOfferEvent(supabase: any, webhookData: any, corsHeaders: an
       updated_at: new Date().toISOString()
     }
 
-    // Insert or update offer (upsert)
+    // Insert or update offer (upsert) - for legacy offers table
     const { data: offerResult, error: offerError } = await supabase
       .from('offers')
       .upsert(offerData, { 
@@ -176,6 +196,22 @@ async function handleOfferEvent(supabase: any, webhookData: any, corsHeaders: an
       })
       .select()
       .maybeSingle()
+
+    // Send notification for new offer
+    if (opravoOffer) {
+      const { error: notificationError } = await supabase
+        .from('Notifications')
+        .insert({
+          user_id: sofinity_user_id,
+          type: 'opravo_offer',
+          title: 'Nová nabídka v Opravo',
+          message: 'Byla přijata nová nabídka v Opravo.'
+        })
+
+      if (notificationError) {
+        console.warn('Warning: Could not create notification:', notificationError)
+      }
+    }
 
     if (offerError) {
       console.error('Error upserting offer:', offerError)
@@ -194,8 +230,9 @@ async function handleOfferEvent(supabase: any, webhookData: any, corsHeaders: an
       JSON.stringify({ 
         success: true,
         offer_id: offer.id,
+        opravo_offer_id: opravoOffer?.id || null,
         project_id: project_id,
-        message: 'Offer processed successfully from Opravo'
+        message: 'OpravoOffer and notification created successfully from Opravo'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

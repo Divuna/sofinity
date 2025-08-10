@@ -652,6 +652,98 @@ export type Database = {
         }
         Relationships: []
       }
+      opravojobs: {
+        Row: {
+          created_at: string
+          id: string
+          lokalita: string | null
+          popis: string | null
+          project_id: string | null
+          request_id: string | null
+          status: string | null
+          urgentni: boolean | null
+          user_id: string
+          vybrany_opravar: string | null
+          vytvoreno: string | null
+          zadavatel_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lokalita?: string | null
+          popis?: string | null
+          project_id?: string | null
+          request_id?: string | null
+          status?: string | null
+          urgentni?: boolean | null
+          user_id?: string
+          vybrany_opravar?: string | null
+          vytvoreno?: string | null
+          zadavatel_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lokalita?: string | null
+          popis?: string | null
+          project_id?: string | null
+          request_id?: string | null
+          status?: string | null
+          urgentni?: boolean | null
+          user_id?: string
+          vybrany_opravar?: string | null
+          vytvoreno?: string | null
+          zadavatel_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opravojobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opravooffers: {
+        Row: {
+          cena: number | null
+          created_at: string
+          finalizovana: boolean | null
+          id: string
+          offer_id: string | null
+          opravar_id: string | null
+          popis: string | null
+          user_id: string
+          vybrana: boolean | null
+          zakazka_id: string | null
+        }
+        Insert: {
+          cena?: number | null
+          created_at?: string
+          finalizovana?: boolean | null
+          id?: string
+          offer_id?: string | null
+          opravar_id?: string | null
+          popis?: string | null
+          user_id?: string
+          vybrana?: boolean | null
+          zakazka_id?: string | null
+        }
+        Update: {
+          cena?: number | null
+          created_at?: string
+          finalizovana?: boolean | null
+          id?: string
+          offer_id?: string | null
+          opravar_id?: string | null
+          popis?: string | null
+          user_id?: string
+          vybrana?: boolean | null
+          zakazka_id?: string | null
+        }
+        Relationships: []
+      }
       posts: {
         Row: {
           channel: string
