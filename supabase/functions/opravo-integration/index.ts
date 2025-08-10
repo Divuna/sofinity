@@ -300,9 +300,9 @@ async function handleContactIngestion(supabase: any, request: any, user: any, co
       )
     }
 
-    // Find or create project for this request
+    // Find existing main "Opravo" project (no automatic creation of sub-projects)
     let project_id = null
-    const projectName = `Opravo: ${request.kategorie || 'Zakázka'}`
+    const projectName = "Opravo" // Use main project instead of category-specific projects
     
     const { data: existingProject, error: projectFindError } = await supabase
       .from('Projects')
@@ -314,22 +314,9 @@ async function handleContactIngestion(supabase: any, request: any, user: any, co
     if (existingProject) {
       project_id = existingProject.id
     } else {
-      const { data: newProject, error: projectCreateError } = await supabase
-        .from('Projects')
-        .insert({
-          name: projectName,
-          description: `Automaticky vytvořeno z Opravo (${request.kategorie || 'Obecná kategorie'})`,
-          user_id: sofinity_user_id,
-          external_connection: 'opravo'
-        })
-        .select('id')
-        .single()
-
-      if (projectCreateError) {
-        console.warn('Warning: Could not create project:', projectCreateError)
-      } else {
-        project_id = newProject.id
-      }
+      console.log('Main Opravo project not found - projects must be created manually by admin')
+      // Don't create new projects automatically - use null project_id
+      project_id = null
     }
 
     // Extract contact information
