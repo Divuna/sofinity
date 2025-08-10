@@ -60,6 +60,7 @@ serve(async (req) => {
         const response = await fetch(`${SOFINITY_BASE_URL}/opravo-status`, {
           method: 'GET',
           headers: {
+            'x-sofinity-key': SOFINITY_API_KEY,
             'Content-Type': 'application/json',
           },
           signal: controller.signal,
