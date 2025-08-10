@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bot, Loader2, MessageSquare, Clock, CheckCircle, Calendar } from 'lucide-react';
+import { Bot, Loader2, MessageSquare, Clock, CheckCircle, Calendar, Filter } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
@@ -17,6 +17,7 @@ interface AIRequest {
   prompt: string;
   response: string | null;
   status: string;
+  project_id: string | null;
   created_at: string;
 }
 
@@ -28,6 +29,8 @@ export default function AIAssistant() {
   const [requestType, setRequestType] = useState('');
   const [aiRequests, setAiRequests] = useState<AIRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
+  const [projectFilter, setProjectFilter] = useState<string>('all');
+  const [projects, setProjects] = useState<Array<{id: string, name: string}>>([]);
 
   const fetchAIRequests = async () => {
     try {
@@ -51,7 +54,34 @@ export default function AIAssistant() {
 
   useEffect(() => {
     fetchAIRequests();
+    fetchProjects();
   }, []);
+
+  // Get project filter from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectParam = urlParams.get('project');
+    if (projectParam) {
+      setProjectFilter(projectParam);
+    }
+  }, []);
+
+  const fetchProjects = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('Projects')
+        .select('id, name')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    }
+  };
 
   const getTypeLabel = (type: string) => {
     switch (type) {
@@ -137,6 +167,13 @@ export default function AIAssistant() {
     }
   };
 
+  const filteredAIRequests = aiRequests.filter(request => {
+    if (projectFilter === 'all') return true;
+    // Try to match by project_id or by project name if we had that field
+    const projectMatch = projects.find(p => p.name === projectFilter);
+    return projectMatch ? request.project_id === projectMatch.id : false;
+  });
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
@@ -212,20 +249,36 @@ export default function AIAssistant() {
               <MessageSquare className="h-5 w-5" />
               Historie AI požadavků
             </CardTitle>
+            <div className="flex items-center gap-2 mt-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={projectFilter} onValueChange={setProjectFilter}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Filtr podle projektu" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Všechny projekty</SelectItem>
+                  {projects.map(project => (
+                    <SelectItem key={project.name} value={project.name}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent>
             {loadingRequests ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
-            ) : aiRequests.length === 0 ? (
+            ) : filteredAIRequests.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Zatím žádné AI požadavky</p>
               </div>
             ) : (
               <div className="space-y-4 max-h-96 overflow-y-auto">
-                {aiRequests.map((request) => (
+                {filteredAIRequests.map((request) => (
                   <div 
                     key={request.id} 
                     className="border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-muted/50 transition-colors"

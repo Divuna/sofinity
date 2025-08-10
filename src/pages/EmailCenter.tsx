@@ -52,6 +52,7 @@ export default function EmailCenter() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
+  const [projects, setProjects] = useState<Array<{id: string, name: string}>>([]);
   const { toast } = useToast();
   const navigate = useNavigate();
   const { selectedProject } = useSelectedProject();
@@ -59,7 +60,17 @@ export default function EmailCenter() {
   useEffect(() => {
     fetchEmails();
     fetchEmailLogs();
+    fetchProjects();
   }, [selectedProject]);
+
+  // Get project filter from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectParam = urlParams.get('project');
+    if (projectParam) {
+      setProjectFilter(projectParam);
+    }
+  }, []);
 
   const fetchEmails = async () => {
     try {
@@ -88,6 +99,23 @@ export default function EmailCenter() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchProjects = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('Projects')
+        .select('id, name')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error) {
+      console.error('Error fetching projects:', error);
     }
   };
 
@@ -251,9 +279,11 @@ export default function EmailCenter() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Všechny projekty</SelectItem>
-                <SelectItem value="opravo">Opravo</SelectItem>
-                <SelectItem value="bikeshare24">BikeShare24</SelectItem>
-                <SelectItem value="codneska">CoDneska</SelectItem>
+                {projects.map(project => (
+                  <SelectItem key={project.name} value={project.name}>
+                    {project.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

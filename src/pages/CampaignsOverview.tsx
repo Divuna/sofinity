@@ -30,6 +30,7 @@ interface Campaign {
   email: string | null;
   post: string | null;
   video: string | null;
+  project: string | null;
   created_at: string;
   user_id: string;
 }
@@ -96,11 +97,20 @@ export default function CampaignsOverview() {
     }
   };
 
+  // Get project filter from URL
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectParam = urlParams.get('project');
+    if (projectParam) {
+      setProjectFilter(projectParam);
+    }
+  }, []);
+
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter;
-    // Pro project filter bychom potřebovali relaci - zatím filtrujeme jen podle názvu
-    return matchesSearch && matchesStatus;
+    const matchesProject = projectFilter === 'all' || projectFilter === campaign.project;
+    return matchesSearch && matchesStatus && matchesProject;
   });
 
   const getStatusBadge = (status: string) => {
@@ -178,7 +188,7 @@ export default function CampaignsOverview() {
               <SelectContent>
                 <SelectItem value="all">Všechny projekty</SelectItem>
                 {projects.map(project => (
-                  <SelectItem key={project.id} value={project.id}>
+                  <SelectItem key={project.name} value={project.name}>
                     {project.name}
                   </SelectItem>
                 ))}
