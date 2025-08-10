@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { OpravoStatusBadge } from '@/components/OpravoStatusBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useSelectedProject } from '@/providers/ProjectProvider';
 import { useToast } from '@/hooks/use-toast';
-import { Building2 } from 'lucide-react';
+import { Building2, Wifi, WifiOff, Bug } from 'lucide-react';
+import { checkOpravoIntegration, startOpravoStatusMonitoring, stopOpravoStatusMonitoring, getOpravoStatusFromCache } from '@/lib/integrations';
 
 interface Project {
   id: string;
@@ -20,12 +20,39 @@ interface Project {
 export function ProjectSelector() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [opravoStatus, setOpravoStatus] = useState<{isConnected: boolean; lastChecked: Date; error?: string} | null>(null);
   const { selectedProject, setSelectedProject } = useSelectedProject();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchProjects();
+    
+    return () => {
+      stopOpravoStatusMonitoring();
+    };
   }, []);
+
+  useEffect(() => {
+    // Start monitoring when Opravo project is selected
+    if (selectedProject?.name === 'Opravo') {
+      console.log('🎯 [ProjectSelector.tsx] Starting Opravo monitoring for selected project');
+      
+      // Check cache first
+      const cachedStatus = getOpravoStatusFromCache();
+      if (cachedStatus) {
+        console.log('💾 [ProjectSelector.tsx] Using cached status:', cachedStatus);
+        setOpravoStatus(cachedStatus);
+      }
+      
+      startOpravoStatusMonitoring((status) => {
+        console.log('🔄 [ProjectSelector.tsx] Received status update:', status);
+        setOpravoStatus(status);
+      });
+    } else {
+      stopOpravoStatusMonitoring();
+      setOpravoStatus(null);
+    }
+  }, [selectedProject]);
 
   const fetchProjects = async () => {
     try {
@@ -134,8 +161,17 @@ export function ProjectSelector() {
                       <div className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-2">
                           <span>{project.name}</span>
-                          {project.isOpravoProject && (
-                            <OpravoStatusBadge projectId={project.id} compact={true} />
+                          {project.isOpravoProject && opravoStatus && (
+                            <Badge 
+                              variant={opravoStatus.isConnected ? 'default' : 'destructive'}
+                              className="text-xs flex items-center gap-1"
+                            >
+                              {opravoStatus.isConnected ? (
+                                <><Wifi className="w-3 h-3" /> Připojeno</>
+                              ) : (
+                                <><WifiOff className="w-3 h-3" /> Odpojeno</>
+                              )}
+                            </Badge>
                           )}
                         </div>
                         <Badge variant="secondary" className="ml-2">
@@ -154,19 +190,42 @@ export function ProjectSelector() {
                   const selected = projects.find(p => p.id === selectedProject.id);
                   return selected ? (
                     <div>
-                        <div className="flex items-center gap-2">
-                          <div className="font-medium text-foreground">{selected.name}</div>
-                          {selected.isOpravoProject && (
-                            <OpravoStatusBadge projectId={selected.id} compact={true} />
-                          )}
-                        </div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium text-foreground">{selected.name}</div>
+                        {selected.isOpravoProject && opravoStatus && (
+                          <Badge 
+                            variant={opravoStatus.isConnected ? 'default' : 'destructive'}
+                            className="text-xs flex items-center gap-1"
+                          >
+                            {opravoStatus.isConnected ? (
+                              <><Wifi className="w-3 h-3" /> Připojeno</>
+                            ) : (
+                              <><WifiOff className="w-3 h-3" /> Odpojeno</>
+                            )}
+                          </Badge>
+                        )}
+                      </div>
                        {selected.description && (
                          <div className="text-sm text-muted-foreground mt-1">
                            {selected.description}
                          </div>
-                        )}
-                        
-                        <div className="flex items-center justify-between mt-2">
+                       )}
+                       
+                       {/* Debug Info for Opravo projects - TEMPORARY */}
+                       {selected.isOpravoProject && opravoStatus && (
+                         <div className="p-2 bg-muted/50 rounded-lg border text-xs space-y-1 mt-2">
+                           <div className="flex items-center gap-1 font-medium text-muted-foreground">
+                             <Bug className="w-3 h-3" />
+                             Debug Info (dočasné)
+                           </div>
+                           <div>Poslední kontrola: {opravoStatus.lastChecked.toLocaleString('cs-CZ')}</div>
+                           {opravoStatus.error && (
+                             <div className="text-destructive">Chyba: {opravoStatus.error}</div>
+                           )}
+                         </div>
+                       )}
+                       
+                       <div className="flex items-center justify-between mt-2">
                          <span className="text-sm text-muted-foreground">
                            {selected.campaigns_count} kampaní
                          </span>
