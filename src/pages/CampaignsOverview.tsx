@@ -60,6 +60,7 @@ export default function CampaignsOverview() {
       let query = supabase
         .from('Campaigns')
         .select('*')
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
         .order('created_at', { ascending: false });
 
       if (selectedProject?.id) {
@@ -139,7 +140,7 @@ export default function CampaignsOverview() {
         <Button 
           variant="gradient" 
           className="shadow-strong"
-          onClick={() => navigate('/campaign/new')}
+          onClick={() => navigate('/ai-assistant?type=campaign_generator')}
         >
           <Plus className="w-4 h-4 mr-2" />
           Nová kampaň
@@ -208,7 +209,6 @@ export default function CampaignsOverview() {
                   <TableHead>Název kampaně</TableHead>
                   <TableHead>Stav</TableHead>
                   <TableHead>Cílení</TableHead>
-                  <TableHead>Obsah</TableHead>
                   <TableHead>Vytvořeno</TableHead>
                   <TableHead>Akce</TableHead>
                 </TableRow>
@@ -223,16 +223,8 @@ export default function CampaignsOverview() {
                       {getStatusBadge(campaign.status)}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm text-muted-foreground">
+                      <div className="text-sm text-muted-foreground max-w-xs truncate">
                         {campaign.targeting || 'Není specifikováno'}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-2">
-                        <Progress value={getContentProgress(campaign)} className="h-2" />
-                        <div className="text-xs text-muted-foreground">
-                          {getContentProgress(campaign)}% dokončeno
-                        </div>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -244,34 +236,18 @@ export default function CampaignsOverview() {
                       <div className="flex items-center gap-2">
                         <Button
                           variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/campaign/${campaign.id}`)}
+                          size="sm"
+                          onClick={() => navigate(`/campaigns/${campaign.id}`)}
                         >
-                          <Edit3 className="w-4 h-4" />
+                          Zobrazit detail
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/campaign/${campaign.id}/reports`)}
-                        >
-                          <BarChart3 className="w-4 h-4" />
-                        </Button>
-                        {campaign.status === 'active' ? (
-                          <Button variant="ghost" size="icon">
-                            <Pause className="w-4 h-4" />
-                          </Button>
-                        ) : (
-                          <Button variant="ghost" size="icon">
-                            <Play className="w-4 h-4" />
-                          </Button>
-                        )}
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
                 {filteredCampaigns.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
+                    <TableCell colSpan={5} className="text-center py-8">
                       <p className="text-muted-foreground">Žádné kampaně nenalezeny</p>
                     </TableCell>
                   </TableRow>

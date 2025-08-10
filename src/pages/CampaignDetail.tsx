@@ -84,6 +84,7 @@ export default function CampaignDetail() {
         .from('Campaigns')
         .select('*')
         .eq('id', id)
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
         .single();
 
       if (campaignError) throw campaignError;
@@ -139,7 +140,8 @@ export default function CampaignDetail() {
           video: campaign.video,
           status: campaign.status
         })
-        .eq('id', campaign.id);
+        .eq('id', campaign.id)
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
 
       if (error) throw error;
 
@@ -167,7 +169,8 @@ export default function CampaignDetail() {
       const { error } = await supabase
         .from('Campaigns')
         .update({ status: newStatus })
-        .eq('id', campaign.id);
+        .eq('id', campaign.id)
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
 
       if (error) throw error;
 
@@ -250,150 +253,110 @@ export default function CampaignDetail() {
 
       <Tabs defaultValue="overview" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="overview">Přehled</TabsTrigger>
-          <TabsTrigger value="schedule" onClick={() => navigate(`/campaigns/${id}/schedule`)}>Plán kampaně</TabsTrigger>
-          <TabsTrigger value="reports" onClick={() => navigate(`/campaigns/${id}/reports`)}>Výsledky</TabsTrigger>
+          <TabsTrigger value="overview">Základní informace</TabsTrigger>
+          <TabsTrigger value="content">Obsah</TabsTrigger>
+          <TabsTrigger value="schedule">Plán publikace</TabsTrigger>
+          <TabsTrigger value="reports">Výsledky</TabsTrigger>
           <TabsTrigger value="feedback">Zpětná vazba</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
-          <div className="grid gap-6 lg:grid-cols-2">
-            {/* Basic Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Základní informace</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Název kampaně</label>
-                  <Input
-                    value={campaign.name}
-                    onChange={(e) => setCampaign({ ...campaign, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Cílení</label>
-                  <Textarea
-                    value={campaign.targeting || ''}
-                    onChange={(e) => setCampaign({ ...campaign, targeting: e.target.value })}
-                    placeholder="Popište cílovou skupinu..."
-                    rows={3}
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Stav</label>
-                  <Select 
-                    value={campaign.status} 
-                    onValueChange={(value: 'draft' | 'active' | 'done') => 
-                      setCampaign({ ...campaign, status: value })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="draft">Koncept</SelectItem>
-                      <SelectItem value="active">Aktivní</SelectItem>
-                      <SelectItem value="done">Dokončeno</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Základní informace</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Název kampaně</label>
+                <Input
+                  value={campaign.name}
+                  onChange={(e) => setCampaign({ ...campaign, name: e.target.value })}
+                />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Stav</label>
+                <Select 
+                  value={campaign.status} 
+                  onValueChange={(value: 'draft' | 'active' | 'done') => 
+                    setCampaign({ ...campaign, status: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Koncept</SelectItem>
+                    <SelectItem value="active">Aktivní</SelectItem>
+                    <SelectItem value="done">Dokončeno</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-2 block">Cílení</label>
+                <Textarea
+                  value={campaign.targeting || ''}
+                  onChange={(e) => setCampaign({ ...campaign, targeting: e.target.value })}
+                  placeholder="Popište cílovou skupinu..."
+                  rows={3}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
 
-            {/* Content Overview */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Obsah kampaně</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-3 border border-border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-5 h-5 text-primary" />
-                    <span>E-mail</span>
-                  </div>
-                  <Badge variant={campaign.email ? 'default' : 'outline'}>
-                    {campaign.email ? 'Připraven' : 'Chybí'}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 border border-border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <FileText className="w-5 h-5 text-primary" />
-                    <span>Social post</span>
-                  </div>
-                  <Badge variant={campaign.post ? 'default' : 'outline'}>
-                    {campaign.post ? 'Připraven' : 'Chybí'}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 border border-border rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <Video className="w-5 h-5 text-primary" />
-                    <span>Video</span>
-                  </div>
-                  <Badge variant={campaign.video ? 'default' : 'outline'}>
-                    {campaign.video ? 'Připraven' : 'Chybí'}
-                  </Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Content Details */}
+        <TabsContent value="content" className="space-y-6">
           <div className="grid gap-6">
-            {campaign.email && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Mail className="w-5 h-5" />
-                    E-mail obsah
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={campaign.email}
-                    onChange={(e) => setCampaign({ ...campaign, email: e.target.value })}
-                    rows={8}
-                    className="font-mono text-sm"
-                  />
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="w-5 h-5" />
+                  E-mail
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={campaign.email || ''}
+                  onChange={(e) => setCampaign({ ...campaign, email: e.target.value })}
+                  placeholder="Obsah e-mailu..."
+                  rows={8}
+                  className="font-mono text-sm"
+                />
+              </CardContent>
+            </Card>
 
-            {campaign.post && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileText className="w-5 h-5" />
-                    Social post
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={campaign.post}
-                    onChange={(e) => setCampaign({ ...campaign, post: e.target.value })}
-                    rows={4}
-                  />
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Social post
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={campaign.post || ''}
+                  onChange={(e) => setCampaign({ ...campaign, post: e.target.value })}
+                  placeholder="Text pro sociální sítě..."
+                  rows={4}
+                />
+              </CardContent>
+            </Card>
 
-            {campaign.video && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Video className="w-5 h-5" />
-                    Video script
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Textarea
-                    value={campaign.video}
-                    onChange={(e) => setCampaign({ ...campaign, video: e.target.value })}
-                    rows={6}
-                  />
-                </CardContent>
-              </Card>
-            )}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Video className="w-5 h-5" />
+                  Video
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Textarea
+                  value={campaign.video || ''}
+                  onChange={(e) => setCampaign({ ...campaign, video: e.target.value })}
+                  placeholder="Video script nebo odkaz..."
+                  rows={6}
+                />
+              </CardContent>
+            </Card>
           </div>
         </TabsContent>
 

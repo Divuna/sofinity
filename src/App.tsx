@@ -49,9 +49,9 @@ const App = () => (
             <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
             
             {/* Campaign routes */}
-            <Route path="/campaigns" element={<CampaignsOverview />} />
-            <Route path="/campaign/new" element={<CampaignNew />} />
-            <Route path="/campaign/:id" element={<CampaignDetail />} />
+            <Route path="/campaigns" element={<AuthGuard><CampaignsOverview /></AuthGuard>} />
+            <Route path="/campaign/new" element={<AuthGuard><CampaignNew /></AuthGuard>} />
+            <Route path="/campaigns/:id" element={<AuthGuard><CampaignDetail /></AuthGuard>} />
             <Route path="/campaign-review" element={<CampaignReview />} />
             <Route path="/campaigns/:id/schedule" element={<CampaignSchedule />} />
             <Route path="/campaigns/:id/reports" element={<CampaignReports />} />
