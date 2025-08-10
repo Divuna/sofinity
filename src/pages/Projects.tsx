@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Calendar, Mail, Target, Bot } from 'lucide-react';
+import { Building2, Calendar, Mail, Target, Bot, Wifi, WifiOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { checkOpravoIntegration, startOpravoStatusMonitoring, stopOpravoStatusMonitoring } from '@/lib/integrations';
 
 interface Project {
   id: string;
@@ -14,17 +16,41 @@ interface Project {
   campaignCount: number;
   emailCount: number;
   aiRequestCount: number;
+  isOpravoProject?: boolean;
+  opravoStatus?: {
+    isConnected: boolean;
+    lastChecked: Date;
+    error?: string;
+  };
 }
 
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [opravoStatuses, setOpravoStatuses] = useState<{[key: string]: any}>({});
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchProjects();
+    
+    return () => {
+      stopOpravoStatusMonitoring();
+    };
   }, []);
+
+  useEffect(() => {
+    // Start monitoring for Opravo projects
+    const opravoProjects = projects.filter(p => p.name === 'Opravo');
+    if (opravoProjects.length > 0) {
+      startOpravoStatusMonitoring((status) => {
+        setOpravoStatuses(prev => ({
+          ...prev,
+          'Opravo': status
+        }));
+      });
+    }
+  }, [projects]);
 
   const fetchProjects = async () => {
     try {
@@ -63,7 +89,8 @@ export default function Projects() {
             ...project,
             campaignCount: (campaignCountById || 0) + (campaignCountByName || 0),
             emailCount: (emailCountById || 0) + (emailCountByName || 0),
-            aiRequestCount: (aiRequestCountById || 0) + (aiRequestCountByName || 0)
+            aiRequestCount: (aiRequestCountById || 0) + (aiRequestCountByName || 0),
+            isOpravoProject: project.name === 'Opravo'
           };
         })
       );
@@ -127,8 +154,22 @@ export default function Projects() {
                   <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
                     <Building2 className="w-5 h-5 text-white" />
                   </div>
-                  <div>
-                    <CardTitle className="text-lg font-semibold">{project.name}</CardTitle>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg font-semibold">{project.name}</CardTitle>
+                      {project.isOpravoProject && (
+                        <Badge 
+                          variant={opravoStatuses['Opravo']?.isConnected ? 'default' : 'destructive'}
+                          className="text-xs flex items-center gap-1"
+                        >
+                          {opravoStatuses['Opravo']?.isConnected ? (
+                            <><Wifi className="w-3 h-3" /> Připojeno</>
+                          ) : (
+                            <><WifiOff className="w-3 h-3" /> Odpojeno</>
+                          )}
+                        </Badge>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground flex items-center mt-1">
                       <Calendar className="w-3 h-3 mr-1" />
                       {new Date(project.created_at).toLocaleDateString('cs-CZ')}
@@ -206,7 +247,7 @@ export default function Projects() {
         <div className="text-center py-12">
           <Building2 className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
           <h3 className="text-lg font-medium text-foreground mb-2">Zatím nemáte žádné projekty</h3>
-          <p className="text-muted-foreground">Začněte vytvořením svého prvního projektu</p>
+          <p className="text-muted-foreground">Kontaktujte administrátora pro vytvoření projektu</p>
         </div>
       )}
     </div>

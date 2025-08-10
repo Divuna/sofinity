@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { useSelectedProject } from '@/providers/ProjectProvider';
 import { useToast } from '@/hooks/use-toast';
-import { Building2 } from 'lucide-react';
+import { Building2, Wifi, WifiOff } from 'lucide-react';
+import { checkOpravoIntegration, startOpravoStatusMonitoring, stopOpravoStatusMonitoring } from '@/lib/integrations';
 
 interface Project {
   id: string;
@@ -13,17 +14,35 @@ interface Project {
   description: string | null;
   is_active: boolean;
   campaigns_count: number;
+  isOpravoProject?: boolean;
 }
 
 export function ProjectSelector() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [opravoStatus, setOpravoStatus] = useState<{isConnected: boolean; lastChecked: Date; error?: string} | null>(null);
   const { selectedProject, setSelectedProject } = useSelectedProject();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchProjects();
+    
+    return () => {
+      stopOpravoStatusMonitoring();
+    };
   }, []);
+
+  useEffect(() => {
+    // Start monitoring when Opravo project is selected
+    if (selectedProject?.name === 'Opravo') {
+      startOpravoStatusMonitoring((status) => {
+        setOpravoStatus(status);
+      });
+    } else {
+      stopOpravoStatusMonitoring();
+      setOpravoStatus(null);
+    }
+  }, [selectedProject]);
 
   const fetchProjects = async () => {
     try {
@@ -48,7 +67,8 @@ export function ProjectSelector() {
             name: project.name,
             description: project.description,
             is_active: project.is_active,
-            campaigns_count: campaignsCount || 0
+            campaigns_count: campaignsCount || 0,
+            isOpravoProject: project.name === 'Opravo'
           };
         })
       );
@@ -129,7 +149,21 @@ export function ProjectSelector() {
                   {projects.filter(project => project.id && project.id.trim() !== '').map((project) => (
                     <SelectItem key={project.id} value={project.id}>
                       <div className="flex items-center justify-between w-full">
-                        <span>{project.name}</span>
+                        <div className="flex items-center gap-2">
+                          <span>{project.name}</span>
+                          {project.isOpravoProject && opravoStatus && (
+                            <Badge 
+                              variant={opravoStatus.isConnected ? 'default' : 'destructive'}
+                              className="text-xs flex items-center gap-1"
+                            >
+                              {opravoStatus.isConnected ? (
+                                <><Wifi className="w-3 h-3" /> Připojeno</>
+                              ) : (
+                                <><WifiOff className="w-3 h-3" /> Odpojeno</>
+                              )}
+                            </Badge>
+                          )}
+                        </div>
                         <Badge variant="secondary" className="ml-2">
                           {project.campaigns_count}
                         </Badge>
@@ -146,7 +180,21 @@ export function ProjectSelector() {
                   const selected = projects.find(p => p.id === selectedProject.id);
                   return selected ? (
                     <div>
-                      <div className="font-medium text-foreground">{selected.name}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="font-medium text-foreground">{selected.name}</div>
+                        {selected.isOpravoProject && opravoStatus && (
+                          <Badge 
+                            variant={opravoStatus.isConnected ? 'default' : 'destructive'}
+                            className="text-xs flex items-center gap-1"
+                          >
+                            {opravoStatus.isConnected ? (
+                              <><Wifi className="w-3 h-3" /> Připojeno</>
+                            ) : (
+                              <><WifiOff className="w-3 h-3" /> Odpojeno</>
+                            )}
+                          </Badge>
+                        )}
+                      </div>
                       {selected.description && (
                         <div className="text-sm text-muted-foreground mt-1">
                           {selected.description}
@@ -170,6 +218,7 @@ export function ProjectSelector() {
           <div className="text-center py-6">
             <Building2 className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">Zatím nemáte žádné projekty</p>
+            <p className="text-xs text-muted-foreground mt-1">Kontaktujte administrátora pro vytvoření projektu</p>
           </div>
         )}
       </CardContent>
