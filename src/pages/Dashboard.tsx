@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { StatsCard } from '@/components/Dashboard/StatsCard';
 import { ProjectSelector } from '@/components/Dashboard/ProjectSelector';
+import { OpravoStatusBadge } from '@/components/OpravoStatusBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSelectedProject } from '@/providers/ProjectProvider';
@@ -310,13 +311,22 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            Dashboard{selectedProject ? ` — ${selectedProject.name}` : ''}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Přehled vašich AI marketingových kampaní
-          </p>
+        <div className="flex items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">
+              Dashboard{selectedProject ? ` — ${selectedProject.name}` : ''}
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Přehled vašich AI marketingových kampaní
+            </p>
+          </div>
+          {selectedProject?.name === 'Opravo' && (
+            <OpravoStatusBadge 
+              projectId={selectedProject.id} 
+              showRefreshButton={true}
+              className="ml-auto"
+            />
+          )}
         </div>
         <Button variant="gradient" className="shadow-strong" asChild>
           <a href="/campaign/new">
@@ -480,13 +490,16 @@ export default function Dashboard() {
                     }`}
                   >
                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold text-sm">{project.name}</h4>
-                        <div className="flex items-center gap-2">
-                          {project.external_connection && (
-                            <div className="text-xs text-success font-medium">
-                              Propojeno se Sofinity ({project.external_connection})
-                            </div>
-                          )}
+                       <h4 className="font-semibold text-sm">{project.name}</h4>
+                       <div className="flex items-center gap-2">
+                         {project.name === 'Opravo' && (
+                           <OpravoStatusBadge projectId={project.id} compact={true} />
+                         )}
+                         {project.external_connection && (
+                           <div className="text-xs text-success font-medium">
+                             Propojeno se Sofinity ({project.external_connection})
+                           </div>
+                         )}
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>

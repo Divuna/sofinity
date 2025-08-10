@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { OpravoStatusBadge } from '@/components/OpravoStatusBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Calendar, Mail, Target, Bot, Wifi, WifiOff, Bug } from 'lucide-react';
+import { Building2, Calendar, Mail, Target, Bot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { checkOpravoIntegration, startOpravoStatusMonitoring, stopOpravoStatusMonitoring, getOpravoStatusFromCache } from '@/lib/integrations';
 
 interface Project {
   id: string;
@@ -22,39 +22,12 @@ interface Project {
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [opravoStatus, setOpravoStatus] = useState<{isConnected: boolean; lastChecked: Date; error?: string} | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
   useEffect(() => {
     fetchProjects();
-    
-    return () => {
-      stopOpravoStatusMonitoring();
-    };
   }, []);
-
-  useEffect(() => {
-    // Start monitoring for Opravo projects
-    const opravoProjects = projects.filter(p => p.name === 'Opravo');
-    if (opravoProjects.length > 0) {
-      console.log('📋 [Projects.tsx] Starting Opravo monitoring for projects list');
-      
-      // Check cache first
-      const cachedStatus = getOpravoStatusFromCache();
-      if (cachedStatus) {
-        console.log('💾 [Projects.tsx] Using cached status:', cachedStatus);
-        setOpravoStatus(cachedStatus);
-      }
-      
-      startOpravoStatusMonitoring((status) => {
-        console.log('🔄 [Projects.tsx] Received status update:', status);
-        setOpravoStatus(status);
-      });
-    } else {
-      setOpravoStatus(null);
-    }
-  }, [projects]);
 
   const fetchProjects = async () => {
     try {
@@ -161,17 +134,8 @@ export default function Projects() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <CardTitle className="text-lg font-semibold">{project.name}</CardTitle>
-                      {project.isOpravoProject && opravoStatus && (
-                        <Badge 
-                          variant={opravoStatus.isConnected ? 'default' : 'destructive'}
-                          className="text-xs flex items-center gap-1"
-                        >
-                          {opravoStatus.isConnected ? (
-                            <><Wifi className="w-3 h-3" /> Připojeno</>
-                          ) : (
-                            <><WifiOff className="w-3 h-3" /> Odpojeno</>
-                          )}
-                        </Badge>
+                      {project.isOpravoProject && (
+                        <OpravoStatusBadge projectId={project.id} compact={true} />
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground flex items-center mt-1">
@@ -215,20 +179,6 @@ export default function Projects() {
                     <div className="text-xs text-muted-foreground">AI požadavků</div>
                   </div>
                 </div>
-
-                {/* Debug Info for Opravo projects - TEMPORARY */}
-                {project.isOpravoProject && opravoStatus && (
-                  <div className="p-2 bg-muted/50 rounded-lg border text-xs space-y-1">
-                    <div className="flex items-center gap-1 font-medium text-muted-foreground">
-                      <Bug className="w-3 h-3" />
-                      Debug Info (dočasné)
-                    </div>
-                    <div>Poslední kontrola: {opravoStatus.lastChecked.toLocaleString('cs-CZ')}</div>
-                    {opravoStatus.error && (
-                      <div className="text-destructive">Chyba: {opravoStatus.error}</div>
-                    )}
-                  </div>
-                )}
 
                 {/* Action Buttons */}
                 <div className="grid grid-cols-3 gap-2 pt-2">
