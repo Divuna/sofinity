@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { RefreshCw, Bug, CheckCircle, XCircle, Clock } from 'lucide-react';
 
-const SOFINITY_BASE_URL = "https://api.sofinity.com";
-const SOFINITY_API_KEY = "your-api-key"; // This should be configured in environment or settings
+const SUPABASE_URL = "https://rrmvxsldrjgbdxluklka.supabase.co";
 
 interface APIResponse {
   status: 'loading' | 'success' | 'error';
@@ -22,7 +21,7 @@ export default function OpravoAPIDebug() {
   });
 
   const performAPICall = async () => {
-    console.log('🚀 [OpravoAPIDebug] Starting API call...');
+    console.log('🚀 [OpravoAPIDebug] Starting API call via edge function...');
     const startTime = Date.now();
     
     setResponse({
@@ -32,14 +31,13 @@ export default function OpravoAPIDebug() {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout for debug
 
-      console.log('📡 [OpravoAPIDebug] Making request to:', `${SOFINITY_BASE_URL}/opravo-status`);
+      console.log('📡 [OpravoAPIDebug] Making request to edge function:', `${SUPABASE_URL}/functions/v1/sofinity-opravo-status`);
       
-      const apiResponse = await fetch(`${SOFINITY_BASE_URL}/opravo-status`, {
+      const apiResponse = await fetch(`${SUPABASE_URL}/functions/v1/sofinity-opravo-status`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${SOFINITY_API_KEY}`,
           'Content-Type': 'application/json',
         },
         signal: controller.signal,
@@ -48,7 +46,7 @@ export default function OpravoAPIDebug() {
       clearTimeout(timeoutId);
       const duration = Date.now() - startTime;
 
-      console.log('✅ [OpravoAPIDebug] Raw response:', {
+      console.log('✅ [OpravoAPIDebug] Edge function response:', {
         ok: apiResponse.ok,
         status: apiResponse.status,
         statusText: apiResponse.statusText,
@@ -58,25 +56,22 @@ export default function OpravoAPIDebug() {
 
       let responseData;
       try {
-        responseData = await apiResponse.text();
-        // Try to parse as JSON if possible
-        try {
-          responseData = JSON.parse(responseData);
-        } catch (e) {
-          // Keep as text if not valid JSON
-        }
+        responseData = await apiResponse.json();
       } catch (e) {
-        responseData = 'Nepodařilo se načíst obsah odpovědi';
+        console.error('Failed to parse response as JSON:', e);
+        responseData = await apiResponse.text();
       }
+
+      console.log('📦 [OpravoAPIDebug] Parsed response data:', responseData);
 
       if (apiResponse.ok) {
         setResponse({
           status: 'success',
           data: {
-            status: apiResponse.status,
-            statusText: apiResponse.statusText,
-            headers: Object.fromEntries(apiResponse.headers.entries()),
-            body: responseData
+            edgeFunctionStatus: apiResponse.status,
+            edgeFunctionStatusText: apiResponse.statusText,
+            edgeFunctionHeaders: Object.fromEntries(apiResponse.headers.entries()),
+            opravoApiResult: responseData
           },
           timestamp: new Date(),
           duration
@@ -84,12 +79,12 @@ export default function OpravoAPIDebug() {
       } else {
         setResponse({
           status: 'error',
-          error: `HTTP ${apiResponse.status}: ${apiResponse.statusText}`,
+          error: `Edge function error: HTTP ${apiResponse.status}: ${apiResponse.statusText}`,
           data: {
-            status: apiResponse.status,
-            statusText: apiResponse.statusText,
-            headers: Object.fromEntries(apiResponse.headers.entries()),
-            body: responseData
+            edgeFunctionStatus: apiResponse.status,
+            edgeFunctionStatusText: apiResponse.statusText,
+            edgeFunctionHeaders: Object.fromEntries(apiResponse.headers.entries()),
+            edgeFunctionBody: responseData
           },
           timestamp: new Date(),
           duration
@@ -168,17 +163,15 @@ export default function OpravoAPIDebug() {
         <CardContent className="space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-sm font-medium text-muted-foreground">Endpoint URL</label>
+              <label className="text-sm font-medium text-muted-foreground">Edge Function URL</label>
               <code className="block p-2 bg-muted rounded text-sm font-mono">
-                {SOFINITY_BASE_URL}/opravo-status
+                {SUPABASE_URL}/functions/v1/sofinity-opravo-status
               </code>
             </div>
             <div>
               <label className="text-sm font-medium text-muted-foreground">API Key</label>
               <code className="block p-2 bg-muted rounded text-sm font-mono">
-                {SOFINITY_API_KEY.length > 10 
-                  ? `${SOFINITY_API_KEY.substring(0, 8)}...` 
-                  : SOFINITY_API_KEY}
+                Bezpečně uložen v Supabase Secrets
               </code>
             </div>
           </div>
@@ -186,10 +179,12 @@ export default function OpravoAPIDebug() {
             <label className="text-sm font-medium text-muted-foreground">Request Headers</label>
             <pre className="p-2 bg-muted rounded text-sm font-mono mt-1">
 {JSON.stringify({
-  'Authorization': `Bearer ${SOFINITY_API_KEY.length > 10 ? `${SOFINITY_API_KEY.substring(0, 8)}...` : SOFINITY_API_KEY}`,
   'Content-Type': 'application/json'
 }, null, 2)}
             </pre>
+            <p className="text-xs text-muted-foreground mt-1">
+              * Authorization header se přidává automaticky v edge function
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -4,26 +4,23 @@ interface OpravoStatus {
   error?: string;
 }
 
-const SOFINITY_BASE_URL = "https://api.sofinity.com";
-const SOFINITY_API_KEY = "your-api-key"; // This should be configured in environment or settings
+const SUPABASE_URL = "https://rrmvxsldrjgbdxluklka.supabase.co";
 
 let opravoStatusCache: OpravoStatus | null = null;
 let statusCheckTimeout: NodeJS.Timeout | null = null;
 
 export const checkOpravoIntegration = async (): Promise<OpravoStatus> => {
   try {
-    console.log('🔍 [Opravo Integration] Starting API check...', { 
-      url: `${SOFINITY_BASE_URL}/opravo-status`,
+    console.log('🔍 [Opravo Integration] Starting API check via edge function...', { 
       timestamp: new Date().toISOString()
     });
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000); // 2s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout for edge function
 
-    const response = await fetch(`${SOFINITY_BASE_URL}/opravo-status`, {
+    const response = await fetch(`${SUPABASE_URL}/functions/v1/sofinity-opravo-status`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${SOFINITY_API_KEY}`,
         'Content-Type': 'application/json',
       },
       signal: controller.signal,
@@ -31,17 +28,25 @@ export const checkOpravoIntegration = async (): Promise<OpravoStatus> => {
 
     clearTimeout(timeoutId);
 
-    console.log('📡 [Opravo Integration] Raw API response:', {
+    console.log('📡 [Opravo Integration] Edge function response:', {
       ok: response.ok,
       status: response.status,
       statusText: response.statusText,
       timestamp: new Date().toISOString()
     });
 
+    if (!response.ok) {
+      throw new Error(`Edge function error: ${response.status} ${response.statusText}`);
+    }
+
+    const responseData = await response.json();
+    
+    console.log('📦 [Opravo Integration] Response data:', responseData);
+
     const status: OpravoStatus = {
-      isConnected: response.ok,
-      lastChecked: new Date(),
-      error: response.ok ? undefined : `HTTP ${response.status}`,
+      isConnected: responseData.isConnected || false,
+      lastChecked: new Date(responseData.lastChecked || new Date()),
+      error: responseData.error,
     };
 
     opravoStatusCache = status;
