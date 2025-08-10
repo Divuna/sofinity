@@ -1,14 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Building2, Calendar, Mail, Target, Bot, Plus } from 'lucide-react';
+import { Building2, Calendar, Mail, Target, Bot } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Project {
@@ -24,8 +19,6 @@ interface Project {
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [newProject, setNewProject] = useState({ name: '', description: '' });
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -88,51 +81,6 @@ export default function Projects() {
     }
   };
 
-  const handleCreateProject = async () => {
-    if (!newProject.name.trim()) {
-      toast({
-        title: "Chyba",
-        description: "Název projektu je povinný",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { error } = await supabase
-        .from('Projects')
-        .insert([
-          {
-            name: newProject.name.trim(),
-            description: newProject.description.trim() || null,
-            user_id: user.id
-          }
-        ]);
-
-      if (error) throw error;
-
-      toast({
-        title: "Úspěch",
-        description: "Projekt byl úspěšně vytvořen",
-        variant: "default"
-      });
-
-      setDialogOpen(false);
-      setNewProject({ name: '', description: '' });
-      fetchProjects();
-    } catch (error) {
-      console.error('Error creating project:', error);
-      toast({
-        title: "Chyba",
-        description: "Nepodařilo se vytvořit projekt",
-        variant: "destructive"
-      });
-    }
-  };
-
   const handleViewCampaigns = (projectName: string) => {
     navigate(`/campaigns?project=${encodeURIComponent(projectName)}`);
   };
@@ -167,47 +115,6 @@ export default function Projects() {
             Přehled všech projektů a jejich statistik
           </p>
         </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-gradient-primary hover:opacity-90">
-              <Plus className="w-4 h-4 mr-2" />
-              Přidat projekt
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Nový projekt</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="name">Název projektu</Label>
-                <Input
-                  id="name"
-                  value={newProject.name}
-                  onChange={(e) => setNewProject(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="Název projektu"
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Popis (volitelné)</Label>
-                <Textarea
-                  id="description"
-                  value={newProject.description}
-                  onChange={(e) => setNewProject(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Popis projektu"
-                />
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Zrušit
-                </Button>
-                <Button onClick={handleCreateProject}>
-                  Vytvořit projekt
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
       </div>
 
       {/* Projects Grid */}
