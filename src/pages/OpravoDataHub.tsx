@@ -1,11 +1,14 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from 'recharts';
 import { ExternalLink, Calendar, MessageCircle, Search, Filter, Download, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
@@ -52,19 +55,71 @@ interface Filters {
   period: string;
 }
 
+interface UserProfile {
+  user_id: string;
+  name: string;
+  email: string;
+  role?: string;
+}
+
+interface ChartDataPoint {
+  date: string;
+  jobs: number;
+  offers: number;
+}
+
+interface PieDataPoint {
+  name: string;
+  value: number;
+  color: string;
+}
+
 export default function OpravoDataHub() {
   const navigate = useNavigate();
   const [selectedRecord, setSelectedRecord] = useState<OpravoJob | OpravoOffer | null>(null);
   const [recordType, setRecordType] = useState<'job' | 'offer' | null>(null);
-  const [filters, setFilters] = useState<Filters>({
-    search: '',
-    status: 'all',
-    urgency: 'all',
-    selected: 'all',
-    dateFrom: '',
-    dateTo: '',
-    period: 'all'
-  });
+  const [selectedJobs, setSelectedJobs] = useState<Set<string>>(new Set());
+  const [selectedOffers, setSelectedOffers] = useState<Set<string>>(new Set());
+  
+  // Load filters from localStorage
+  const loadFiltersFromStorage = (): Filters => {
+    try {
+      const saved = localStorage.getItem('opravo-filters');
+      if (saved) {
+        return { ...{
+          search: '',
+          status: 'all',
+          urgency: 'all',
+          selected: 'all',
+          dateFrom: '',
+          dateTo: '',
+          period: 'all'
+        }, ...JSON.parse(saved) };
+      }
+    } catch (error) {
+      console.warn('Failed to load filters from localStorage:', error);
+    }
+    return {
+      search: '',
+      status: 'all',
+      urgency: 'all',
+      selected: 'all',
+      dateFrom: '',
+      dateTo: '',
+      period: 'all'
+    };
+  };
+
+  const [filters, setFilters] = useState<Filters>(loadFiltersFromStorage());
+
+  // Save filters to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('opravo-filters', JSON.stringify(filters));
+    } catch (error) {
+      console.warn('Failed to save filters to localStorage:', error);
+    }
+  }, [filters]);
 
   const { data: jobs = [], isLoading: jobsLoading } = useQuery({
     queryKey: ['opravo-jobs', filters],
@@ -240,9 +295,101 @@ export default function OpravoDataHub() {
     });
   };
 
+  // Chart data preparation
+  const chartData = useMemo(() => {
+    const last30Days = Array.from({ length: 30 }, (_, i) => {
+      const date = subDays(new Date(), 29 - i);
+      const dateStr = format(date, 'yyyy-MM-dd');
+      return {
+        date: format(date, 'dd.MM'),
+        jobs: jobs.filter(j => j.created_at?.startsWith(dateStr)).length,
+        offers: offers.filter(o => o.created_at?.startsWith(dateStr)).length
+      };
+    });
+    return last30Days;
+  }, [jobs, offers]);
+
+  const urgencyPieData: PieDataPoint[] = useMemo(() => [
+    { name: 'Urgentní', value: jobs.filter(j => j.urgentni).length, color: 'hsl(var(--destructive))' },
+    { name: 'Neurgentní', value: jobs.filter(j => !j.urgentni).length, color: 'hsl(var(--muted))' }
+  ], [jobs]);
+
+  const finalizationPieData: PieDataPoint[] = useMemo(() => [
+    { name: 'Finalizováno', value: offers.filter(o => o.finalizovana).length, color: 'hsl(var(--primary))' },
+    { name: 'Nefinalizováno', value: offers.filter(o => !o.finalizovana).length, color: 'hsl(var(--accent))' }
+  ], [offers]);
+
   const handleRecordClick = (record: OpravoJob | OpravoOffer, type: 'job' | 'offer') => {
     setSelectedRecord(record);
     setRecordType(type);
+  };
+
+  // Bulk selection handlers
+  const handleJobSelection = (jobId: string, checked: boolean) => {
+    const newSelected = new Set(selectedJobs);
+    if (checked) {
+      newSelected.add(jobId);
+    } else {
+      newSelected.delete(jobId);
+    }
+    setSelectedJobs(newSelected);
+  };
+
+  const handleOfferSelection = (offerId: string, checked: boolean) => {
+    const newSelected = new Set(selectedOffers);
+    if (checked) {
+      newSelected.add(offerId);
+    } else {
+      newSelected.delete(offerId);
+    }
+    setSelectedOffers(newSelected);
+  };
+
+  const handleSelectAllJobs = (checked: boolean) => {
+    if (checked) {
+      setSelectedJobs(new Set(jobs.map(j => j.id)));
+    } else {
+      setSelectedJobs(new Set());
+    }
+  };
+
+  const handleSelectAllOffers = (checked: boolean) => {
+    if (checked) {
+      setSelectedOffers(new Set(offers.map(o => o.id)));
+    } else {
+      setSelectedOffers(new Set());
+    }
+  };
+
+  // Bulk actions
+  const handleBulkExportJobs = () => {
+    const selectedJobsData = jobs.filter(j => selectedJobs.has(j.id));
+    exportToCSV(selectedJobsData, 'opravo-zakazky-vybrane', 'jobs');
+    toast.success(`Exportováno ${selectedJobsData.length} vybraných zakázek`);
+  };
+
+  const handleBulkExportOffers = () => {
+    const selectedOffersData = offers.filter(o => selectedOffers.has(o.id));
+    exportToCSV(selectedOffersData, 'opravo-nabidky-vybrane', 'offers');
+    toast.success(`Exportováno ${selectedOffersData.length} vybraných nabídek`);
+  };
+
+  const handleBulkAddToCampaignJobs = async () => {
+    const selectedJobsData = jobs.filter(j => selectedJobs.has(j.id));
+    for (const job of selectedJobsData) {
+      await handleAddToCampaign(job);
+    }
+    toast.success(`Přidáno ${selectedJobsData.length} zakázek do kampaně`);
+    setSelectedJobs(new Set());
+  };
+
+  const handleBulkAddToCampaignOffers = async () => {
+    const selectedOffersData = offers.filter(o => selectedOffers.has(o.id));
+    for (const offer of selectedOffersData) {
+      await handleAddToCampaign(offer);
+    }
+    toast.success(`Přidáno ${selectedOffersData.length} nabídek do kampaně`);
+    setSelectedOffers(new Set());
   };
 
   const handleAddToCampaign = async (item: OpravoJob | OpravoOffer) => {
@@ -287,9 +434,19 @@ export default function OpravoDataHub() {
 
   const JobRow = ({ job }: { job: OpravoJob }) => (
     <tr 
-      className={`border-b hover:bg-muted/50 transition-colors cursor-pointer ${job.urgentni ? 'border-l-4 border-l-destructive' : ''}`}
+      className={`border-b hover:bg-muted/50 transition-colors cursor-pointer ${
+        job.urgentni ? 'border-l-4 border-l-destructive' : ''
+      } ${
+        selectedJobs.has(job.id) ? 'bg-primary/5' : ''
+      }`}
       onClick={() => handleRecordClick(job, 'job')}
     >
+      <td className="p-4" onClick={(e) => e.stopPropagation()}>
+        <Checkbox
+          checked={selectedJobs.has(job.id)}
+          onCheckedChange={(checked) => handleJobSelection(job.id, checked as boolean)}
+        />
+      </td>
       <td className="p-4">
         <div className="font-medium">{job.popis || 'Bez popisu'}</div>
         <div className="text-sm text-muted-foreground">{job.lokalita || 'Neuvedeno'}</div>
@@ -347,9 +504,17 @@ export default function OpravoDataHub() {
 
   const OfferRow = ({ offer }: { offer: OpravoOffer }) => (
     <tr 
-      className="border-b hover:bg-muted/50 transition-colors cursor-pointer"
+      className={`border-b hover:bg-muted/50 transition-colors cursor-pointer ${
+        selectedOffers.has(offer.id) ? 'bg-primary/5' : ''
+      }`}
       onClick={() => handleRecordClick(offer, 'offer')}
     >
+      <td className="p-4" onClick={(e) => e.stopPropagation()}>
+        <Checkbox
+          checked={selectedOffers.has(offer.id)}
+          onCheckedChange={(checked) => handleOfferSelection(offer.id, checked as boolean)}
+        />
+      </td>
       <td className="p-4">
         <div className="font-medium">{offer.popis || 'Bez popisu'}</div>
         <div className="text-sm text-muted-foreground">
@@ -560,16 +725,40 @@ export default function OpravoDataHub() {
           <FiltersPanel />
           
           <Tabs defaultValue="zakazky" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="zakazky">Zakázky</TabsTrigger>
               <TabsTrigger value="nabidky">Nabídky</TabsTrigger>
+              <TabsTrigger value="statistiky">Statistiky</TabsTrigger>
             </TabsList>
             
             <TabsContent value="zakazky" className="mt-6">
               <StatsCards stats={jobStats} type="jobs" />
               
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Zakázky ({jobs.length})</h3>
+                <div className="flex items-center gap-4">
+                  <h3 className="text-lg font-semibold">Zakázky ({jobs.length})</h3>
+                  {selectedJobs.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        Vybráno: {selectedJobs.size}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleBulkExportJobs}
+                      >
+                        Export vybrané do CSV
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleBulkAddToCampaignJobs}
+                      >
+                        Přidat do kampaně
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 <Button
                   variant="outline"
                   onClick={() => exportToCSV(jobs, 'opravo-zakazky', 'jobs')}
@@ -584,6 +773,12 @@ export default function OpravoDataHub() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b bg-muted/50">
+                      <th className="p-4 text-left font-medium">
+                        <Checkbox
+                          checked={selectedJobs.size === jobs.length && jobs.length > 0}
+                          onCheckedChange={handleSelectAllJobs}
+                        />
+                      </th>
                       <th className="p-4 text-left font-medium">Popis / Lokalita</th>
                       <th className="p-4 text-left font-medium">Urgentní</th>
                       <th className="p-4 text-left font-medium">Stav</th>
@@ -595,13 +790,13 @@ export default function OpravoDataHub() {
                   <tbody>
                     {jobsLoading ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                        <td colSpan={7} className="p-8 text-center text-muted-foreground">
                           Načítání zakázek...
                         </td>
                       </tr>
                     ) : jobs.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                        <td colSpan={7} className="p-8 text-center text-muted-foreground">
                           Žádné zakázky k zobrazení
                         </td>
                       </tr>
@@ -617,7 +812,30 @@ export default function OpravoDataHub() {
               <StatsCards stats={offerStats} type="offers" />
               
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Nabídky ({offers.length})</h3>
+                <div className="flex items-center gap-4">
+                  <h3 className="text-lg font-semibold">Nabídky ({offers.length})</h3>
+                  {selectedOffers.size > 0 && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        Vybráno: {selectedOffers.size}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleBulkExportOffers}
+                      >
+                        Export vybrané do CSV
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={handleBulkAddToCampaignOffers}
+                      >
+                        Přidat do kampaně
+                      </Button>
+                    </div>
+                  )}
+                </div>
                 <Button
                   variant="outline"
                   onClick={() => exportToCSV(offers, 'opravo-nabidky', 'offers')}
@@ -632,6 +850,12 @@ export default function OpravoDataHub() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b bg-muted/50">
+                      <th className="p-4 text-left font-medium">
+                        <Checkbox
+                          checked={selectedOffers.size === offers.length && offers.length > 0}
+                          onCheckedChange={handleSelectAllOffers}
+                        />
+                      </th>
                       <th className="p-4 text-left font-medium">Popis / Cena</th>
                       <th className="p-4 text-left font-medium">Urgentní</th>
                       <th className="p-4 text-left font-medium">Finalizováno</th>
@@ -643,13 +867,13 @@ export default function OpravoDataHub() {
                   <tbody>
                     {offersLoading ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                        <td colSpan={7} className="p-8 text-center text-muted-foreground">
                           Načítání nabídek...
                         </td>
                       </tr>
                     ) : offers.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="p-8 text-center text-muted-foreground">
+                        <td colSpan={7} className="p-8 text-center text-muted-foreground">
                           Žádné nabídky k zobrazení
                         </td>
                       </tr>
@@ -658,6 +882,136 @@ export default function OpravoDataHub() {
                     )}
                   </tbody>
                 </table>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="statistiky" className="mt-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Jobs over time */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Zakázky a nabídky za posledních 30 dní</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={chartData}>
+                          <CartesianGrid strokeDasharray="3 3" />
+                          <XAxis dataKey="date" />
+                          <YAxis />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <Line 
+                            type="monotone" 
+                            dataKey="jobs" 
+                            stroke="hsl(var(--primary))" 
+                            strokeWidth={2}
+                            name="Zakázky"
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="offers" 
+                            stroke="hsl(var(--accent))" 
+                            strokeWidth={2}
+                            name="Nabídky"
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Urgency pie chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Rozdělení zakázek podle urgentnosti</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={urgencyPieData}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            label={({ name, value }) => `${name}: ${value}`}
+                          >
+                            {urgencyPieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Finalization pie chart */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Stav finalizace nabídek</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-[300px]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={finalizationPieData}
+                            cx="50%"
+                            cy="50%"
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                            label={({ name, value }) => `${name}: ${value}`}
+                          >
+                            {finalizationPieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Summary stats */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Souhrnné statistiky</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-4">
+                      <div className="flex justify-between">
+                        <span>Celkem zakázek:</span>
+                        <span className="font-semibold">{jobStats.total}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Urgentní zakázky:</span>
+                        <span className="font-semibold text-destructive">{jobStats.urgent}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Publikované zakázky:</span>
+                        <span className="font-semibold text-success">{jobStats.published}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Celkem nabídek:</span>
+                        <span className="font-semibold">{offerStats.total}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Finalizované nabídky:</span>
+                        <span className="font-semibold text-primary">{offerStats.published}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Vybrané nabídky:</span>
+                        <span className="font-semibold text-accent">{offerStats.selected}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
           </Tabs>
@@ -687,97 +1041,203 @@ export default function OpravoDataHub() {
   );
 }
 
-// Detail components
-const JobDetail = ({ job }: { job: OpravoJob }) => (
-  <div className="grid grid-cols-2 gap-4">
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">Popis</label>
-      <p className="text-sm">{job.popis || 'Neuvedeno'}</p>
-    </div>
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">Lokalita</label>
-      <p className="text-sm">{job.lokalita || 'Neuvedeno'}</p>
-    </div>
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">Urgentní</label>
-      <Badge variant={job.urgentni ? "destructive" : "secondary"}>
-        {job.urgentni ? "Urgentní" : "Neurgentní"}
-      </Badge>
-    </div>
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">Stav</label>
-      <Badge variant={job.status === 'published' ? "default" : "outline"}>
-        {job.status === 'published' ? "Publikováno" : "Čeká"}
-      </Badge>
-    </div>
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">Vybraný opravář</label>
-      <p className="text-sm">{job.vybrany_opravar ? "Vybrán" : "Nevybrán"}</p>
-    </div>
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">Datum vytvoření</label>
-      <p className="text-sm">
-        {job.created_at ? format(new Date(job.created_at), 'dd.MM.yyyy HH:mm', { locale: cs }) : 'Neuvedeno'}
-      </p>
-    </div>
-    <div className="col-span-2 pt-4">
-      <Button asChild>
-        <a 
-          href={`https://opravo.cz/zakazka/${job.request_id || job.id}`} 
-          target="_blank" 
-          rel="noopener noreferrer"
-        >
-          <ExternalLink className="h-4 w-4 mr-2" />
-          Otevřít v Opravo
-        </a>
-      </Button>
-    </div>
-  </div>
-);
+// Detail components with profile fetching
+const JobDetail = ({ job }: { job: OpravoJob }) => {
+  const [customerProfile, setCustomerProfile] = useState<UserProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
 
-const OfferDetail = ({ offer }: { offer: OpravoOffer }) => (
-  <div className="grid grid-cols-2 gap-4">
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">Popis</label>
-      <p className="text-sm">{offer.popis || 'Neuvedeno'}</p>
+  useEffect(() => {
+    const fetchCustomerProfile = async () => {
+      if (!job.zadavatel_id) return;
+      
+      setLoadingProfile(true);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_id, name, email, role')
+          .eq('user_id', job.zadavatel_id)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (data) setCustomerProfile(data);
+      } catch (error) {
+        console.error('Error fetching customer profile:', error);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    fetchCustomerProfile();
+  }, [job.zadavatel_id]);
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Popis</label>
+        <p className="text-sm">{job.popis || 'Neuvedeno'}</p>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Lokalita</label>
+        <p className="text-sm">{job.lokalita || 'Neuvedeno'}</p>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Urgentní</label>
+        <Badge variant={job.urgentni ? "destructive" : "secondary"}>
+          {job.urgentni ? "Urgentní" : "Neurgentní"}
+        </Badge>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Stav</label>
+        <Badge variant={job.status === 'published' ? "default" : "outline"}>
+          {job.status === 'published' ? "Publikováno" : "Čeká"}
+        </Badge>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Vybraný opravář</label>
+        <p className="text-sm">{job.vybrany_opravar ? "Vybrán" : "Nevybrán"}</p>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Datum vytvoření</label>
+        <p className="text-sm">
+          {job.created_at ? format(new Date(job.created_at), 'dd.MM.yyyy HH:mm', { locale: cs }) : 'Neuvedeno'}
+        </p>
+      </div>
+      
+      {/* Customer profile section */}
+      <div className="col-span-2 pt-4 border-t">
+        <label className="text-sm font-medium text-muted-foreground">Zadavatel</label>
+        {loadingProfile ? (
+          <p className="text-sm text-muted-foreground">Načítání...</p>
+        ) : customerProfile ? (
+          <div className="mt-2 p-3 bg-muted/30 rounded-md">
+            <p className="text-sm font-medium">{customerProfile.name}</p>
+            <p className="text-sm text-muted-foreground">{customerProfile.email}</p>
+            {customerProfile.role && (
+              <p className="text-xs text-muted-foreground">Role: {customerProfile.role}</p>
+            )}
+            <Button asChild size="sm" variant="outline" className="mt-2">
+              <a href={`/profile/${customerProfile.user_id}`}>
+                Zobrazit profil v Sofinity
+              </a>
+            </Button>
+          </div>
+        ) : job.zadavatel_id ? (
+          <p className="text-sm text-muted-foreground">Profil nenalezen</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">ID zadavatele neuvedeno</p>
+        )}
+      </div>
+      
+      <div className="col-span-2 pt-4">
+        <Button asChild>
+          <a 
+            href={`https://opravo.cz/zakazka/${job.request_id || job.id}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+          >
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Otevřít v Opravo
+          </a>
+        </Button>
+      </div>
     </div>
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">Cena</label>
-      <p className="text-sm">{offer.cena ? `${offer.cena} Kč` : 'Neuvedeno'}</p>
+  );
+};
+
+const OfferDetail = ({ offer }: { offer: OpravoOffer }) => {
+  const [repairerProfile, setRepairerProfile] = useState<UserProfile | null>(null);
+  const [loadingProfile, setLoadingProfile] = useState(false);
+
+  useEffect(() => {
+    const fetchRepairerProfile = async () => {
+      if (!offer.opravar_id) return;
+      
+      setLoadingProfile(true);
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_id, name, email, role')
+          .eq('user_id', offer.opravar_id)
+          .maybeSingle();
+
+        if (error) throw error;
+        if (data) setRepairerProfile(data);
+      } catch (error) {
+        console.error('Error fetching repairer profile:', error);
+      } finally {
+        setLoadingProfile(false);
+      }
+    };
+
+    fetchRepairerProfile();
+  }, [offer.opravar_id]);
+
+  return (
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Popis</label>
+        <p className="text-sm">{offer.popis || 'Neuvedeno'}</p>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Cena</label>
+        <p className="text-sm">{offer.cena ? `${offer.cena} Kč` : 'Neuvedeno'}</p>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Finalizováno</label>
+        <Badge variant={offer.finalizovana ? "default" : "outline"}>
+          {offer.finalizovana ? "Finalizováno" : "Čeká"}
+        </Badge>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Vybráno</label>
+        <Badge variant={offer.vybrana ? "default" : "secondary"}>
+          {offer.vybrana ? "Vybráno" : "Nevybráno"}
+        </Badge>
+      </div>
+      <div>
+        <label className="text-sm font-medium text-muted-foreground">Datum vytvoření</label>
+        <p className="text-sm">
+          {offer.created_at ? format(new Date(offer.created_at), 'dd.MM.yyyy HH:mm', { locale: cs }) : 'Neuvedeno'}
+        </p>
+      </div>
+      
+      {/* Repairer profile section */}
+      <div className="col-span-2 pt-4 border-t">
+        <label className="text-sm font-medium text-muted-foreground">Opravář</label>
+        {loadingProfile ? (
+          <p className="text-sm text-muted-foreground">Načítání...</p>
+        ) : repairerProfile ? (
+          <div className="mt-2 p-3 bg-muted/30 rounded-md">
+            <p className="text-sm font-medium">{repairerProfile.name}</p>
+            <p className="text-sm text-muted-foreground">{repairerProfile.email}</p>
+            {repairerProfile.role && (
+              <p className="text-xs text-muted-foreground">Role: {repairerProfile.role}</p>
+            )}
+            <Button asChild size="sm" variant="outline" className="mt-2">
+              <a href={`/profile/${repairerProfile.user_id}`}>
+                Zobrazit profil v Sofinity
+              </a>
+            </Button>
+          </div>
+        ) : offer.opravar_id ? (
+          <p className="text-sm text-muted-foreground">Profil nenalezen</p>
+        ) : (
+          <p className="text-sm text-muted-foreground">ID opraváře neuvedeno</p>
+        )}
+      </div>
+      
+      <div className="col-span-2 pt-4">
+        <Button asChild>
+          <a 
+            href={`https://opravo.cz/nabidka/${offer.offer_id || offer.id}`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+          >
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Otevřít v Opravo
+          </a>
+        </Button>
+      </div>
     </div>
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">Finalizováno</label>
-      <Badge variant={offer.finalizovana ? "default" : "outline"}>
-        {offer.finalizovana ? "Finalizováno" : "Čeká"}
-      </Badge>
-    </div>
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">Vybráno</label>
-      <Badge variant={offer.vybrana ? "default" : "secondary"}>
-        {offer.vybrana ? "Vybráno" : "Nevybráno"}
-      </Badge>
-    </div>
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">Datum vytvoření</label>
-      <p className="text-sm">
-        {offer.created_at ? format(new Date(offer.created_at), 'dd.MM.yyyy HH:mm', { locale: cs }) : 'Neuvedeno'}
-      </p>
-    </div>
-    <div>
-      <label className="text-sm font-medium text-muted-foreground">ID opraváře</label>
-      <p className="text-sm">{offer.opravar_id || 'Neuvedeno'}</p>
-    </div>
-    <div className="col-span-2 pt-4">
-      <Button asChild>
-        <a 
-          href={`https://opravo.cz/nabidka/${offer.offer_id || offer.id}`} 
-          target="_blank" 
-          rel="noopener noreferrer"
-        >
-          <ExternalLink className="h-4 w-4 mr-2" />
-          Otevřít v Opravo
-        </a>
-      </Button>
-    </div>
-  </div>
-);
+  );
+};
