@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -22,6 +22,7 @@ interface APIResponse {
 }
 
 export default function OffersAPI() {
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [jsonPayload, setJsonPayload] = useState(`{
   "type": "OfferCreated",
   "offer": {
@@ -34,12 +35,20 @@ export default function OffersAPI() {
   },
   "user": {
     "id": "user123",
-    "email": "test@example.com"
+    "email": "divispavel2@gmail.com"
   }
 }`);
   const [loading, setLoading] = useState(false);
   const [apiResponses, setApiResponses] = useState<APIResponse[]>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const getCurrentUser = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setCurrentUserId(session?.user?.id || null);
+    };
+    getCurrentUser();
+  }, []);
 
   const handleAPICall = async () => {
     try {
@@ -70,7 +79,8 @@ export default function OffersAPI() {
           type: 'opravo_offers_api_test',
           prompt: `Opravo Offers API Test - ${parsedPayload.type}`,
           response: JSON.stringify({ data, error }),
-          status: error ? 'error' : 'completed'
+          status: error ? 'error' : 'completed',
+          user_id: currentUserId
         })
         .select()
         .single();
