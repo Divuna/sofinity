@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useApp } from '@/contexts/AppContext';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { Building2, Eye, Calendar, Mail, Target, Bot } from 'lucide-react';
 
 interface Project {
@@ -23,7 +23,7 @@ interface Project {
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const { setSelectedProjectId } = useApp();
+  const { setSelectedProject } = useSelectedProject();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -100,8 +100,14 @@ export default function Projects() {
   };
 
   const handleViewProject = (projectId: string) => {
-    setSelectedProjectId(projectId);
-    window.location.href = '/dashboard';
+    const project = projects.find(p => p.id === projectId);
+    if (project) {
+      setSelectedProject({
+        id: project.id,
+        name: project.name
+      });
+      window.location.href = '/dashboard';
+    }
   };
 
   const handleConnectOpravo = async () => {

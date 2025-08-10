@@ -210,6 +210,7 @@ export type Database = {
           id: string
           name: string
           post: string | null
+          project: string | null
           project_id: string | null
           status: string
           targeting: string | null
@@ -222,6 +223,7 @@ export type Database = {
           id?: string
           name: string
           post?: string | null
+          project?: string | null
           project_id?: string | null
           status?: string
           targeting?: string | null
@@ -234,6 +236,7 @@ export type Database = {
           id?: string
           name?: string
           post?: string | null
+          project?: string | null
           project_id?: string | null
           status?: string
           targeting?: string | null
@@ -813,6 +816,8 @@ export type Database = {
           id: string
           onboarding_complete: boolean | null
           role: string | null
+          selected_project_id: string | null
+          updated_at: string | null
           user_id: string
         }
         Insert: {
@@ -822,6 +827,8 @@ export type Database = {
           id?: string
           onboarding_complete?: boolean | null
           role?: string | null
+          selected_project_id?: string | null
+          updated_at?: string | null
           user_id: string
         }
         Update: {
@@ -831,9 +838,19 @@ export type Database = {
           id?: string
           onboarding_complete?: boolean | null
           role?: string | null
+          selected_project_id?: string | null
+          updated_at?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "UserPreferences_selected_project_id_fkey"
+            columns: ["selected_project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

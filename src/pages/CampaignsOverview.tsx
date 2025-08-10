@@ -20,6 +20,7 @@ import {
   Target
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 
 interface Campaign {
   id: string;
@@ -47,18 +48,25 @@ export default function CampaignsOverview() {
   const [projectFilter, setProjectFilter] = useState<string>('all');
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { selectedProject } = useSelectedProject();
 
   useEffect(() => {
     fetchCampaigns();
     fetchProjects();
-  }, []);
+  }, [selectedProject]);
 
   const fetchCampaigns = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('Campaigns')
         .select('*')
         .order('created_at', { ascending: false });
+
+      if (selectedProject?.id) {
+        query = query.eq('project_id', selectedProject.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setCampaigns((data || []) as Campaign[]);
@@ -121,7 +129,9 @@ export default function CampaignsOverview() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Kampaně</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Kampaně{selectedProject ? ` — ${selectedProject.name}` : ''}
+          </h1>
           <p className="text-muted-foreground mt-1">
             Správa marketingových kampaní a jejich obsahu
           </p>

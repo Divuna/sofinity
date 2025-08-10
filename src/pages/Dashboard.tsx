@@ -6,7 +6,7 @@ import { StatsCard } from '@/components/Dashboard/StatsCard';
 import { ProjectSelector } from '@/components/Dashboard/ProjectSelector';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useApp } from '@/contexts/AppContext';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
 import { 
   TrendingUp, 
@@ -79,13 +79,13 @@ export default function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [userProfile, setUserProfile] = useState<any>(null);
-  const { selectedProjectId } = useApp();
+  const { selectedProject } = useSelectedProject();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchDashboardData();
     loadUserProfile();
-  }, [selectedProjectId]);
+  }, [selectedProject]);
 
   const loadUserProfile = async () => {
     try {
@@ -105,8 +105,8 @@ export default function Dashboard() {
         .order('created_at', { ascending: false })
         .limit(5);
       
-      if (selectedProjectId) {
-        campaignsQuery = campaignsQuery.eq('project_id', selectedProjectId);
+      if (selectedProject?.id) {
+        campaignsQuery = campaignsQuery.eq('project_id', selectedProject.id);
       }
       
       const { data: campaignsData, error: campaignsError } = await campaignsQuery;
@@ -166,18 +166,18 @@ export default function Dashboard() {
       let offersQuery = supabase.from('offers').select('*', { count: 'exact', head: true });
       let acceptedOffersQuery = supabase.from('offers').select('*', { count: 'exact', head: true }).eq('status', 'accepted');
 
-      if (selectedProjectId) {
-        activeCampaignsQuery = activeCampaignsQuery.eq('project_id', selectedProjectId);
-        emailsQuery = emailsQuery.eq('project_id', selectedProjectId);
-        contactsQuery = contactsQuery.eq('project_id', selectedProjectId);
-        offersQuery = offersQuery.eq('project_id', selectedProjectId);
-        acceptedOffersQuery = acceptedOffersQuery.eq('project_id', selectedProjectId);
+      if (selectedProject?.id) {
+        activeCampaignsQuery = activeCampaignsQuery.eq('project_id', selectedProject.id);
+        emailsQuery = emailsQuery.eq('project_id', selectedProject.id);
+        contactsQuery = contactsQuery.eq('project_id', selectedProject.id);
+        offersQuery = offersQuery.eq('project_id', selectedProject.id);
+        acceptedOffersQuery = acceptedOffersQuery.eq('project_id', selectedProject.id);
         
         // Filter email logs by campaigns in the selected project
         const { data: projectCampaigns } = await supabase
           .from('Campaigns')
           .select('id')
-          .eq('project_id', selectedProjectId);
+          .eq('project_id', selectedProject.id);
         
         const campaignIds = projectCampaigns?.map(c => c.id) || [];
         if (campaignIds.length > 0) {
@@ -311,7 +311,9 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Dashboard{selectedProject ? ` — ${selectedProject.name}` : ''}
+          </h1>
           <p className="text-muted-foreground mt-1">
             Přehled vašich AI marketingových kampaní
           </p>
@@ -337,21 +339,21 @@ export default function Dashboard() {
         <StatsCard
           title="Celkem kontaktů"
           value={stats.totalContacts.toString()}
-          change={selectedProjectId ? "V aktuálním projektu" : "Aktivní odběratelé"}
+          change={selectedProject ? "V aktuálním projektu" : "Aktivní odběratelé"}
           changeType="positive"
           icon={Users}
         />
         <StatsCard
           title="Odeslané e-maily"
           value={stats.totalEmails.toString()}
-          change={selectedProjectId ? "V aktuálním projektu" : "Celkem v systému"}
+          change={selectedProject ? "V aktuálním projektu" : "Celkem v systému"}
           changeType="positive"
           icon={Mail}
         />
         <StatsCard
           title="Celkem nabídek"
           value={stats.totalOffers.toString()}
-          change={selectedProjectId ? "V aktuálním projektu" : "Celkem v systému"}
+          change={selectedProject ? "V aktuálním projektu" : "Celkem v systému"}
           changeType="positive"
           icon={MessageSquare}
         />

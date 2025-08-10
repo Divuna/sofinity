@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useApp } from '@/contexts/AppContext';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { getCurrentUser } from '@/lib/auth';
 import { 
   Handshake, 
@@ -51,12 +51,12 @@ export default function Offers() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOffer, setSelectedOffer] = useState<Offer | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
-  const { selectedProjectId } = useApp();
+  const { selectedProject } = useSelectedProject();
   const { toast } = useToast();
 
   useEffect(() => {
     fetchData();
-  }, [selectedProjectId]);
+  }, [selectedProject]);
 
   const fetchData = async () => {
     try {
@@ -86,8 +86,8 @@ export default function Offers() {
         .order('created_at', { ascending: false });
 
       // Apply project filter if selected
-      if (selectedProjectId) {
-        offersQuery = offersQuery.eq('project_id', selectedProjectId);
+      if (selectedProject?.id) {
+        offersQuery = offersQuery.eq('project_id', selectedProject.id);
       }
 
       // Apply role-based filtering
@@ -104,8 +104,8 @@ export default function Offers() {
           .eq('opravo_jobs.customer_id', currentUser.id)
           .order('created_at', { ascending: false });
           
-        if (selectedProjectId) {
-          offersQuery = offersQuery.eq('project_id', selectedProjectId);
+        if (selectedProject?.id) {
+          offersQuery = offersQuery.eq('project_id', selectedProject.id);
         }
       } else if (userRole === 'repairer') {
         // Repairer: Show only offers they created

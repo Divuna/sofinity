@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
-import { useApp } from '@/contexts/AppContext';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Building2 } from 'lucide-react';
 
@@ -29,7 +29,7 @@ export function ProjectSelector() {
     name: 'Opravo',
     description: 'A mobile platform connecting customers and repair professionals.'
   });
-  const { selectedProjectId, setSelectedProjectId } = useApp();
+  const { selectedProject, setSelectedProject } = useSelectedProject();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -67,8 +67,11 @@ export function ProjectSelector() {
       setProjects(projectList);
       
       // Auto-select first project if none selected
-      if (!selectedProjectId && projectList.length > 0 && projectList[0].id && projectList[0].id.trim() !== '') {
-        setSelectedProjectId(projectList[0].id);
+      if (!selectedProject && projectList.length > 0 && projectList[0].id && projectList[0].id.trim() !== '') {
+        setSelectedProject({
+          id: projectList[0].id,
+          name: projectList[0].name
+        });
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
@@ -123,7 +126,10 @@ export function ProjectSelector() {
 
       // Auto-select the new project
       if (data?.id) {
-        setSelectedProjectId(data.id);
+        setSelectedProject({
+          id: data.id,
+          name: data.name
+        });
       }
 
       toast({
@@ -227,7 +233,22 @@ export function ProjectSelector() {
         {projects.length > 0 ? (
           <>
             <div>
-              <Select value={selectedProjectId || 'none'} onValueChange={(value) => setSelectedProjectId(value === 'none' ? null : value)}>
+              <Select 
+                value={selectedProject?.id || 'none'} 
+                onValueChange={(value) => {
+                  if (value === 'none') {
+                    setSelectedProject(null);
+                  } else {
+                    const project = projects.find(p => p.id === value);
+                    if (project) {
+                      setSelectedProject({
+                        id: project.id,
+                        name: project.name
+                      });
+                    }
+                  }
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Vyberte projekt" />
                 </SelectTrigger>
@@ -247,10 +268,10 @@ export function ProjectSelector() {
               </Select>
             </div>
 
-            {selectedProjectId && (
+            {selectedProject && (
               <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
                 {(() => {
-                  const selected = projects.find(p => p.id === selectedProjectId);
+                  const selected = projects.find(p => p.id === selectedProject.id);
                   return selected ? (
                     <div>
                       <div className="font-medium text-foreground">{selected.name}</div>

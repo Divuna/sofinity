@@ -21,6 +21,7 @@ import {
   CheckCircle,
   X
 } from 'lucide-react';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 
 interface Notification {
   id: string;
@@ -56,6 +57,7 @@ export default function NotificationCenter() {
   const [readFilter, setReadFilter] = useState<string>('all');
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
   const { toast } = useToast();
+  const { selectedProject } = useSelectedProject();
 
   useEffect(() => {
     fetchNotifications();
@@ -263,7 +265,9 @@ export default function NotificationCenter() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Centrum notifikací</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Centrum notifikací{selectedProject ? ` — ${selectedProject.name}` : ''}
+          </h1>
           <p className="text-muted-foreground mt-1">
             Přehled všech upozornění a systémových zpráv
           </p>

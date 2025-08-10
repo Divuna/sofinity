@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Bell, User, Search, LogOut } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { ProjectSelectorDropdown } from '@/components/Dashboard/ProjectSelectorDropdown';
+import { ProjectSwitcher } from '@/components/ProjectSwitcher';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
@@ -106,7 +106,7 @@ export function Header() {
       {/* Right side */}
       <div className="flex items-center space-x-4">
         {/* Project Selector */}
-        <ProjectSelectorDropdown />
+        <ProjectSwitcher />
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />

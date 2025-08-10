@@ -12,7 +12,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useApp } from '@/contexts/AppContext';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { 
   Calendar as CalendarIcon, 
   Plus, 
@@ -75,23 +75,23 @@ export default function PlanovacPublikace() {
     channel: '',
     publish_date: new Date()
   });
-  const { selectedProjectId } = useApp();
+  const { selectedProject } = useSelectedProject();
   const { toast } = useToast();
 
   useEffect(() => {
-    if (selectedProjectId) {
+    if (selectedProject?.id) {
       fetchPosts();
     }
-  }, [selectedProjectId]);
+  }, [selectedProject]);
 
   const fetchPosts = async () => {
-    if (!selectedProjectId) return;
+    if (!selectedProject?.id) return;
     
     try {
       const { data, error } = await supabase
         .from('posts')
         .select('*')
-        .eq('project_id', selectedProjectId)
+        .eq('project_id', selectedProject.id)
         .order('publish_date', { ascending: true });
 
       if (error) throw error;
@@ -127,7 +127,7 @@ export default function PlanovacPublikace() {
           format: newPost.format,
           channel: newPost.channel,
           publish_date: newPost.publish_date.toISOString(),
-          project_id: selectedProjectId,
+          project_id: selectedProject.id,
           user_id: (await supabase.auth.getUser()).data.user?.id
         }])
         .select()
@@ -231,7 +231,7 @@ export default function PlanovacPublikace() {
     return acc;
   }, {} as Record<string, Post[]>);
 
-  if (!selectedProjectId) {
+  if (!selectedProject?.id) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="text-center">
@@ -259,7 +259,9 @@ export default function PlanovacPublikace() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Plánovač publikací</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Plánovač publikací{selectedProject ? ` — ${selectedProject.name}` : ''}
+          </h1>
           <p className="text-muted-foreground mt-1">
             Plánování a správa příspěvků na sociálních sítích
           </p>
