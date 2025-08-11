@@ -955,45 +955,13 @@ export type Database = {
       }
     }
     Views: {
-      safe_external_integrations: {
-        Row: {
-          contains_credentials: boolean | null
-          created_at: string | null
-          external_email: string | null
-          external_system: string | null
-          external_user_id: string | null
-          id: string | null
-          mapping_data: Json | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          contains_credentials?: boolean | null
-          created_at?: string | null
-          external_email?: string | null
-          external_system?: string | null
-          external_user_id?: string | null
-          id?: string | null
-          mapping_data?: never
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          contains_credentials?: boolean | null
-          created_at?: string | null
-          external_email?: string | null
-          external_system?: string | null
-          external_user_id?: string | null
-          id?: string | null
-          mapping_data?: never
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_safe_integration_data: {
+        Args: { integration_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       [_ in never]: never
