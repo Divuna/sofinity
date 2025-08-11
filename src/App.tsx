@@ -62,17 +62,17 @@ const App = () => (
             <Route path="/emails/:id" element={<AuthGuard><EmailDetail /></AuthGuard>} />
             
             {/* Other feature routes */}
-            <Route path="/autoresponses" element={<AutoresponsesManager />} />
-            <Route path="/schedule" element={<CampaignSchedule />} />
-            <Route path="/planovac-publikace" element={<PlanovacPublikace />} />
-            <Route path="/reports" element={<CampaignReports />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/templates" element={<Templates />} />
-            <Route path="/notifications" element={<NotificationCenter />} />
-            <Route path="/projects" element={<Projects />} />
-            <Route path="/offers" element={<Offers />} />
-            <Route path="/offers-api" element={<OffersAPI />} />
-            <Route path="/opravo-data-hub" element={<OpravoDataHub />} />
+            <Route path="/autoresponses" element={<AuthGuard><AutoresponsesManager /></AuthGuard>} />
+            <Route path="/schedule" element={<AuthGuard><CampaignSchedule /></AuthGuard>} />
+            <Route path="/planovac-publikace" element={<AuthGuard><PlanovacPublikace /></AuthGuard>} />
+            <Route path="/reports" element={<AuthGuard><CampaignReports /></AuthGuard>} />
+            <Route path="/contacts" element={<AuthGuard><Contacts /></AuthGuard>} />
+            <Route path="/templates" element={<AuthGuard><Templates /></AuthGuard>} />
+            <Route path="/notifications" element={<AuthGuard><NotificationCenter /></AuthGuard>} />
+            <Route path="/projects" element={<AuthGuard><Projects /></AuthGuard>} />
+            <Route path="/offers" element={<AuthGuard><Offers /></AuthGuard>} />
+            <Route path="/offers-api" element={<AuthGuard><OffersAPI /></AuthGuard>} />
+            <Route path="/opravo-data-hub" element={<AuthGuard><OpravoDataHub /></AuthGuard>} />
             <Route path="/opravo-api-debug" element={<AuthGuard><OpravoAPIDebug /></AuthGuard>} />
             
             {/* Existing routes */}
