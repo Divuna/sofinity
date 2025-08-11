@@ -484,6 +484,7 @@ export type Database = {
       }
       external_integrations: {
         Row: {
+          contains_credentials: boolean | null
           created_at: string
           external_email: string | null
           external_system: string
@@ -494,6 +495,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          contains_credentials?: boolean | null
           created_at?: string
           external_email?: string | null
           external_system: string
@@ -504,6 +506,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          contains_credentials?: boolean | null
           created_at?: string
           external_email?: string | null
           external_system?: string
@@ -952,7 +955,42 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      safe_external_integrations: {
+        Row: {
+          contains_credentials: boolean | null
+          created_at: string | null
+          external_email: string | null
+          external_system: string | null
+          external_user_id: string | null
+          id: string | null
+          mapping_data: Json | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          contains_credentials?: boolean | null
+          created_at?: string | null
+          external_email?: string | null
+          external_system?: string | null
+          external_user_id?: string | null
+          id?: string | null
+          mapping_data?: never
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          contains_credentials?: boolean | null
+          created_at?: string | null
+          external_email?: string | null
+          external_system?: string | null
+          external_user_id?: string | null
+          id?: string | null
+          mapping_data?: never
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
