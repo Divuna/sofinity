@@ -27,10 +27,24 @@ export default {
 				surface: 'hsl(var(--surface))',
 				'surface-variant': 'hsl(var(--surface-variant))',
 				
-				// Sofinity Brand Colors
+				// Sofinity Brand Colors - Updated Palette
+				sofinity: {
+					purple: 'hsl(var(--sofinity-purple))',
+					'purple-hover': 'hsl(var(--sofinity-purple-hover))',
+					'purple-active': 'hsl(var(--sofinity-purple-active))',
+					orange: 'hsl(var(--sofinity-orange))',
+					'orange-hover': 'hsl(var(--sofinity-orange-hover))',
+					'orange-active': 'hsl(var(--sofinity-orange-active))',
+					'text-primary': 'hsl(var(--text-primary))',
+					'text-muted': 'hsl(var(--text-muted))',
+					success: 'hsl(var(--success))',
+					warning: 'hsl(var(--warning))',
+					error: 'hsl(var(--error))',
+				},
+				
+				// Legacy support
 				'sofinity-purple': 'hsl(var(--sofinity-purple))',
 				'sofinity-orange': 'hsl(var(--sofinity-orange))',
-				'sofinity-dark': 'hsl(var(--sofinity-dark))',
 				
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
@@ -86,7 +100,8 @@ export default {
 			backgroundImage: {
 				'gradient-primary': 'var(--gradient-primary)',
 				'gradient-surface': 'var(--gradient-surface)',
-				'gradient-card': 'var(--gradient-card)'
+				'gradient-card': 'var(--gradient-card)',
+				'sof-gradient': 'var(--sof-gradient)'
 			},
 			boxShadow: {
 				'soft': 'var(--shadow-soft)',

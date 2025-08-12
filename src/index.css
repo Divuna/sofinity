@@ -6,56 +6,67 @@
 
 @layer base {
   :root {
-    /* Sofinity Brand Colors */
-    --sofinity-purple: 258 100% 67%;
+    /* Sofinity Brand Colors - Updated Palette */
+    --sofinity-purple: 258 85% 65%;
+    --sofinity-purple-hover: 258 85% 73%;
+    --sofinity-purple-active: 258 85% 55%;
     --sofinity-orange: 26 100% 51%;
-    --sofinity-dark: 240 6% 9%;
+    --sofinity-orange-hover: 26 100% 61%;
+    --sofinity-orange-active: 26 100% 45%;
     
-    /* Background & Surface */
+    /* Text & Background System */
+    --text-primary: 240 9% 10%;
+    --text-muted: 240 2% 30%;
     --background: 0 0% 100%;
-    --foreground: 240 6% 9%;
-    --surface: 0 0% 98%;
-    --surface-variant: 240 4% 96%;
+    --surface: 0 0% 94%;
+    --border: 220 13% 91%;
+    
+    /* Semantic Colors */
+    --success: 142 71% 45%;
+    --warning: 43 96% 50%;
+    --error: 0 84% 60%;
+    
+    /* Legacy Support - Map to new color system */
+    --foreground: 240 9% 10%;
+    --surface-variant: 0 0% 94%;
 
     /* Brand Primary (Sofinity Purple) */
-    --primary: 258 100% 67%;
+    --primary: 258 85% 65%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 258 100% 62%;
-    --primary-light: 258 100% 85%;
+    --primary-hover: 258 85% 73%;
+    --primary-light: 258 85% 85%;
 
     /* Brand Secondary (Sofinity Orange) */
     --secondary: 26 100% 51%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-hover: 26 100% 46%;
+    --secondary-hover: 26 100% 61%;
     --secondary-light: 26 100% 85%;
 
     /* Neutral System */
-    --muted: 240 4% 96%;
-    --muted-foreground: 240 3% 46%;
-    --accent: 240 4% 96%;
-    --accent-foreground: 240 6% 9%;
+    --muted: 0 0% 94%;
+    --muted-foreground: 240 2% 30%;
+    --accent: 0 0% 94%;
+    --accent-foreground: 240 9% 10%;
 
     /* Interactive */
     --card: 0 0% 100%;
-    --card-foreground: 240 6% 9%;
+    --card-foreground: 240 9% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 6% 9%;
-    --border: 240 6% 91%;
-    --input: 240 6% 91%;
-    --ring: 258 100% 67%;
+    --popover-foreground: 240 9% 10%;
+    --input: 220 13% 91%;
+    --ring: 258 85% 65%;
 
-    /* Status Colors */
-    --destructive: 0 72% 51%;
+    /* Status Colors - Updated */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
+    --warning-foreground: 240 9% 10%;
 
-    /* Gradients */
+    /* Gradients - Sofinity Signature */
+    --sof-gradient: linear-gradient(90deg, #7F5AF0, #FF8906);
     --gradient-primary: linear-gradient(90deg, hsl(var(--sofinity-purple)), hsl(var(--sofinity-orange)));
     --gradient-surface: linear-gradient(135deg, hsl(var(--background)), hsl(var(--surface)));
-    --gradient-card: linear-gradient(145deg, hsl(var(--card)), hsl(var(--surface-variant)));
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)), hsl(var(--surface)));
 
     /* Shadows */
     --shadow-soft: 0 2px 10px -2px hsl(var(--sofinity-purple) / 0.1);
@@ -132,5 +143,11 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .bg-sof-gradient {
+    background: var(--sof-gradient);
   }
 }
