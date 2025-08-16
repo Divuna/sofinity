@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -347,7 +347,7 @@ export type Database = {
           subscribed: boolean | null
           tags: string[] | null
           unsubscribed_at: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           city?: string | null
@@ -363,7 +363,7 @@ export type Database = {
           subscribed?: boolean | null
           tags?: string[] | null
           unsubscribed_at?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Update: {
           city?: string | null
@@ -379,7 +379,7 @@ export type Database = {
           subscribed?: boolean | null
           tags?: string[] | null
           unsubscribed_at?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {
