@@ -27,14 +27,14 @@ export default {
 				surface: 'hsl(var(--surface))',
 				'surface-variant': 'hsl(var(--surface-variant))',
 				
-				// Sofinity Brand Colors - Updated Palette
+				// Sofinity Brand Colors - New Gradient Palette
 				sofinity: {
-					purple: 'hsl(var(--sofinity-purple))',
-					'purple-hover': 'hsl(var(--sofinity-purple-hover))',
-					'purple-active': 'hsl(var(--sofinity-purple-active))',
-					orange: 'hsl(var(--sofinity-orange))',
-					'orange-hover': 'hsl(var(--sofinity-orange-hover))',
-					'orange-active': 'hsl(var(--sofinity-orange-active))',
+					blue: 'hsl(var(--sofinity-blue))',
+					'blue-hover': 'hsl(var(--sofinity-blue-hover))',
+					'blue-active': 'hsl(var(--sofinity-blue-active))',
+					pink: 'hsl(var(--sofinity-pink))',
+					'pink-hover': 'hsl(var(--sofinity-pink-hover))',
+					'pink-active': 'hsl(var(--sofinity-pink-active))',
 					'text-primary': 'hsl(var(--text-primary))',
 					'text-muted': 'hsl(var(--text-muted))',
 					success: 'hsl(var(--success))',
@@ -43,8 +43,8 @@ export default {
 				},
 				
 				// Legacy support
-				'sofinity-purple': 'hsl(var(--sofinity-purple))',
-				'sofinity-orange': 'hsl(var(--sofinity-orange))',
+				'sofinity-blue': 'hsl(var(--sofinity-blue))',
+				'sofinity-pink': 'hsl(var(--sofinity-pink))',
 				
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',

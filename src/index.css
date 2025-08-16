@@ -6,13 +6,13 @@
 
 @layer base {
   :root {
-    /* Sofinity Brand Colors - Updated Palette */
-    --sofinity-purple: 258 85% 65%;
-    --sofinity-purple-hover: 258 85% 73%;
-    --sofinity-purple-active: 258 85% 55%;
-    --sofinity-orange: 26 100% 51%;
-    --sofinity-orange-hover: 26 100% 61%;
-    --sofinity-orange-active: 26 100% 45%;
+    /* Sofinity Brand Colors - New Gradient Palette */
+    --sofinity-blue: 195 100% 50%;
+    --sofinity-blue-hover: 195 100% 60%;
+    --sofinity-blue-active: 195 100% 40%;
+    --sofinity-pink: 322 100% 50%;
+    --sofinity-pink-hover: 322 100% 60%;
+    --sofinity-pink-active: 322 100% 40%;
     
     /* Text & Background System */
     --text-primary: 240 9% 10%;
@@ -30,17 +30,17 @@
     --foreground: 240 9% 10%;
     --surface-variant: 0 0% 94%;
 
-    /* Brand Primary (Sofinity Purple) */
-    --primary: 258 85% 65%;
+    /* Brand Primary (Neon Blue) */
+    --primary: 195 100% 50%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 258 85% 73%;
-    --primary-light: 258 85% 85%;
+    --primary-hover: 195 100% 60%;
+    --primary-light: 195 100% 85%;
 
-    /* Brand Secondary (Sofinity Orange) */
-    --secondary: 26 100% 51%;
+    /* Brand Secondary (Vivid Pink) */
+    --secondary: 322 100% 50%;
     --secondary-foreground: 0 0% 100%;
-    --secondary-hover: 26 100% 61%;
-    --secondary-light: 26 100% 85%;
+    --secondary-hover: 322 100% 60%;
+    --secondary-light: 322 100% 85%;
 
     /* Neutral System */
     --muted: 0 0% 94%;
@@ -54,7 +54,7 @@
     --popover: 0 0% 100%;
     --popover-foreground: 240 9% 10%;
     --input: 220 13% 91%;
-    --ring: 258 85% 65%;
+    --ring: 195 100% 50%;
 
     /* Status Colors - Updated */
     --destructive: 0 84% 60%;
@@ -62,16 +62,16 @@
     --success-foreground: 0 0% 100%;
     --warning-foreground: 240 9% 10%;
 
-    /* Gradients - Sofinity Signature */
-    --sof-gradient: linear-gradient(90deg, #7F5AF0, #FF8906);
-    --gradient-primary: linear-gradient(90deg, hsl(var(--sofinity-purple)), hsl(var(--sofinity-orange)));
+    /* Gradients - New Neon Signature */
+    --sof-gradient: linear-gradient(90deg, #00C3FF, #FF00A6);
+    --gradient-primary: linear-gradient(90deg, hsl(var(--sofinity-blue)), hsl(var(--sofinity-pink)));
     --gradient-surface: linear-gradient(135deg, hsl(var(--background)), hsl(var(--surface)));
     --gradient-card: linear-gradient(145deg, hsl(var(--card)), hsl(var(--surface)));
 
     /* Shadows */
-    --shadow-soft: 0 2px 10px -2px hsl(var(--sofinity-purple) / 0.1);
-    --shadow-medium: 0 8px 30px -6px hsl(var(--sofinity-purple) / 0.2);
-    --shadow-strong: 0 20px 40px -10px hsl(var(--sofinity-purple) / 0.3);
+    --shadow-soft: 0 2px 10px -2px hsl(var(--sofinity-blue) / 0.1);
+    --shadow-medium: 0 8px 30px -6px hsl(var(--sofinity-blue) / 0.2);
+    --shadow-strong: 0 20px 40px -10px hsl(var(--sofinity-blue) / 0.3);
 
     /* Animations */
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
