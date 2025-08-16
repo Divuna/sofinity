@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { MainLayout } from '@/components/Layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -273,7 +274,8 @@ export default function Contacts() {
   };
 
   return (
-    <div className="space-y-6">
+    <MainLayout>
+      <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -699,5 +701,6 @@ export default function Contacts() {
         </CardContent>
       </Card>
     </div>
+    </MainLayout>
   );
 }

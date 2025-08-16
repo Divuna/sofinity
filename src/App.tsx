@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import AuthGuard from "./components/Layout/AuthGuard";
+import { MainLayout } from "./components/Layout/MainLayout";
 import Dashboard from "./pages/Dashboard";
 import CampaignNew from "./pages/CampaignNew";
 import CampaignReview from "./pages/CampaignReview";
@@ -47,41 +48,41 @@ const App = () => (
           <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
-            <Route path="/dashboard" element={<AuthGuard><Dashboard /></AuthGuard>} />
+            <Route path="/dashboard" element={<AuthGuard><MainLayout><Dashboard /></MainLayout></AuthGuard>} />
             
             {/* Campaign routes */}
             <Route path="/campaigns" element={<AuthGuard><CampaignsOverview /></AuthGuard>} />
-            <Route path="/campaign/new" element={<AuthGuard><CampaignNew /></AuthGuard>} />
-            <Route path="/campaigns/:id" element={<AuthGuard><CampaignDetail /></AuthGuard>} />
-            <Route path="/campaign-review" element={<CampaignReview />} />
-            <Route path="/campaigns/:id/schedule" element={<CampaignSchedule />} />
-            <Route path="/campaigns/:id/reports" element={<CampaignReports />} />
+            <Route path="/campaign/new" element={<AuthGuard><MainLayout><CampaignNew /></MainLayout></AuthGuard>} />
+            <Route path="/campaigns/:id" element={<AuthGuard><MainLayout><CampaignDetail /></MainLayout></AuthGuard>} />
+            <Route path="/campaign-review" element={<AuthGuard><MainLayout><CampaignReview /></MainLayout></AuthGuard>} />
+            <Route path="/campaigns/:id/schedule" element={<AuthGuard><MainLayout><CampaignSchedule /></MainLayout></AuthGuard>} />
+            <Route path="/campaigns/:id/reports" element={<AuthGuard><MainLayout><CampaignReports /></MainLayout></AuthGuard>} />
             
             {/* Email routes */}
             <Route path="/emails" element={<AuthGuard><EmailCenter /></AuthGuard>} />
-            <Route path="/emails/:id" element={<AuthGuard><EmailDetail /></AuthGuard>} />
+            <Route path="/emails/:id" element={<AuthGuard><MainLayout><EmailDetail /></MainLayout></AuthGuard>} />
             
             {/* Other feature routes */}
-            <Route path="/autoresponses" element={<AuthGuard><AutoresponsesManager /></AuthGuard>} />
-            <Route path="/schedule" element={<AuthGuard><CampaignSchedule /></AuthGuard>} />
-            <Route path="/planovac-publikace" element={<AuthGuard><PlanovacPublikace /></AuthGuard>} />
-            <Route path="/reports" element={<AuthGuard><CampaignReports /></AuthGuard>} />
+            <Route path="/autoresponses" element={<AuthGuard><MainLayout><AutoresponsesManager /></MainLayout></AuthGuard>} />
+            <Route path="/schedule" element={<AuthGuard><MainLayout><CampaignSchedule /></MainLayout></AuthGuard>} />
+            <Route path="/planovac-publikace" element={<AuthGuard><MainLayout><PlanovacPublikace /></MainLayout></AuthGuard>} />
+            <Route path="/reports" element={<AuthGuard><MainLayout><CampaignReports /></MainLayout></AuthGuard>} />
             <Route path="/contacts" element={<AuthGuard><Contacts /></AuthGuard>} />
-            <Route path="/templates" element={<AuthGuard><Templates /></AuthGuard>} />
-            <Route path="/notifications" element={<AuthGuard><NotificationCenter /></AuthGuard>} />
-            <Route path="/projects" element={<AuthGuard><Projects /></AuthGuard>} />
-            <Route path="/offers" element={<AuthGuard><Offers /></AuthGuard>} />
-            <Route path="/offers-api" element={<AuthGuard><OffersAPI /></AuthGuard>} />
-            <Route path="/opravo-data-hub" element={<AuthGuard><OpravoDataHub /></AuthGuard>} />
-            <Route path="/opravo-api-debug" element={<AuthGuard><OpravoAPIDebug /></AuthGuard>} />
+            <Route path="/templates" element={<AuthGuard><MainLayout><Templates /></MainLayout></AuthGuard>} />
+            <Route path="/notifications" element={<AuthGuard><MainLayout><NotificationCenter /></MainLayout></AuthGuard>} />
+            <Route path="/projects" element={<AuthGuard><MainLayout><Projects /></MainLayout></AuthGuard>} />
+            <Route path="/offers" element={<AuthGuard><MainLayout><Offers /></MainLayout></AuthGuard>} />
+            <Route path="/offers-api" element={<AuthGuard><MainLayout><OffersAPI /></MainLayout></AuthGuard>} />
+            <Route path="/opravo-data-hub" element={<AuthGuard><MainLayout><OpravoDataHub /></MainLayout></AuthGuard>} />
+            <Route path="/opravo-api-debug" element={<AuthGuard><MainLayout><OpravoAPIDebug /></MainLayout></AuthGuard>} />
             
             {/* Existing routes */}
-            <Route path="/team-feedback" element={<TeamFeedback />} />
-            <Route path="/version-tracker" element={<VersionTracker />} />
-            <Route path="/ai-assistant" element={<AIAssistant />} />
-            <Route path="/ai-assistant/:id" element={<AIRequestDetail />} />
-            <Route path="/knowledge-base" element={<KnowledgeBase />} />
-            <Route path="/setup-wizard" element={<SetupWizard />} />
+            <Route path="/team-feedback" element={<AuthGuard><MainLayout><TeamFeedback /></MainLayout></AuthGuard>} />
+            <Route path="/version-tracker" element={<AuthGuard><MainLayout><VersionTracker /></MainLayout></AuthGuard>} />
+            <Route path="/ai-assistant" element={<AuthGuard><MainLayout><AIAssistant /></MainLayout></AuthGuard>} />
+            <Route path="/ai-assistant/:id" element={<AuthGuard><MainLayout><AIRequestDetail /></MainLayout></AuthGuard>} />
+            <Route path="/knowledge-base" element={<AuthGuard><MainLayout><KnowledgeBase /></MainLayout></AuthGuard>} />
+            <Route path="/setup-wizard" element={<AuthGuard><MainLayout><SetupWizard /></MainLayout></AuthGuard>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
