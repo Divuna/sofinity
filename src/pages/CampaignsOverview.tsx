@@ -218,48 +218,46 @@ export default function CampaignsOverview() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Název kampaně</TableHead>
+                  <TableHead>Název</TableHead>
+                  <TableHead>Projekt</TableHead>
                   <TableHead>Stav</TableHead>
-                  <TableHead>Cílení</TableHead>
                   <TableHead>Vytvořeno</TableHead>
-                  <TableHead>Akce</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredCampaigns.map((campaign) => (
-                  <TableRow key={campaign.id}>
+                  <TableRow 
+                    key={campaign.id}
+                    className="cursor-pointer hover:bg-muted/50"
+                    onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                  >
                     <TableCell>
                       <div className="font-medium">{campaign.name}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm text-muted-foreground">
+                        {campaign.project || 'Není přiřazen'}
+                      </div>
                     </TableCell>
                     <TableCell>
                       {getStatusBadge(campaign.status)}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm text-muted-foreground max-w-xs truncate">
-                        {campaign.targeting || 'Není specifikováno'}
-                      </div>
-                    </TableCell>
-                    <TableCell>
                       <div className="text-sm text-muted-foreground">
-                        {new Date(campaign.created_at).toLocaleDateString('cs-CZ')}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => navigate(`/campaigns/${campaign.id}`)}
-                        >
-                          Zobrazit detail
-                        </Button>
+                        {new Date(campaign.created_at).toLocaleDateString('cs-CZ', {
+                          day: '2-digit',
+                          month: '2-digit', 
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
                       </div>
                     </TableCell>
                   </TableRow>
                 ))}
                 {filteredCampaigns.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-8">
+                    <TableCell colSpan={4} className="text-center py-8">
                       <p className="text-muted-foreground">Žádné kampaně nenalezeny</p>
                     </TableCell>
                   </TableRow>
