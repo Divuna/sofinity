@@ -127,20 +127,31 @@ export default function AIAssistant() {
         throw new Error('Musíte být přihlášeni');
       }
 
+      console.log('Sending AI request:', {
+        type: requestType,
+        prompt: promptText,
+        user_id: user.id
+      });
+
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: {
           type: requestType,
           prompt: promptText,
+          user_id: user.id
         }
       });
 
       if (error) {
-        throw new Error(error.message);
+        console.error('Supabase function error:', error);
+        throw new Error(error.message || 'Chyba při volání AI funkce');
       }
 
-      if (data.error) {
+      if (data?.error) {
+        console.error('AI function returned error:', data.error);
         throw new Error(data.error);
       }
+
+      console.log('AI request successful:', data);
 
       toast({
         title: "Úspěch!",
