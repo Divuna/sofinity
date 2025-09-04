@@ -101,15 +101,18 @@ serve(async (req) => {
     }
 
     // Support both old format {type, prompt} and new format {type, data, user_id}
-    let type, data, rawPrompt;
+    // Also extract project_id from request body
+    let type, data, rawPrompt, project_id;
+    
+    project_id = requestBody.project_id; // Extract project_id from request
     
     if (requestBody.data && typeof requestBody.data === 'object') {
-      // New format: {type, data, user_id}
+      // New format: {type, data, user_id, project_id}
       type = requestBody.type;
       data = requestBody.data;
       rawPrompt = data.prompt || '';
     } else if (requestBody.prompt && typeof requestBody.prompt === 'string') {
-      // Old format: {type, prompt}
+      // Old format: {type, prompt, project_id}
       type = requestBody.type;
       rawPrompt = requestBody.prompt;
       
@@ -118,6 +121,8 @@ serve(async (req) => {
     } else {
       throw new Error('Neplatný formát požadavku. Očekává se {type, data} nebo {type, prompt}.');
     }
+
+    console.log('Request details:', { type, project_id, user_id });
 
     // Map frontend types to internal types
     const typeMapping = {
@@ -326,8 +331,11 @@ serve(async (req) => {
         prompt: promptForHistory,
         response: generatedContent,
         status: 'completed',
-        user_id: user_id
+        user_id: user_id,
+        project_id: project_id // Save project_id to AIRequests table
       });
+
+    console.log('AIRequest logged with project_id:', project_id);
 
     console.log('Successfully saved:', savedData);
 

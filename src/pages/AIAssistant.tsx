@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { cs } from 'date-fns/locale';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 
 interface AIRequest {
   id: string;
@@ -24,6 +25,7 @@ interface AIRequest {
 export default function AIAssistant() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { selectedProject } = useSelectedProject();
   const [isLoading, setIsLoading] = useState(false);
   const [promptText, setPromptText] = useState('');
   const [requestType, setRequestType] = useState('');
@@ -130,14 +132,16 @@ export default function AIAssistant() {
       console.log('Sending AI request:', {
         type: requestType,
         prompt: promptText,
-        user_id: user.id
+        user_id: user.id,
+        project_id: selectedProject?.id
       });
 
       const { data, error } = await supabase.functions.invoke('ai-assistant', {
         body: {
           type: requestType,
           prompt: promptText,
-          user_id: user.id
+          user_id: user.id,
+          project_id: selectedProject?.id
         }
       });
 
@@ -180,9 +184,8 @@ export default function AIAssistant() {
 
   const filteredAIRequests = aiRequests.filter(request => {
     if (projectFilter === 'all') return true;
-    // Try to match by project_id or by project name if we had that field
-    const projectMatch = projects.find(p => p.name === projectFilter);
-    return projectMatch ? request.project_id === projectMatch.id : false;
+    // Filter by project_id directly
+    return request.project_id === projectFilter;
   });
 
   return (
@@ -269,7 +272,7 @@ export default function AIAssistant() {
                 <SelectContent>
                   <SelectItem value="all">Všechny projekty</SelectItem>
                   {projects.map(project => (
-                    <SelectItem key={project.name} value={project.name}>
+                    <SelectItem key={project.id} value={project.id}>
                       {project.name}
                     </SelectItem>
                   ))}
