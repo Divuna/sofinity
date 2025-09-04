@@ -137,30 +137,24 @@ export default function AIRequestDetail() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Musíte být přihlášeni');
 
-      // Extract project and type from prompt
-      const projectMatch = aiRequest.prompt.match(/projekt[:\s]*([^\n,]+)/i);
-      const projectName = projectMatch ? projectMatch[1].trim() : 'Nespecifikovaný projekt';
-      
-      const typeMatch = aiRequest.prompt.match(/typ[:\s]*([^\n,]+)/i);
-      const emailType = typeMatch ? typeMatch[1].trim() : 'general';
-
       const { error } = await supabase
         .from('Emails')
         .insert({
-          type: emailType,
-          project: projectName,
+          type: 'customer_welcome',
           content: aiRequest.response,
-          user_id: user.id
+          recipient: 'podpora@opravo.cz',
+          project: 'Opravo',
+          user_id: user.id,
+          project_id: null
         });
 
       if (error) throw error;
 
       toast({
         title: "Úspěch!",
-        description: "Email byl úspěšně uložen",
+        description: "E-mail byl uložen do seznamu.",
       });
 
-      navigate('/emails');
     } catch (error) {
       console.error('Error saving email:', error);
       toast({
@@ -312,7 +306,7 @@ export default function AIRequestDetail() {
                     className="flex items-center gap-2"
                   >
                     <Save className="h-4 w-4" />
-                    {saving ? 'Ukládám...' : 'Uložit jako e-mail'}
+                    {saving ? 'Ukládám...' : 'Uložit e-mail'}
                   </Button>
                 )}
               </div>
