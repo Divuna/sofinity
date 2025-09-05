@@ -26,7 +26,9 @@ import {
   Plus,
   Link,
   Link2,
-  Link2Off
+  Link2Off,
+  Brain,
+  Clock
 } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
@@ -64,9 +66,20 @@ interface DashboardStats {
   offersSuccessRate: number;
 }
 
+interface AIRequest {
+  id: string;
+  type: string;
+  prompt: string;
+  response: string | null;
+  status: string;
+  created_at: string;
+  project_id: string | null;
+}
+
 export default function Dashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [aiRequests, setAiRequests] = useState<AIRequest[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     activeCampaigns: 0,
     totalEmails: 0,
@@ -121,6 +134,30 @@ export default function Dashboard() {
         video: campaign.video,
         project_id: campaign.project_id,
         created_at: campaign.created_at
+      })));
+
+      // Fetch AI requests filtered by selected project
+      let aiRequestsQuery = supabase
+        .from('AIRequests')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (selectedProject?.id) {
+        aiRequestsQuery = aiRequestsQuery.eq('project_id', selectedProject.id);
+      }
+      
+      const { data: aiRequestsData, error: aiRequestsError } = await aiRequestsQuery;
+      
+      if (aiRequestsError) throw aiRequestsError;
+      setAiRequests((aiRequestsData || []).map(request => ({
+        id: request.id,
+        type: request.type,
+        prompt: request.prompt,
+        response: request.response,
+        status: request.status,
+        created_at: request.created_at,
+        project_id: request.project_id
       })));
 
       // Fetch projects with counts
@@ -248,6 +285,21 @@ export default function Dashboard() {
     if (campaign.video) completed++;
     
     return Math.round((completed / total) * 100);
+  };
+
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
+  const getRequestTypeLabel = (type: string) => {
+    const typeMap: { [key: string]: string } = {
+      'campaign_generator': 'Generátor kampaní',
+      'email_assistant': 'Email asistent',
+      'content_optimizer': 'Optimalizace obsahu',
+      'analytics_insight': 'Analýza dat'
+    };
+    return typeMap[type] || type;
   };
 
   const handleProjectConnection = async (project: Project) => {
@@ -399,6 +451,83 @@ export default function Dashboard() {
           icon={TrendingUp}
         />
       </div>
+
+      {/* AI Requests Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg flex items-center">
+            <Brain className="w-5 h-5 mr-2" />
+            Nedávné AI žádosti
+          </CardTitle>
+          <Button variant="ghost" size="sm" asChild>
+            <a href="/ai-assistant">
+              <Eye className="w-4 h-4 mr-2" />
+              Zobrazit vše
+            </a>
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {aiRequests.length > 0 ? (
+            aiRequests.map((request) => (
+              <div
+                key={request.id}
+                className="p-4 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <Badge variant="outline" className="text-xs">
+                      {getRequestTypeLabel(request.type)}
+                    </Badge>
+                    <Badge 
+                      variant={request.status === 'completed' ? 'default' : 
+                              request.status === 'waiting' ? 'secondary' : 'destructive'}
+                      className="text-xs"
+                    >
+                      {request.status === 'completed' ? 'Dokončeno' :
+                       request.status === 'waiting' ? 'Čekání' : 'Chyba'}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {new Date(request.created_at).toLocaleDateString('cs-CZ')}
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <div>
+                    <span className="text-sm font-medium text-foreground">Zadání: </span>
+                    <span className="text-sm text-muted-foreground">
+                      {truncateText(request.prompt, 120)}
+                    </span>
+                  </div>
+                  
+                  {request.response && (
+                    <div>
+                      <span className="text-sm font-medium text-foreground">Odpověď: </span>
+                      <span className="text-sm text-muted-foreground">
+                        {truncateText(request.response, 120)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8">
+              <Brain className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                {selectedProject ? 'Žádné AI žádosti pro tento projekt' : 'Zatím nemáte žádné AI žádosti'}
+              </p>
+              <Button variant="outline" className="mt-4" asChild>
+                <a href="/ai-assistant">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Začít s AI asistentem
+                </a>
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 lg:grid-cols-4">
         {/* Project Selector */}
