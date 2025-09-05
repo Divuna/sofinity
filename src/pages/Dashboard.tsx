@@ -77,10 +77,20 @@ interface AIRequest {
   project_id: string | null;
 }
 
+interface Post {
+  id: string;
+  channel: string;
+  text: string;
+  created_at: string;
+  status: string;
+  project_id: string | null;
+}
+
 export default function Dashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [aiRequests, setAiRequests] = useState<AIRequest[]>([]);
+  const [posts, setPosts] = useState<Post[]>([]);
   const [stats, setStats] = useState<DashboardStats>({
     activeCampaigns: 0,
     totalEmails: 0,
@@ -159,6 +169,29 @@ export default function Dashboard() {
         status: request.status,
         created_at: request.created_at,
         project_id: request.project_id
+      })));
+
+      // Fetch recent posts filtered by selected project
+      let postsQuery = supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (selectedProject?.id) {
+        postsQuery = postsQuery.eq('project_id', selectedProject.id);
+      }
+      
+      const { data: postsData, error: postsError } = await postsQuery;
+      
+      if (postsError) throw postsError;
+      setPosts((postsData || []).map(post => ({
+        id: post.id,
+        channel: post.channel,
+        text: post.text,
+        created_at: post.created_at,
+        status: post.status,
+        project_id: post.project_id
       })));
 
       // Fetch projects with counts
@@ -525,6 +558,75 @@ export default function Dashboard() {
                   Začít s AI asistentem
                 </a>
               </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Recent Posts Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg flex items-center">
+            <MessageSquare className="w-5 h-5 mr-2" />
+            Nedávné příspěvky
+          </CardTitle>
+          <Button variant="ghost" size="sm" asChild>
+            <a href="/planovac-publikace">
+              <Eye className="w-4 h-4 mr-2" />
+              Zobrazit vše
+            </a>
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {posts.length > 0 ? (
+            posts.map((post) => (
+              <div
+                key={post.id}
+                className="p-4 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <Badge variant="outline" className="text-xs">
+                      {post.channel}
+                    </Badge>
+                    <Badge 
+                      variant={post.status === 'published' ? 'default' : 
+                              post.status === 'planned' ? 'secondary' : 'destructive'}
+                      className="text-xs"
+                    >
+                      {post.status === 'published' ? 'Publikováno' :
+                       post.status === 'planned' ? 'Naplánováno' : 
+                       post.status === 'draft' ? 'Koncept' : post.status}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {new Date(post.created_at).toLocaleDateString('cs-CZ', {
+                      day: 'numeric',
+                      month: 'long',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm text-foreground">
+                    <strong>Text:</strong> {truncateText(post.text, 80)}
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium mb-2">Žádné příspěvky</p>
+              <p>
+                {selectedProject 
+                  ? `Zatím nebyly vytvořeny žádné příspěvky pro projekt ${selectedProject.name}`
+                  : 'Zatím nebyly vytvořeny žádné příspěvky'
+                }
+              </p>
             </div>
           )}
         </CardContent>
