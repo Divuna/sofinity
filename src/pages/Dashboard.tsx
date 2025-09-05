@@ -3,8 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { StatsCard } from '@/components/Dashboard/StatsCard';
 import { ProjectSelector } from '@/components/Dashboard/ProjectSelector';
+import PostForm from '@/components/PostForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSelectedProject } from '@/providers/ProjectProvider';
@@ -91,6 +93,7 @@ export default function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [aiRequests, setAiRequests] = useState<AIRequest[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     activeCampaigns: 0,
     totalEmails: 0,
@@ -570,12 +573,28 @@ export default function Dashboard() {
             <MessageSquare className="w-5 h-5 mr-2" />
             Nedávné příspěvky
           </CardTitle>
-          <Button variant="ghost" size="sm" asChild>
-            <a href="/planovac-publikace">
-              <Eye className="w-4 h-4 mr-2" />
-              Zobrazit vše
-            </a>
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Dialog open={isPostModalOpen} onOpenChange={setIsPostModalOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Přidat příspěvek
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                <PostForm onSuccess={() => {
+                  setIsPostModalOpen(false);
+                  fetchDashboardData();
+                }} />
+              </DialogContent>
+            </Dialog>
+            <Button variant="ghost" size="sm" asChild>
+              <a href="/planovac-publikace">
+                <Eye className="w-4 h-4 mr-2" />
+                Zobrazit vše
+              </a>
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {posts.length > 0 ? (
