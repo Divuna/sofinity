@@ -36,6 +36,7 @@ import Offers from "./pages/Offers";
 import OffersAPI from "./pages/OffersAPI";
 import OpravoDataHub from "./pages/OpravoDataHub";
 import OpravoAPIDebug from "./pages/OpravoAPIDebug";
+import ProjectDetail from "./pages/ProjectDetail";
 
 const queryClient = new QueryClient();
 
@@ -71,6 +72,7 @@ const App = () => (
             <Route path="/templates" element={<AuthGuard><MainLayout><Templates /></MainLayout></AuthGuard>} />
             <Route path="/notifications" element={<AuthGuard><MainLayout><NotificationCenter /></MainLayout></AuthGuard>} />
             <Route path="/projects" element={<AuthGuard><MainLayout><Projects /></MainLayout></AuthGuard>} />
+            <Route path="/projects/:id" element={<AuthGuard><ProjectDetail /></AuthGuard>} />
             <Route path="/offers" element={<AuthGuard><MainLayout><Offers /></MainLayout></AuthGuard>} />
             <Route path="/offers-api" element={<AuthGuard><MainLayout><OffersAPI /></MainLayout></AuthGuard>} />
             <Route path="/opravo-data-hub" element={<AuthGuard><MainLayout><OpravoDataHub /></MainLayout></AuthGuard>} />
