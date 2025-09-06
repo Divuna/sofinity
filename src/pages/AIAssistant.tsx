@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -22,8 +22,14 @@ interface AIRequest {
   created_at: string;
 }
 
+interface Project {
+  id: string;
+  name: string;
+}
+
 export default function AIAssistant() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const { selectedProject } = useSelectedProject();
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +37,7 @@ export default function AIAssistant() {
   const [requestType, setRequestType] = useState('');
   const [aiRequests, setAiRequests] = useState<AIRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
-  const [projectFilter, setProjectFilter] = useState<string>('all');
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [projects, setProjects] = useState<Array<{id: string, name: string}>>([]);
 
   const fetchAIRequests = async () => {
@@ -39,11 +45,17 @@ export default function AIAssistant() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('AIRequests')
         .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+        .eq('user_id', user.id);
+
+      // Add project filter if current project is selected
+      if (currentProject) {
+        query = query.eq('project_id', currentProject.id);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       setAiRequests(data || []);
@@ -54,19 +66,28 @@ export default function AIAssistant() {
     }
   };
 
+  // Initialize current project from location state or URL params
   useEffect(() => {
-    fetchAIRequests();
+    const selectedFromState = location.state?.SelectedProject;
+    if (selectedFromState) {
+      setCurrentProject(selectedFromState);
+    } else {
+      const urlParams = new URLSearchParams(window.location.search);
+      const projectId = urlParams.get('project_id');
+      const projectName = urlParams.get('name');
+      if (projectId && projectName) {
+        setCurrentProject({ id: projectId, name: projectName });
+      }
+    }
+  }, [location.state]);
+
+  useEffect(() => {
     fetchProjects();
   }, []);
 
-  // Get project filter from URL
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const projectParam = urlParams.get('project');
-    if (projectParam) {
-      setProjectFilter(projectParam);
-    }
-  }, []);
+    fetchAIRequests();
+  }, [currentProject]);
 
   const fetchProjects = async () => {
     try {
@@ -141,7 +162,7 @@ export default function AIAssistant() {
           type: requestType,
           prompt: promptText,
           user_id: user.id,
-          project_id: selectedProject?.id
+          project_id: currentProject?.id || selectedProject?.id
         }
       });
 
@@ -182,11 +203,26 @@ export default function AIAssistant() {
     }
   };
 
-  const filteredAIRequests = aiRequests.filter(request => {
-    if (projectFilter === 'all') return true;
-    // Filter by project_id directly
-    return request.project_id === projectFilter;
-  });
+  const handleProjectChange = (value: string) => {
+    if (value === 'all') {
+      setCurrentProject(null);
+      // Clear URL params
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete('project_id');
+      newUrl.searchParams.delete('name');
+      window.history.pushState({}, '', newUrl.toString());
+    } else {
+      const project = projects.find(p => p.id === value);
+      if (project) {
+        setCurrentProject(project);
+        // Update URL params
+        const newUrl = new URL(window.location.href);
+        newUrl.searchParams.set('project_id', project.id);
+        newUrl.searchParams.set('name', project.name);
+        window.history.pushState({}, '', newUrl.toString());
+      }
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -265,7 +301,7 @@ export default function AIAssistant() {
             </CardTitle>
             <div className="flex items-center gap-2 mt-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={projectFilter} onValueChange={setProjectFilter}>
+              <Select value={currentProject?.id || 'all'} onValueChange={handleProjectChange}>
                 <SelectTrigger className="w-[200px]">
                   <SelectValue placeholder="Filtr podle projektu" />
                 </SelectTrigger>
@@ -285,14 +321,14 @@ export default function AIAssistant() {
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
-            ) : filteredAIRequests.length === 0 ? (
+            ) : aiRequests.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <MessageSquare className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <p>Zatím žádné AI požadavky</p>
               </div>
             ) : (
               <div className="space-y-4 max-h-96 overflow-y-auto">
-                {filteredAIRequests.map((request) => (
+                {aiRequests.map((request) => (
                   <div 
                     key={request.id} 
                     className="border rounded-lg p-4 space-y-3 cursor-pointer hover:bg-muted/50 transition-colors"
