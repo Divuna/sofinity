@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Target, Mail, Bot, Calendar, Building2 } from 'lucide-react';
 
 interface ProjectData {
@@ -53,33 +53,48 @@ export default function ProjectDetail() {
   const [activeTab, setActiveTab] = useState('campaigns');
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
 
   useEffect(() => {
-    // Get project data from URL params
-    const projectId = searchParams.get('id');
-    const projectName = searchParams.get('name');
-    const projectDescription = searchParams.get('description');
-    const projectCreatedAt = searchParams.get('created_at');
-
-    if (projectId && projectName) {
+    // First try to get project data from router state
+    const stateProject = location.state?.SelectedProject;
+    
+    if (stateProject) {
       const projectData: ProjectData = {
-        id: projectId,
-        name: projectName,
-        description: projectDescription,
-        created_at: projectCreatedAt || new Date().toISOString()
+        id: stateProject.id,
+        name: stateProject.name,
+        description: stateProject.description,
+        created_at: stateProject.created_at || new Date().toISOString()
       };
       setProject(projectData);
       fetchProjectData(projectData);
     } else {
-      toast({
-        title: "Chyba",
-        description: "Neplatné data projektu",
-        variant: "destructive"
-      });
-      navigate('/projekty');
+      // Fallback to URL params
+      const urlParams = new URLSearchParams(location.search);
+      const projectId = urlParams.get('id');
+      const projectName = urlParams.get('name');
+      const projectDescription = urlParams.get('description');
+      const projectCreatedAt = urlParams.get('created_at');
+
+      if (projectId && projectName) {
+        const projectData: ProjectData = {
+          id: projectId,
+          name: projectName,
+          description: projectDescription,
+          created_at: projectCreatedAt || new Date().toISOString()
+        };
+        setProject(projectData);
+        fetchProjectData(projectData);
+      } else {
+        toast({
+          title: "Chyba",
+          description: "Neplatné data projektu",
+          variant: "destructive"
+        });
+        navigate('/projekty');
+      }
     }
-  }, [searchParams, navigate, toast]);
+  }, [location, navigate, toast]);
 
   const fetchProjectData = async (projectData: ProjectData) => {
     try {
@@ -136,7 +151,7 @@ export default function ProjectDetail() {
 
       setEmails(allEmails);
 
-      // Fetch AI Requests - only by project_id
+      // Fetch AI Requests - only by project_id (no project name column in AIRequests)
       const { data: aiRequestsData } = await supabase
         .from('AIRequests')
         .select('id, type, status, created_at')
@@ -165,7 +180,7 @@ export default function ProjectDetail() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const StatusBadge = ({ status }: { status: string }) => {
     switch (status.toLowerCase()) {
       case 'active':
       case 'completed':
@@ -349,7 +364,7 @@ export default function ProjectDetail() {
                           onClick={() => navigate(`/campaigns/${campaign.id}`)}
                         >
                           <TableCell className="font-medium">{campaign.name}</TableCell>
-                          <TableCell>{getStatusBadge(campaign.status)}</TableCell>
+                          <TableCell><StatusBadge status={campaign.status} /></TableCell>
                           <TableCell className="text-muted-foreground">{formatDate(campaign.created_at)}</TableCell>
                         </TableRow>
                       ))}
@@ -397,7 +412,7 @@ export default function ProjectDetail() {
                           </TableCell>
                           <TableCell className="max-w-xs">
                             <div className="truncate text-muted-foreground">
-                              {truncateText(email.content, 100)}
+                              {truncateText(email.content ?? '', 100)}
                             </div>
                           </TableCell>
                           <TableCell className="text-muted-foreground">{formatDate(email.created_at)}</TableCell>
@@ -445,7 +460,7 @@ export default function ProjectDetail() {
                           <TableCell>
                             <Badge variant="outline">{request.type}</Badge>
                           </TableCell>
-                          <TableCell>{getStatusBadge(request.status)}</TableCell>
+                          <TableCell><StatusBadge status={request.status} /></TableCell>
                           <TableCell className="text-muted-foreground">{formatDate(request.created_at)}</TableCell>
                         </TableRow>
                       ))}
