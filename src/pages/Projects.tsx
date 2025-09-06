@@ -168,16 +168,62 @@ export default function Projects() {
     }
   };
 
-  const handleViewCampaigns = (projectName: string) => {
-    navigate(`/campaigns?project=${encodeURIComponent(projectName)}`);
+  const handleViewCampaigns = (project: Project) => {
+    if (!project?.id || !project?.name) {
+      toast({
+        title: "Chyba",
+        description: "Chybí data projektu pro navigaci",
+        variant: "destructive"
+      });
+      return;
+    }
+    navigate('/campaigns', { 
+      state: { SelectedProject: project }
+    });
+    // Fallback URL params for compatibility
+    const fallbackUrl = `/campaigns?project_id=${project.id}&name=${encodeURIComponent(project.name)}`;
+    window.history.replaceState(null, '', fallbackUrl);
   };
 
-  const handleViewEmails = (projectName: string) => {
-    navigate(`/emails?project=${encodeURIComponent(projectName)}`);
+  const handleViewEmails = (project: Project) => {
+    if (!project?.id || !project?.name) {
+      toast({
+        title: "Chyba",
+        description: "Chybí data projektu pro navigaci",
+        variant: "destructive"
+      });
+      return;
+    }
+    navigate('/emails', { 
+      state: { SelectedProject: project }
+    });
+    // Fallback URL params for compatibility
+    const fallbackUrl = `/emails?project_id=${project.id}&name=${encodeURIComponent(project.name)}`;
+    window.history.replaceState(null, '', fallbackUrl);
   };
 
-  const handleViewAIRequests = (projectName: string) => {
-    navigate(`/ai-assistant?project=${encodeURIComponent(projectName)}`);
+  const handleViewAIRequests = (project: Project) => {
+    if (!project?.id || !project?.name) {
+      toast({
+        title: "Chyba",
+        description: "Chybí data projektu pro navigaci",
+        variant: "destructive"
+      });
+      return;
+    }
+    navigate('/ai-assistant', { 
+      state: { SelectedProject: project }
+    });
+    // Fallback URL params for compatibility
+    const fallbackUrl = `/ai-assistant?project_id=${project.id}&name=${encodeURIComponent(project.name)}`;
+    window.history.replaceState(null, '', fallbackUrl);
+  };
+
+  const handleKeyPress = (event: React.KeyboardEvent, handler: () => void) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      handler();
+    }
   };
 
 
@@ -247,7 +293,14 @@ export default function Projects() {
               <CardContent className="space-y-4">
                 {/* Statistics */}
                 <div className="grid grid-cols-3 gap-3">
-                  <div className="text-center p-3 rounded-xl bg-surface-variant hover:bg-surface-variant/80 transition-colors cursor-pointer" onClick={() => handleViewCampaigns(project.name)}>
+                  <div 
+                    className="text-center p-3 rounded-xl bg-surface-variant hover:bg-surface-variant/80 transition-colors cursor-pointer" 
+                    onClick={() => handleViewCampaigns(project)}
+                    onKeyDown={(e) => handleKeyPress(e, () => handleViewCampaigns(project))}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Zobrazit ${project.campaignCount} kampaní pro projekt ${project.name}`}
+                  >
                     <div className="flex items-center justify-center mb-1">
                       <Target className="w-4 h-4 text-primary" />
                     </div>
@@ -255,7 +308,14 @@ export default function Projects() {
                     <div className="text-xs text-muted-foreground">Kampaní</div>
                   </div>
                   
-                  <div className="text-center p-3 rounded-xl bg-surface-variant hover:bg-surface-variant/80 transition-colors cursor-pointer" onClick={() => handleViewEmails(project.name)}>
+                  <div 
+                    className="text-center p-3 rounded-xl bg-surface-variant hover:bg-surface-variant/80 transition-colors cursor-pointer" 
+                    onClick={() => handleViewEmails(project)}
+                    onKeyDown={(e) => handleKeyPress(e, () => handleViewEmails(project))}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Zobrazit ${project.emailCount} e-mailů pro projekt ${project.name}`}
+                  >
                     <div className="flex items-center justify-center mb-1">
                       <Mail className="w-4 h-4 text-secondary" />
                     </div>
@@ -263,7 +323,14 @@ export default function Projects() {
                     <div className="text-xs text-muted-foreground">E-mailů</div>
                   </div>
                   
-                  <div className="text-center p-3 rounded-xl bg-surface-variant hover:bg-surface-variant/80 transition-colors cursor-pointer" onClick={() => handleViewAIRequests(project.name)}>
+                  <div 
+                    className="text-center p-3 rounded-xl bg-surface-variant hover:bg-surface-variant/80 transition-colors cursor-pointer" 
+                    onClick={() => handleViewAIRequests(project)}
+                    onKeyDown={(e) => handleKeyPress(e, () => handleViewAIRequests(project))}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Zobrazit ${project.aiRequestCount} AI požadavků pro projekt ${project.name}`}
+                  >
                     <div className="flex items-center justify-center mb-1">
                       <Bot className="w-4 h-4 text-accent-foreground" />
                     </div>
@@ -308,7 +375,7 @@ export default function Projects() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleViewCampaigns(project.name)}
+                      onClick={() => handleViewCampaigns(project)}
                       className="text-xs"
                     >
                       Zobrazit kampaně
@@ -316,7 +383,7 @@ export default function Projects() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleViewEmails(project.name)}
+                      onClick={() => handleViewEmails(project)}
                       className="text-xs"
                     >
                       Zobrazit e‑maily
@@ -324,7 +391,7 @@ export default function Projects() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleViewAIRequests(project.name)}
+                      onClick={() => handleViewAIRequests(project)}
                       className="text-xs"
                     >
                       AI požadavky
