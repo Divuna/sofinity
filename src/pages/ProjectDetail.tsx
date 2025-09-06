@@ -151,7 +151,7 @@ export default function ProjectDetail() {
 
       setEmails(allEmails);
 
-      // Fetch AI Requests - only by project_id (no project name column in AIRequests)
+      // Fetch AI Requests - only by project_id (no project name column exists)
       const { data: aiRequestsData } = await supabase
         .from('AIRequests')
         .select('id, type, status, created_at')
