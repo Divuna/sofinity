@@ -1,31 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { StatsCard } from '@/components/Dashboard/StatsCard';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { 
-  ArrowLeft,
-  TrendingUp, 
-  Users, 
-  MessageSquare, 
-  Mail,
-  Calendar,
-  Sparkles,
-  Briefcase,
-  Wrench,
-  Target,
-  FolderOpen
-} from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Target, Mail, Bot, Calendar, Building2 } from 'lucide-react';
 
-interface Project {
+interface ProjectData {
   id: string;
   name: string;
-  description: string;
-  is_active: boolean;
+  description: string | null;
+  created_at: string;
 }
 
 interface Campaign {
@@ -38,22 +26,13 @@ interface Campaign {
 interface Email {
   id: string;
   type: string;
-  recipient: string;
-  created_at: string;
-}
-
-interface Post {
-  id: string;
-  text: string;
-  channel: string;
-  status: string;
+  content: string;
   created_at: string;
 }
 
 interface AIRequest {
   id: string;
   type: string;
-  prompt: string;
   status: string;
   created_at: string;
 }
@@ -61,59 +40,118 @@ interface AIRequest {
 interface ProjectStats {
   campaigns: number;
   emails: number;
-  posts: number;
-  contacts: number;
   aiRequests: number;
-  offers: number;
-  opravoJobs: number;
 }
 
 export default function ProjectDetail() {
-  const { id: projectId } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  
-  const [project, setProject] = useState<Project | null>(null);
-  const [stats, setStats] = useState<ProjectStats>({
-    campaigns: 0,
-    emails: 0,
-    posts: 0,
-    contacts: 0,
-    aiRequests: 0,
-    offers: 0,
-    opravoJobs: 0
-  });
+  const [project, setProject] = useState<ProjectData | null>(null);
+  const [stats, setStats] = useState<ProjectStats>({ campaigns: 0, emails: 0, aiRequests: 0 });
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [emails, setEmails] = useState<Email[]>([]);
-  const [posts, setPosts] = useState<Post[]>([]);
   const [aiRequests, setAIRequests] = useState<AIRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('campaigns');
+  const { toast } = useToast();
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
-    if (projectId) {
-      fetchProjectData();
-    }
-  }, [projectId]);
+    // Get project data from URL params
+    const projectId = searchParams.get('id');
+    const projectName = searchParams.get('name');
+    const projectDescription = searchParams.get('description');
+    const projectCreatedAt = searchParams.get('created_at');
 
-  const fetchProjectData = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch project details
-      const { data: projectData, error: projectError } = await supabase
-        .from('Projects')
-        .select('*')
-        .eq('id', projectId)
-        .single();
-
-      if (projectError) throw projectError;
+    if (projectId && projectName) {
+      const projectData: ProjectData = {
+        id: projectId,
+        name: projectName,
+        description: projectDescription,
+        created_at: projectCreatedAt || new Date().toISOString()
+      };
       setProject(projectData);
+      fetchProjectData(projectData);
+    } else {
+      toast({
+        title: "Chyba",
+        description: "Neplatné data projektu",
+        variant: "destructive"
+      });
+      navigate('/projekty');
+    }
+  }, [searchParams, navigate, toast]);
 
-      // Fetch stats
-      await Promise.all([
-        fetchStats(),
-        fetchRecentData()
+  const fetchProjectData = async (projectData: ProjectData) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
+      // Fetch campaigns - try project_id first, then fallback to project name
+      const [campaignsById, campaignsByName] = await Promise.all([
+        supabase
+          .from('Campaigns')
+          .select('id, name, status, created_at')
+          .eq('project_id', projectData.id)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('Campaigns')
+          .select('id, name, status, created_at')
+          .eq('project', projectData.name)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
       ]);
+
+      const allCampaigns = [
+        ...(campaignsById.data || []),
+        ...(campaignsByName.data || [])
+      ].filter((campaign, index, self) => 
+        index === self.findIndex(c => c.id === campaign.id)
+      );
+
+      setCampaigns(allCampaigns);
+
+      // Fetch emails - try project_id first, then fallback to project name
+      const [emailsById, emailsByName] = await Promise.all([
+        supabase
+          .from('Emails')
+          .select('id, type, content, created_at')
+          .eq('project_id', projectData.id)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('Emails')
+          .select('id, type, content, created_at')
+          .eq('project', projectData.name)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+      ]);
+
+      const allEmails = [
+        ...(emailsById.data || []),
+        ...(emailsByName.data || [])
+      ].filter((email, index, self) => 
+        index === self.findIndex(e => e.id === email.id)
+      );
+
+      setEmails(allEmails);
+
+      // Fetch AI Requests - only by project_id
+      const { data: aiRequestsData } = await supabase
+        .from('AIRequests')
+        .select('id, type, status, created_at')
+        .eq('project_id', projectData.id)
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      setAIRequests(aiRequestsData || []);
+
+      // Set stats
+      setStats({
+        campaigns: allCampaigns.length,
+        emails: allEmails.length,
+        aiRequests: (aiRequestsData || []).length
+      });
 
     } catch (error) {
       console.error('Error fetching project data:', error);
@@ -127,85 +165,23 @@ export default function ProjectDetail() {
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      const [
-        campaignsResult,
-        emailsResult,
-        postsResult,
-        contactsResult,
-        aiRequestsResult,
-        offersResult,
-        opravoJobsResult
-      ] = await Promise.all([
-        supabase.from('Campaigns').select('id', { count: 'exact' }).eq('project_id', projectId),
-        supabase.from('Emails').select('id', { count: 'exact' }).eq('project_id', projectId),
-        supabase.from('posts').select('id', { count: 'exact' }).eq('project_id', projectId),
-        supabase.from('Contacts').select('id', { count: 'exact' }).eq('project_id', projectId),
-        supabase.from('AIRequests').select('id', { count: 'exact' }).eq('project_id', projectId),
-        supabase.from('offers').select('id', { count: 'exact' }).eq('project_id', projectId),
-        supabase.from('opravojobs').select('id', { count: 'exact' }).eq('project_id', projectId)
-      ]);
-
-      setStats({
-        campaigns: campaignsResult.count || 0,
-        emails: emailsResult.count || 0,
-        posts: postsResult.count || 0,
-        contacts: contactsResult.count || 0,
-        aiRequests: aiRequestsResult.count || 0,
-        offers: offersResult.count || 0,
-        opravoJobs: opravoJobsResult.count || 0
-      });
-    } catch (error) {
-      console.error('Error fetching stats:', error);
+  const getStatusBadge = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'active':
+      case 'completed':
+        return <Badge className="bg-success text-success-foreground">Aktivní</Badge>;
+      case 'done':
+        return <Badge variant="outline">Dokončeno</Badge>;
+      case 'waiting':
+        return <Badge variant="secondary">Čeká</Badge>;
+      default:
+        return <Badge variant="secondary">Koncept</Badge>;
     }
   };
 
-  const fetchRecentData = async () => {
-    try {
-      const [
-        campaignsData,
-        emailsData,
-        postsData,
-        aiRequestsData
-      ] = await Promise.all([
-        supabase
-          .from('Campaigns')
-          .select('id, name, status, created_at')
-          .eq('project_id', projectId)
-          .order('created_at', { ascending: false })
-          .limit(5),
-        supabase
-          .from('Emails')
-          .select('id, type, recipient, created_at')
-          .eq('project_id', projectId)
-          .order('created_at', { ascending: false })
-          .limit(5),
-        supabase
-          .from('posts')
-          .select('id, text, channel, status, created_at')
-          .eq('project_id', projectId)
-          .order('created_at', { ascending: false })
-          .limit(5),
-        supabase
-          .from('AIRequests')
-          .select('id, type, prompt, status, created_at')
-          .eq('project_id', projectId)
-          .order('created_at', { ascending: false })
-          .limit(5)
-      ]);
-
-      setCampaigns(campaignsData.data || []);
-      setEmails(emailsData.data || []);
-      setPosts(postsData.data || []);
-      setAIRequests(aiRequestsData.data || []);
-    } catch (error) {
-      console.error('Error fetching recent data:', error);
-    }
-  };
-
-  const truncateText = (text: string, maxLength: number = 50) => {
-    return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
   };
 
   const formatDate = (dateString: string) => {
@@ -218,35 +194,12 @@ export default function ProjectDetail() {
     });
   };
 
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'active': return 'default';
-      case 'draft': return 'secondary';
-      case 'completed': return 'outline';
-      default: return 'secondary';
-    }
-  };
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-surface p-6">
-        <div className="max-w-7xl mx-auto">
-          <div className="mb-6">
-            <Button 
-              onClick={() => navigate('/dashboard')} 
-              variant="ghost" 
-              className="mb-4"
-            >
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Zpět na Dashboard
-            </Button>
-            <div className="h-8 bg-muted rounded w-48 animate-pulse"></div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            {Array.from({ length: 7 }).map((_, i) => (
-              <div key={i} className="h-32 bg-muted rounded animate-pulse"></div>
-            ))}
-          </div>
+      <div className="min-h-screen bg-gradient-surface flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-2 text-muted-foreground">Načítání projektu...</p>
         </div>
       </div>
     );
@@ -254,21 +207,13 @@ export default function ProjectDetail() {
 
   if (!project) {
     return (
-      <div className="min-h-screen bg-gradient-surface p-6">
-        <div className="max-w-7xl mx-auto">
-          <Button 
-            onClick={() => navigate('/dashboard')} 
-            variant="ghost" 
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Zpět na Dashboard
+      <div className="min-h-screen bg-gradient-surface flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Projekt nenalezen</h2>
+          <Button onClick={() => navigate('/projekty')}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Zpět na projekty
           </Button>
-          <Card>
-            <CardContent className="p-6">
-              <p className="text-muted-foreground">Projekt nebyl nalezen.</p>
-            </CardContent>
-          </Card>
         </div>
       </div>
     );
@@ -276,179 +221,243 @@ export default function ProjectDetail() {
 
   return (
     <div className="min-h-screen bg-gradient-surface p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6">
-          <Button 
-            onClick={() => navigate('/dashboard')} 
-            variant="ghost" 
-            className="mb-4 group h-9 px-3 bg-gradient-primary hover:opacity-90 hover:shadow-medium text-white border-0 transition-all duration-300 hover:scale-105"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2 transition-transform duration-200 group-hover:-translate-x-0.5" />
-            Zpět na Dashboard
-          </Button>
-          <div className="flex items-center space-x-3">
-            <FolderOpen className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold text-foreground">{project.name}</h1>
-          </div>
-          {project.description && (
-            <p className="text-muted-foreground mt-2">{project.description}</p>
-          )}
-        </div>
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Back Button */}
+        <Button
+          onClick={() => navigate('/projekty')}
+          variant="ghost"
+          size="sm"
+          className="group h-9 px-3 bg-gradient-primary hover:opacity-90 hover:shadow-medium text-white border-0 transition-all duration-300 hover:scale-105"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2 transition-transform duration-200 group-hover:-translate-x-0.5" />
+          Zpět
+        </Button>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard
-            title="Kampaně"
-            value={stats.campaigns.toString()}
-            icon={Target}
-            gradient
-          />
-          <StatsCard
-            title="E-maily"
-            value={stats.emails.toString()}
-            icon={Mail}
-          />
-          <StatsCard
-            title="Příspěvky"
-            value={stats.posts.toString()}
-            icon={MessageSquare}
-          />
-          <StatsCard
-            title="Kontakty"
-            value={stats.contacts.toString()}
-            icon={Users}
-          />
-          <StatsCard
-            title="AI Požadavky"
-            value={stats.aiRequests.toString()}
-            icon={Sparkles}
-          />
-          <StatsCard
-            title="Nabídky"
-            value={stats.offers.toString()}
-            icon={Briefcase}
-          />
-          <StatsCard
-            title="Opravo Jobs"
-            value={stats.opravoJobs.toString()}
-            icon={Wrench}
-          />
-        </div>
-
-        {/* Tabbed Content */}
-        <Card>
+        {/* Project Header */}
+        <Card className="rounded-2xl shadow-md border-border bg-gradient-card">
           <CardHeader>
-            <CardTitle>Nedávná aktivita</CardTitle>
+            <div className="flex items-center space-x-4">
+              <div className="w-12 h-12 bg-gradient-primary rounded-xl flex items-center justify-center">
+                <Building2 className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <CardTitle className="text-2xl font-bold">{project.name}</CardTitle>
+                {project.description && (
+                  <p className="text-muted-foreground mt-1">{project.description}</p>
+                )}
+                <div className="flex items-center mt-2 text-sm text-muted-foreground">
+                  <Calendar className="w-4 h-4 mr-1" />
+                  Vytvořeno: {formatDate(project.created_at)}
+                </div>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="campaigns">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="campaigns">Kampaně</TabsTrigger>
-                <TabsTrigger value="emails">E-maily</TabsTrigger>
-                <TabsTrigger value="posts">Příspěvky</TabsTrigger>
-                <TabsTrigger value="ai-requests">AI Požadavky</TabsTrigger>
+        </Card>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="rounded-xl shadow-md border-border bg-gradient-card cursor-pointer hover:shadow-strong transition-all duration-300" 
+                onClick={() => setActiveTab('campaigns')}>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                  <Target className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">{stats.campaigns}</div>
+                  <div className="text-sm text-muted-foreground">Kampaní</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-xl shadow-md border-border bg-gradient-card cursor-pointer hover:shadow-strong transition-all duration-300" 
+                onClick={() => setActiveTab('emails')}>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-secondary/10 rounded-lg flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-secondary" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">{stats.emails}</div>
+                  <div className="text-sm text-muted-foreground">E-mailů</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-xl shadow-md border-border bg-gradient-card cursor-pointer hover:shadow-strong transition-all duration-300" 
+                onClick={() => setActiveTab('ai-requests')}>
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-accent/10 rounded-lg flex items-center justify-center">
+                  <Bot className="w-5 h-5 text-accent-foreground" />
+                </div>
+                <div>
+                  <div className="text-2xl font-bold">{stats.aiRequests}</div>
+                  <div className="text-sm text-muted-foreground">AI požadavků</div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Data Tables */}
+        <Card className="rounded-2xl shadow-md border-border bg-gradient-card">
+          <CardContent className="p-6">
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="campaigns" className="flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  Kampaně ({stats.campaigns})
+                </TabsTrigger>
+                <TabsTrigger value="emails" className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  E-maily ({stats.emails})
+                </TabsTrigger>
+                <TabsTrigger value="ai-requests" className="flex items-center gap-2">
+                  <Bot className="w-4 h-4" />
+                  AI požadavky ({stats.aiRequests})
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="campaigns" className="mt-6">
                 <div className="space-y-4">
-                  {campaigns.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">Žádné kampaně nenalezeny</p>
-                  ) : (
-                    campaigns.map((campaign) => (
-                      <Card key={campaign.id} className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-medium">{campaign.name}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {formatDate(campaign.created_at)}
-                            </p>
-                          </div>
-                          <Badge variant={getStatusBadgeVariant(campaign.status)}>
-                            {campaign.status}
-                          </Badge>
-                        </div>
-                      </Card>
-                    ))
-                  )}
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">Kampaně</h3>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigate(`/campaigns?project=${encodeURIComponent(project.name)}`)}
+                    >
+                      Zobrazit kampaň
+                    </Button>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Název</TableHead>
+                        <TableHead>Stav</TableHead>
+                        <TableHead>Vytvořeno</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {campaigns.map((campaign) => (
+                        <TableRow 
+                          key={campaign.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/campaigns/${campaign.id}`)}
+                        >
+                          <TableCell className="font-medium">{campaign.name}</TableCell>
+                          <TableCell>{getStatusBadge(campaign.status)}</TableCell>
+                          <TableCell className="text-muted-foreground">{formatDate(campaign.created_at)}</TableCell>
+                        </TableRow>
+                      ))}
+                      {campaigns.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                            Žádné kampaně nenalezeny
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </TabsContent>
 
               <TabsContent value="emails" className="mt-6">
                 <div className="space-y-4">
-                  {emails.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">Žádné e-maily nenalezeny</p>
-                  ) : (
-                    emails.map((email) => (
-                      <Card key={email.id} className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-medium">{email.type}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              Pro: {email.recipient || 'Nezadáno'}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {formatDate(email.created_at)}
-                            </p>
-                          </div>
-                        </div>
-                      </Card>
-                    ))
-                  )}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="posts" className="mt-6">
-                <div className="space-y-4">
-                  {posts.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">Žádné příspěvky nenalezeny</p>
-                  ) : (
-                    posts.map((post) => (
-                      <Card key={post.id} className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium">{post.channel}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {truncateText(post.text)}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {formatDate(post.created_at)}
-                            </p>
-                          </div>
-                          <Badge variant={getStatusBadgeVariant(post.status)}>
-                            {post.status}
-                          </Badge>
-                        </div>
-                      </Card>
-                    ))
-                  )}
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">E-maily</h3>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigate(`/emails?project=${encodeURIComponent(project.name)}`)}
+                    >
+                      Zobrazit e-mail
+                    </Button>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Typ</TableHead>
+                        <TableHead>Náhled obsahu</TableHead>
+                        <TableHead>Vytvořeno</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {emails.map((email) => (
+                        <TableRow 
+                          key={email.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/emails/${email.id}`)}
+                        >
+                          <TableCell>
+                            <Badge variant="outline">{email.type}</Badge>
+                          </TableCell>
+                          <TableCell className="max-w-xs">
+                            <div className="truncate text-muted-foreground">
+                              {truncateText(email.content, 100)}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">{formatDate(email.created_at)}</TableCell>
+                        </TableRow>
+                      ))}
+                      {emails.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                            Žádné e-maily nenalezeny
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </TabsContent>
 
               <TabsContent value="ai-requests" className="mt-6">
                 <div className="space-y-4">
-                  {aiRequests.length === 0 ? (
-                    <p className="text-muted-foreground text-center py-8">Žádné AI požadavky nenalezeny</p>
-                  ) : (
-                    aiRequests.map((request) => (
-                      <Card key={request.id} className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <h4 className="font-medium">{request.type}</h4>
-                            <p className="text-sm text-muted-foreground">
-                              {truncateText(request.prompt)}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              {formatDate(request.created_at)}
-                            </p>
-                          </div>
-                          <Badge variant={getStatusBadgeVariant(request.status)}>
-                            {request.status}
-                          </Badge>
-                        </div>
-                      </Card>
-                    ))
-                  )}
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-lg font-semibold">AI požadavky</h3>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => navigate(`/ai-assistant?project=${encodeURIComponent(project.name)}`)}
+                    >
+                      Zobrazit AI požadavek
+                    </Button>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Typ</TableHead>
+                        <TableHead>Stav</TableHead>
+                        <TableHead>Vytvořeno</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {aiRequests.map((request) => (
+                        <TableRow 
+                          key={request.id}
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => navigate(`/ai-assistant/${request.id}`)}
+                        >
+                          <TableCell>
+                            <Badge variant="outline">{request.type}</Badge>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(request.status)}</TableCell>
+                          <TableCell className="text-muted-foreground">{formatDate(request.created_at)}</TableCell>
+                        </TableRow>
+                      ))}
+                      {aiRequests.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                            Žádné AI požadavky nenalezeny
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
                 </div>
               </TabsContent>
             </Tabs>

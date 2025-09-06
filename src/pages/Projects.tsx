@@ -252,31 +252,49 @@ export default function Projects() {
                 )}
 
                 {/* Action Buttons */}
-                <div className="grid grid-cols-3 gap-2 pt-2">
+                <div className="space-y-2 pt-2">
                   <Button
-                    variant="outline"
+                    variant="gradient"
                     size="sm"
-                    onClick={() => handleViewCampaigns(project.name)}
-                    className="text-xs"
+                    onClick={() => {
+                      const params = new URLSearchParams({
+                        id: project.id,
+                        name: project.name,
+                        description: project.description || '',
+                        created_at: project.created_at
+                      });
+                      navigate(`/projekty/detail?${params.toString()}`);
+                    }}
+                    className="w-full text-xs"
                   >
-                    Zobrazit kampaně
+                    Detail projektu
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewEmails(project.name)}
-                    className="text-xs"
-                  >
-                    Zobrazit e‑maily
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewAIRequests(project.name)}
-                    className="text-xs"
-                  >
-                    AI požadavky
-                  </Button>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewCampaigns(project.name)}
+                      className="text-xs"
+                    >
+                      Zobrazit kampaně
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewEmails(project.name)}
+                      className="text-xs"
+                    >
+                      Zobrazit e‑maily
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleViewAIRequests(project.name)}
+                      className="text-xs"
+                    >
+                      AI požadavky
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

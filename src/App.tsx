@@ -72,6 +72,8 @@ const App = () => (
             <Route path="/contacts" element={<AuthGuard><Contacts /></AuthGuard>} />
             <Route path="/templates" element={<AuthGuard><MainLayout><Templates /></MainLayout></AuthGuard>} />
             <Route path="/notifications" element={<AuthGuard><MainLayout><NotificationCenter /></MainLayout></AuthGuard>} />
+            <Route path="/projekty" element={<AuthGuard><MainLayout><Projects /></MainLayout></AuthGuard>} />
+            <Route path="/projekty/detail" element={<AuthGuard><ProjectDetail /></AuthGuard>} />
             <Route path="/projects" element={<AuthGuard><MainLayout><Projects /></MainLayout></AuthGuard>} />
             <Route path="/projects/:id" element={<AuthGuard><ProjectDetail /></AuthGuard>} />
             <Route path="/offers" element={<AuthGuard><MainLayout><Offers /></MainLayout></AuthGuard>} />
