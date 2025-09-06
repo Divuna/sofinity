@@ -19,6 +19,13 @@ interface Project {
   isOpravoProject?: boolean;
 }
 
+// Helper function to deduplicate arrays by id
+const dedupeById = <T extends { id: string }>(arr: T[]): T[] => {
+  return arr.filter((item, index, self) => 
+    index === self.findIndex(i => i.id === item.id)
+  );
+};
+
 export default function Projects() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,31 +97,59 @@ export default function Projects() {
 
       if (error) throw error;
 
-      // For each project, get counts of related data
+      // For each project, get counts of related data with proper merge and deduplication
       const projectsWithCounts = await Promise.all(
         (projectsData || []).map(async (project) => {
-          // Try project_id first, fall back to project name
-          const [
-            { count: campaignCountById },
-            { count: emailCountById },
-            { count: aiRequestCountById },
-            { count: campaignCountByName },
-            { count: emailCountByName },
-            { count: aiRequestCountByName }
-          ] = await Promise.all([
-            supabase.from('Campaigns').select('*', { count: 'exact', head: true }).eq('project_id', project.id).eq('user_id', user.id),
-            supabase.from('Emails').select('*', { count: 'exact', head: true }).eq('project_id', project.id).eq('user_id', user.id),
-            supabase.from('AIRequests').select('*', { count: 'exact', head: true }).eq('project_id', project.id).eq('user_id', user.id),
-            supabase.from('Campaigns').select('*', { count: 'exact', head: true }).eq('project', project.name).eq('user_id', user.id),
-            supabase.from('Emails').select('*', { count: 'exact', head: true }).eq('project', project.name).eq('user_id', user.id),
-            supabase.from('AIRequests').select('*', { count: 'exact', head: true }).eq('project_id', project.id).eq('user_id', user.id)
+          // Fetch Campaigns with fallback and deduplication
+          const [campaignsById, campaignsByName] = await Promise.all([
+            supabase
+              .from('Campaigns')
+              .select('id')
+              .eq('project_id', project.id)
+              .eq('user_id', user.id),
+            supabase
+              .from('Campaigns')
+              .select('id')
+              .eq('project', project.name)
+              .eq('user_id', user.id)
           ]);
+
+          const allCampaigns = dedupeById([
+            ...(campaignsById.data || []),
+            ...(campaignsByName.data || [])
+          ]);
+
+          // Fetch Emails with fallback and deduplication
+          const [emailsById, emailsByName] = await Promise.all([
+            supabase
+              .from('Emails')
+              .select('id')
+              .eq('project_id', project.id)
+              .eq('user_id', user.id),
+            supabase
+              .from('Emails')
+              .select('id')
+              .eq('project', project.name)
+              .eq('user_id', user.id)
+          ]);
+
+          const allEmails = dedupeById([
+            ...(emailsById.data || []),
+            ...(emailsByName.data || [])
+          ]);
+
+          // Fetch AI Requests (only project_id available, no project name column)
+          const { data: aiRequestsData } = await supabase
+            .from('AIRequests')
+            .select('id')
+            .eq('project_id', project.id)
+            .eq('user_id', user.id);
 
           return {
             ...project,
-            campaignCount: (campaignCountById || 0) + (campaignCountByName || 0),
-            emailCount: (emailCountById || 0) + (emailCountByName || 0),
-            aiRequestCount: (aiRequestCountById || 0) + (aiRequestCountByName || 0),
+            campaignCount: allCampaigns.length,
+            emailCount: allEmails.length,
+            aiRequestCount: (aiRequestsData || []).length,
             isOpravoProject: isOpravoProject(project.name)
           };
         })
