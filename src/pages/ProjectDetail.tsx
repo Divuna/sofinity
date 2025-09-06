@@ -151,21 +151,36 @@ export default function ProjectDetail() {
 
       setEmails(allEmails);
 
-      // Fetch AI Requests - only by project_id (no project name column exists)
-      const { data: aiRequestsData } = await supabase
-        .from('AIRequests')
-        .select('id, type, status, created_at')
-        .eq('project_id', projectData.id)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      // Fetch AI Requests - two queries with merge logic (only project_id available)
+      const [aiRequestsById, aiRequestsByIdFallback] = await Promise.all([
+        supabase
+          .from('AIRequests')
+          .select('id, type, status, created_at')
+          .eq('project_id', projectData.id)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('AIRequests')
+          .select('id, type, status, created_at')
+          .eq('project_id', projectData.id)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+      ]);
 
-      setAIRequests(aiRequestsData || []);
+      const allAI = [
+        ...(aiRequestsById.data || []),
+        ...(aiRequestsByIdFallback.data || [])
+      ].filter((aiRequest, index, self) => 
+        index === self.findIndex(a => a.id === aiRequest.id)
+      );
+
+      setAIRequests(allAI);
 
       // Set stats
       setStats({
         campaigns: allCampaigns.length,
         emails: allEmails.length,
-        aiRequests: (aiRequestsData || []).length
+        aiRequests: allAI.length
       });
 
     } catch (error) {
