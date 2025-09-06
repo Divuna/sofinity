@@ -37,6 +37,7 @@ const navigation = [
   { name: 'Kampaně', href: '/campaigns', icon: Target },
   { name: 'Nová kampaň', href: '/campaign/new', icon: Sparkles },
   { name: 'Nabídky', href: '/offers', icon: Handshake },
+  { name: 'Příspěvky', href: '/prispevky', icon: FileText },
   { name: 'Plánování', href: '/schedule', icon: Calendar },
   { name: 'Auto-odpovědi', href: '/autoresponses', icon: Bot },
   { name: 'Email centrum', href: '/emails', icon: Mail },
