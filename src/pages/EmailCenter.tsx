@@ -7,8 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Mail } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelectedProject } from '@/providers/ProjectProvider';
+import { dedupeById, truncateText } from '@/lib/utils-helpers';
 
 interface EmailItem {
   id: string;
@@ -16,6 +17,7 @@ interface EmailItem {
   user_id: string;
   recipient: string | null;
   project: string | null;
+  project_id: string | null;
   type: string;
   created_at: string;
   updated_at: string;
@@ -33,36 +35,90 @@ interface EmailLog {
   campaign_id: string | null;
 }
 
+interface Project {
+  id: string;
+  name: string;
+}
+
 export default function EmailCenter() {
   const [emails, setEmails] = useState<EmailItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const location = useLocation();
   const { selectedProject } = useSelectedProject();
+
+  // Read project from location state or URL params
+  useEffect(() => {
+    const stateProject = location.state?.SelectedProject;
+    if (stateProject?.id && stateProject?.name) {
+      setCurrentProject(stateProject);
+    } else {
+      const urlParams = new URLSearchParams(location.search);
+      const projectId = urlParams.get('project_id');
+      const projectName = urlParams.get('name');
+      if (projectId && projectName) {
+        setCurrentProject({ id: projectId, name: projectName });
+      } else {
+        setCurrentProject(null);
+      }
+    }
+  }, [location.state, location.search]);
 
   useEffect(() => {
     fetchEmails();
-  }, [selectedProject]);
+  }, [currentProject]);
 
   const fetchEmails = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Uživatel není přihlášen');
 
-      let query = supabase
-        .from('Emails')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      let emailsByProjectId: EmailItem[] = [];
+      let emailsByProjectName: EmailItem[] = [];
 
-      if (selectedProject?.id) {
-        query = query.eq('project_id', selectedProject.id);
+      // Primary query: by project_id
+      if (currentProject?.id) {
+        const { data: projectIdData, error: projectIdError } = await supabase
+          .from('Emails')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('project_id', currentProject.id)
+          .order('created_at', { ascending: false });
+
+        if (projectIdError) throw projectIdError;
+        emailsByProjectId = (projectIdData || []) as EmailItem[];
       }
 
-      const { data, error } = await query;
+      // Fallback query: by project name (only if needed)
+      if (currentProject?.name && emailsByProjectId.length === 0) {
+        const { data: projectNameData, error: projectNameError } = await supabase
+          .from('Emails')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('project', currentProject.name)
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setEmails(data || []);
+        if (projectNameError) throw projectNameError;
+        emailsByProjectName = (projectNameData || []) as EmailItem[];
+      }
+
+      // No project selected - get all emails
+      if (!currentProject) {
+        const { data: allData, error: allError } = await supabase
+          .from('Emails')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (allError) throw allError;
+        setEmails((allData || []) as EmailItem[]);
+      } else {
+        // Merge and dedupe results
+        const allEmails = [...emailsByProjectId, ...emailsByProjectName];
+        setEmails(dedupeById(allEmails));
+      }
     } catch (error) {
       toast({
         title: "Chyba",
@@ -81,7 +137,7 @@ export default function EmailCenter() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">
-            E-maily{selectedProject ? ` — ${selectedProject.name}` : ''}
+            E-maily{currentProject ? ` — ${currentProject.name}` : ''}
           </h1>
           <p className="text-muted-foreground mt-1">
             Správa e-mailů a sledování jejich doručení
@@ -130,7 +186,7 @@ export default function EmailCenter() {
                     </TableCell>
                     <TableCell>
                       <div className="text-sm text-muted-foreground max-w-xs truncate">
-                        {email.content.substring(0, 100)}...
+                        {truncateText(email.content ?? '', 100)}
                       </div>
                     </TableCell>
                     <TableCell>
