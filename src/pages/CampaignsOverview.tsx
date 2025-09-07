@@ -198,7 +198,7 @@ export default function CampaignsOverview() {
         <Button 
           variant="gradient" 
           className="shadow-strong"
-          onClick={() => navigate('/ai-assistant?type=campaign_generator')}
+          onClick={() => navigate('/campaign/new')}
         >
           <Plus className="w-4 h-4 mr-2" />
           Nová kampaň
