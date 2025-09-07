@@ -1,10 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { Resend } from 'npm:resend@2.0.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
 
 interface SendCampaignEmailsRequest {
   campaignId: string;
@@ -82,8 +85,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Found ${campaignContacts.length} contacts to send emails to`);
 
-    // For now, we'll just log the email sending process
-    // In a real implementation, you would integrate with an email service like Resend
+    // Send actual emails using Resend
     let successCount = 0;
     const emailLogs = [];
     const emailResults = [];
@@ -100,8 +102,18 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`  Recipient: ${contact.email}`);
         console.log(`  Contact Name: ${contact.name || contact.full_name || 'N/A'}`);
         
-        // Here you would call your email service API
-        // For demo purposes, we'll just create a log entry
+        // Send actual email using Resend
+        const emailResponse = await resend.emails.send({
+          from: 'Kampaň <onboarding@resend.dev>', // Using Resend's test domain - user can change this
+          to: [contact.email],
+          subject: `Kampaň: ${campaign.name}`,
+          html: campaign.email // Use the campaign's email content
+        });
+
+        if (emailResponse.error) {
+          throw emailResponse.error;
+        }
+
         const emailLog = {
           user_id: user.id,
           campaign_id: campaignId,
@@ -109,7 +121,7 @@ const handler = async (req: Request): Promise<Response> => {
           subject: `Kampaň: ${campaign.name}`,
           status: 'sent',
           sent_at: new Date().toISOString(),
-          message_id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          message_id: emailResponse.data?.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
         };
 
         emailLogs.push(emailLog);
