@@ -60,22 +60,20 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Get campaign contacts
+    console.log('Fetching campaign contacts for campaign:', campaignId, 'user:', user.id);
+    
     const { data: campaignContacts, error: contactsError } = await supabaseClient
       .from('campaign_contacts')
       .select(`
         contact_id,
-        Contacts!inner(
-          id,
-          email,
-          name,
-          full_name
-        )
+        Contacts!inner(*)
       `)
       .eq('campaign_id', campaignId)
       .eq('user_id', user.id);
 
     if (contactsError) {
-      throw new Error('Failed to fetch campaign contacts');
+      console.error('Campaign contacts query error:', contactsError);
+      throw new Error(`Failed to fetch campaign contacts: ${contactsError.message}`);
     }
 
     if (!campaignContacts || campaignContacts.length === 0) {
