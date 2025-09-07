@@ -21,7 +21,8 @@ import {
   FileText,
   Video,
   Target,
-  Plus
+  Plus,
+  Copy
 } from 'lucide-react';
 
 interface Campaign {
@@ -188,6 +189,48 @@ export default function CampaignDetail() {
     }
   };
 
+  const handleDuplicate = async () => {
+    if (!campaign) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
+      const duplicateData = {
+        name: `${campaign.name} (kopie)`,
+        status: 'draft' as const,
+        targeting: campaign.targeting,
+        email: campaign.email,
+        post: campaign.post,
+        video: campaign.video,
+        project: null,
+        project_id: null,
+        user_id: user.id
+      };
+
+      const { data: newCampaign, error } = await supabase
+        .from('Campaigns')
+        .insert(duplicateData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Duplikace byla úspěšně vytvořena",
+        description: "Přesměrování na novou kampaň..."
+      });
+
+      navigate(`/campaigns/${newCampaign.id}`);
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se vytvořit duplikaci",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -230,6 +273,10 @@ export default function CampaignDetail() {
           <Button variant="outline" onClick={() => navigate(`/campaigns/${id}/schedule`)}>
             <Plus className="w-4 h-4 mr-2" />
             Přidat do plánu
+          </Button>
+          <Button variant="outline" onClick={handleDuplicate}>
+            <Copy className="w-4 h-4 mr-2" />
+            Duplikovat
           </Button>
           <Button variant="outline" onClick={toggleCampaignStatus}>
             {campaign.status === 'active' ? (

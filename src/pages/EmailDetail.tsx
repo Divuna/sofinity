@@ -157,6 +157,45 @@ export default function EmailDetail() {
     });
   };
 
+  const handleDuplicate = async () => {
+    if (!email) return;
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
+      const duplicateData = {
+        content: email.content,
+        type: email.type,
+        recipient: email.recipient,
+        project: email.project + " (kopie)",
+        project_id: null,
+        user_id: user.id
+      };
+
+      const { data: newEmail, error } = await supabase
+        .from('Emails')
+        .insert(duplicateData)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "Duplikace byla úspěšně vytvořena",
+        description: "Přesměrování na nový e-mail..."
+      });
+
+      navigate(`/emails/${newEmail.id}`);
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se vytvořit duplikaci",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -201,6 +240,10 @@ export default function EmailDetail() {
           <Button variant="outline" onClick={() => copyToClipboard(email.content)}>
             <Copy className="w-4 h-4 mr-2" />
             Kopírovat obsah
+          </Button>
+          <Button variant="outline" onClick={handleDuplicate}>
+            <Copy className="w-4 h-4 mr-2" />
+            Duplikovat
           </Button>
           <Button 
             variant={isEditing ? "default" : "outline"}
