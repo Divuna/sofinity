@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 
 interface Project {
   id: string;
@@ -30,7 +29,6 @@ interface ProjectProviderProps {
 export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) => {
   const [selectedProject, setSelectedProjectState] = useState<Project | null>(null);
   const [loadingSelectedProject, setLoadingSelectedProject] = useState(true);
-  const { toast } = useToast();
 
   // Load selected project on app start
   useEffect(() => {
@@ -173,11 +171,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
       }
     } catch (error) {
       console.error('Error setting selected project:', error);
-      toast({
-        title: "Chyba",
-        description: "Nepodařilo se uložit vybraný projekt",
-        variant: "destructive"
-      });
+      // Note: Toast handling moved to individual components to avoid hook initialization issues
     }
   };
 
