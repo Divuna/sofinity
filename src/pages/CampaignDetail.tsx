@@ -172,6 +172,25 @@ export default function CampaignDetail() {
 
       if (error) throw error;
 
+      // Show individual toast for each email result
+      if (data.emailResults && Array.isArray(data.emailResults)) {
+        data.emailResults.forEach((result: any) => {
+          if (result.status === 'success') {
+            toast({
+              title: "E-mail odeslán",
+              description: `E‑mail odeslán uživateli: ${result.email}`
+            });
+          } else if (result.status === 'error') {
+            toast({
+              title: "Chyba při odesílání",
+              description: `Nepodařilo se odeslat e‑mail: ${result.email} – důvod: ${result.error}`,
+              variant: "destructive"
+            });
+          }
+        });
+      }
+
+      // Show summary toast
       toast({
         title: "E-maily byly odeslány",
         description: data.message || "E-maily byly úspěšně odeslány všem příjemcům"

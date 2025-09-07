@@ -86,13 +86,19 @@ const handler = async (req: Request): Promise<Response> => {
     // In a real implementation, you would integrate with an email service like Resend
     let successCount = 0;
     const emailLogs = [];
+    const emailResults = [];
+
+    console.log(`=== STARTING EMAIL SEND FOR CAMPAIGN: ${campaign.name} (ID: ${campaignId}) ===`);
 
     for (const campaignContact of campaignContacts) {
       const contact = campaignContact.Contacts;
       
       try {
-        // Simulate email sending
-        console.log(`Sending email to: ${contact.email} (${contact.name || contact.full_name})`);
+        // Detailed logging for each contact
+        console.log(`📧 SENDING EMAIL:`);
+        console.log(`  Campaign: ${campaign.name} (ID: ${campaignId})`);
+        console.log(`  Recipient: ${contact.email}`);
+        console.log(`  Contact Name: ${contact.name || contact.full_name || 'N/A'}`);
         
         // Here you would call your email service API
         // For demo purposes, we'll just create a log entry
@@ -107,9 +113,23 @@ const handler = async (req: Request): Promise<Response> => {
         };
 
         emailLogs.push(emailLog);
+        emailResults.push({
+          email: contact.email,
+          status: 'success',
+          error: null
+        });
         successCount++;
+        
+        console.log(`✅ SUCCESS: Email successfully sent to ${contact.email}`);
+        
       } catch (error) {
-        console.error(`Failed to send email to ${contact.email}:`, error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        
+        console.log(`❌ ERROR sending email:`);
+        console.log(`  Campaign: ${campaign.name} (ID: ${campaignId})`);
+        console.log(`  Recipient: ${contact.email}`);
+        console.log(`  Error: ${errorMessage}`);
+        console.log(`  Full error payload:`, error);
         
         const emailLog = {
           user_id: user.id,
@@ -122,6 +142,11 @@ const handler = async (req: Request): Promise<Response> => {
         };
 
         emailLogs.push(emailLog);
+        emailResults.push({
+          email: contact.email,
+          status: 'error',
+          error: errorMessage
+        });
       }
     }
 
@@ -136,14 +161,16 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    console.log(`Successfully sent ${successCount} out of ${campaignContacts.length} emails`);
+    console.log(`=== EMAIL SEND COMPLETED ===`);
+    console.log(`📊 FINAL RESULTS: Successfully sent ${successCount} out of ${campaignContacts.length} emails`);
 
     return new Response(
       JSON.stringify({
         success: true,
         message: `E-maily byly odeslány (${successCount}/${campaignContacts.length})`,
         sentCount: successCount,
-        totalCount: campaignContacts.length
+        totalCount: campaignContacts.length,
+        emailResults: emailResults
       }),
       {
         status: 200,
