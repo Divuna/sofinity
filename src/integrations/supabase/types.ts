@@ -523,27 +523,42 @@ export type Database = {
           campaign_id: string | null
           comment: string | null
           created_at: string | null
+          email_id: string | null
+          feedback_type: string | null
           id: string
+          ip_address: string | null
           rating: number | null
           sentiment: string | null
+          source: string | null
+          submitted_at: string | null
           user_id: string | null
         }
         Insert: {
           campaign_id?: string | null
           comment?: string | null
           created_at?: string | null
+          email_id?: string | null
+          feedback_type?: string | null
           id?: string
+          ip_address?: string | null
           rating?: number | null
           sentiment?: string | null
+          source?: string | null
+          submitted_at?: string | null
           user_id?: string | null
         }
         Update: {
           campaign_id?: string | null
           comment?: string | null
           created_at?: string | null
+          email_id?: string | null
+          feedback_type?: string | null
           id?: string
+          ip_address?: string | null
           rating?: number | null
           sentiment?: string | null
+          source?: string | null
+          submitted_at?: string | null
           user_id?: string | null
         }
         Relationships: [

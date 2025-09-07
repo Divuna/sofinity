@@ -38,6 +38,7 @@ import OpravoDataHub from "./pages/OpravoDataHub";
 import OpravoAPIDebug from "./pages/OpravoAPIDebug";
 import ProjectDetail from "./pages/ProjectDetail";
 import Prispevky from "./pages/Prispevky";
+import EmailFeedback from "./pages/EmailFeedback";
 
 const queryClient = new QueryClient();
 
@@ -63,6 +64,9 @@ const App = () => (
             {/* Email routes */}
             <Route path="/emails" element={<AuthGuard><EmailCenter /></AuthGuard>} />
             <Route path="/emails/:id" element={<AuthGuard><MainLayout><EmailDetail /></MainLayout></AuthGuard>} />
+            
+            {/* Public feedback route - no auth required */}
+            <Route path="/feedback/:emailId/:choice" element={<EmailFeedback />} />
             
             {/* Other feature routes */}
             <Route path="/autoresponses" element={<AuthGuard><MainLayout><AutoresponsesManager /></MainLayout></AuthGuard>} />

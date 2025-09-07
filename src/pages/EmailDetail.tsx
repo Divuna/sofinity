@@ -315,6 +315,25 @@ export default function EmailDetail() {
                 <div className="whitespace-pre-wrap text-sm">
                   {email.content}
                 </div>
+                <div className="border-t border-border pt-4 mt-4 text-center">
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Byl tento e-mail užitečný?
+                  </p>
+                  <div className="flex items-center justify-center gap-4">
+                    <a 
+                      href={`/feedback/${email.id}/positive`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      👍 Ano
+                    </a>
+                    <a 
+                      href={`/feedback/${email.id}/negative`}
+                      className="text-sm text-primary hover:underline"
+                    >
+                      👎 Ne
+                    </a>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
