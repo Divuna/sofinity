@@ -317,7 +317,7 @@ export default function CampaignDetail() {
             <Copy className="w-4 h-4 mr-2" />
             Duplikovat
           </Button>
-          <Button variant="outline" onClick={toggleCampaignStatus}>
+          <Button variant="outline" onClick={campaign.status === 'active' ? toggleCampaignStatus : handleSendEmails} disabled={saving}>
             {campaign.status === 'active' ? (
               <>
                 <Pause className="w-4 h-4 mr-2" />
@@ -329,10 +329,6 @@ export default function CampaignDetail() {
                 Spustit
               </>
             )}
-          </Button>
-          <Button variant="gradient" onClick={handleSendEmails} disabled={saving}>
-            <Mail className="w-4 h-4 mr-2" />
-            {saving ? 'Odesílání...' : 'Odeslat e-maily'}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
             <Save className="w-4 h-4 mr-2" />
