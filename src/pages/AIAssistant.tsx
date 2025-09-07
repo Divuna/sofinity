@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Bot, Loader2, MessageSquare, Clock, CheckCircle, Calendar, Filter } from 'lucide-react';
+import { Bot, Loader2, MessageSquare, Clock, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
@@ -22,14 +22,8 @@ interface AIRequest {
   created_at: string;
 }
 
-interface Project {
-  id: string;
-  name: string;
-}
-
 export default function AIAssistant() {
   const navigate = useNavigate();
-  const location = useLocation();
   const { toast } = useToast();
   const { selectedProject } = useSelectedProject();
   const [isLoading, setIsLoading] = useState(false);
@@ -37,8 +31,6 @@ export default function AIAssistant() {
   const [requestType, setRequestType] = useState('');
   const [aiRequests, setAiRequests] = useState<AIRequest[]>([]);
   const [loadingRequests, setLoadingRequests] = useState(true);
-  const [currentProject, setCurrentProject] = useState<Project | null>(null);
-  const [projects, setProjects] = useState<Array<{id: string, name: string}>>([]);
 
   const fetchAIRequests = async () => {
     try {
@@ -50,9 +42,9 @@ export default function AIAssistant() {
         .select('*')
         .eq('user_id', user.id);
 
-      // Add project filter if current project is selected
-      if (currentProject?.id) {
-        query = query.eq('project_id', currentProject.id);
+      // Add project filter if selectedProject exists
+      if (selectedProject?.id) {
+        query = query.eq('project_id', selectedProject.id);
       }
 
       const { data, error } = await query.order('created_at', { ascending: false });
@@ -66,48 +58,11 @@ export default function AIAssistant() {
     }
   };
 
-  // Initialize current project from location state, URL params, or header context
-  useEffect(() => {
-    const selectedFromState = location.state?.SelectedProject;
-    if (selectedFromState) {
-      setCurrentProject(selectedFromState);
-    } else {
-      const urlParams = new URLSearchParams(window.location.search);
-      const projectId = urlParams.get('project_id');
-      const projectName = urlParams.get('name');
-      if (projectId && projectName) {
-        setCurrentProject({ id: projectId, name: projectName });
-      } else if (selectedProject) {
-        // Fallback to header context selectedProject
-        setCurrentProject(selectedProject);
-      }
-    }
-  }, [location.state, selectedProject]);
-
-  useEffect(() => {
-    fetchProjects();
-  }, []);
-
+  // Auto-sync history when selectedProject changes
   useEffect(() => {
     fetchAIRequests();
-  }, [currentProject]);
+  }, [selectedProject]);
 
-  const fetchProjects = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('Projects')
-        .select('id, name')
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-      setProjects(data || []);
-    } catch (error) {
-      console.error('Error fetching projects:', error);
-    }
-  };
 
   const getTypeLabel = (type: string) => {
     switch (type) {
@@ -153,21 +108,21 @@ export default function AIAssistant() {
         throw new Error('Musíte být přihlášeni');
       }
 
-      console.log('Sending AI request:', {
-        type: requestType,
-        prompt: promptText,
-        user_id: user.id,
-        project_id: selectedProject?.id
-      });
-
-      const { data, error } = await supabase.functions.invoke('ai-assistant', {
-        body: {
+        console.log('Sending AI request:', {
           type: requestType,
           prompt: promptText,
           user_id: user.id,
-          project_id: currentProject?.id
-        }
-      });
+          project_id: selectedProject?.id
+        });
+
+        const { data, error } = await supabase.functions.invoke('ai-assistant', {
+          body: {
+            type: requestType,
+            prompt: promptText,
+            user_id: user.id,
+            project_id: selectedProject?.id
+          }
+        });
 
       if (error) {
         console.error('Supabase function error:', error);
@@ -206,26 +161,6 @@ export default function AIAssistant() {
     }
   };
 
-  const handleProjectChange = (value: string) => {
-    if (value === 'all') {
-      setCurrentProject(null);
-      // Clear URL params
-      const newUrl = new URL(window.location.href);
-      newUrl.searchParams.delete('project_id');
-      newUrl.searchParams.delete('name');
-      window.history.pushState({}, '', newUrl.toString());
-    } else {
-      const project = projects.find(p => p.id === value);
-      if (project) {
-        setCurrentProject(project);
-        // Update URL params
-        const newUrl = new URL(window.location.href);
-        newUrl.searchParams.set('project_id', project.id);
-        newUrl.searchParams.set('name', project.name);
-        window.history.pushState({}, '', newUrl.toString());
-      }
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -302,22 +237,6 @@ export default function AIAssistant() {
               <MessageSquare className="h-5 w-5" />
               Historie AI požadavků
             </CardTitle>
-            <div className="flex items-center gap-2 mt-2">
-              <Filter className="h-4 w-4 text-muted-foreground" />
-              <Select value={currentProject?.id || 'all'} onValueChange={handleProjectChange}>
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Filtr podle projektu" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Všechny projekty</SelectItem>
-                  {projects.map(project => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </CardHeader>
           <CardContent>
             {loadingRequests ? (
