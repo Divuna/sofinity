@@ -184,7 +184,22 @@ export type Database = {
           id?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "fk_campaign_contacts_campaign_id"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "Campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_campaign_contacts_contact_id"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "Contacts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       CampaignReports: {
         Row: {
