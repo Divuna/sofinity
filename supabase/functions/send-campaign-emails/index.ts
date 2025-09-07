@@ -104,7 +104,7 @@ const handler = async (req: Request): Promise<Response> => {
         
         // Send actual email using Resend
         const emailResponse = await resend.emails.send({
-          from: 'Sofinity <noreplay@opravo.cz>',
+          from: 'Sofinity <noreply@opravo.cz>',
           to: [contact.email],
           subject: `Kampaň: ${campaign.name}`,
           html: campaign.email // Use the campaign's email content
