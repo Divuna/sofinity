@@ -51,7 +51,7 @@ export default function AIAssistant() {
         .eq('user_id', user.id);
 
       // Add project filter if current project is selected
-      if (currentProject) {
+      if (currentProject?.id) {
         query = query.eq('project_id', currentProject.id);
       }
 
@@ -66,7 +66,7 @@ export default function AIAssistant() {
     }
   };
 
-  // Initialize current project from location state or URL params
+  // Initialize current project from location state, URL params, or header context
   useEffect(() => {
     const selectedFromState = location.state?.SelectedProject;
     if (selectedFromState) {
@@ -77,9 +77,12 @@ export default function AIAssistant() {
       const projectName = urlParams.get('name');
       if (projectId && projectName) {
         setCurrentProject({ id: projectId, name: projectName });
+      } else if (selectedProject) {
+        // Fallback to header context selectedProject
+        setCurrentProject(selectedProject);
       }
     }
-  }, [location.state]);
+  }, [location.state, selectedProject]);
 
   useEffect(() => {
     fetchProjects();
@@ -162,7 +165,7 @@ export default function AIAssistant() {
           type: requestType,
           prompt: promptText,
           user_id: user.id,
-          project_id: currentProject?.id || selectedProject?.id
+          project_id: currentProject?.id
         }
       });
 
