@@ -17,8 +17,10 @@ import {
   BarChart3,
   Copy,
   Save,
-  Send
+  Send,
+  MessageSquare
 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface EmailItem {
   id: string;
@@ -54,6 +56,7 @@ export default function EmailDetail() {
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [feedbackStats, setFeedbackStats] = useState<{positive: number; negative: number} | null>(null);
+  const [comments, setComments] = useState<Array<{id: string; comment: string; submitted_at: string}>>([]);
 
   useEffect(() => {
     if (id) {
@@ -97,6 +100,19 @@ export default function EmailDetail() {
         const positive = feedbackData.filter(f => f.feedback_type === 'positive').length;
         const negative = feedbackData.filter(f => f.feedback_type === 'negative').length;
         setFeedbackStats({ positive, negative });
+      }
+
+      // Fetch comments
+      const { data: commentsData } = await supabase
+        .from('Feedback')
+        .select('id, comment, submitted_at')
+        .eq('email_id', id)
+        .eq('source', 'email')
+        .not('comment', 'is', null)
+        .order('submitted_at', { ascending: false });
+
+      if (commentsData) {
+        setComments(commentsData);
       }
 
     } catch (error) {
@@ -376,6 +392,43 @@ export default function EmailDetail() {
                   </div>
                   <span className="text-sm font-medium">{feedbackStats.negative}</span>
                 </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Comments Section */}
+          {comments.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Komentáře od uživatelů
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ScrollArea className="h-48 pr-4">
+                  <div className="space-y-4">
+                    {comments.map((comment) => (
+                      <div key={comment.id} className="border-b border-border pb-3 last:border-b-0">
+                        <div className="flex items-start gap-2">
+                          <MessageSquare className="w-4 h-4 mt-1 text-muted-foreground" />
+                          <div className="flex-1">
+                            <p className="text-sm text-foreground leading-relaxed">
+                              {comment.comment}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              Přidáno: {new Date(comment.submitted_at).toLocaleDateString('cs-CZ', {
+                                day: 'numeric',
+                                month: 'long',
+                                year: 'numeric'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
               </CardContent>
             </Card>
           )}
