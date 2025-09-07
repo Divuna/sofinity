@@ -53,6 +53,7 @@ export default function EmailDetail() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [feedbackStats, setFeedbackStats] = useState<{positive: number; negative: number} | null>(null);
 
   useEffect(() => {
     if (id) {
@@ -84,6 +85,19 @@ export default function EmailDetail() {
         .order('sent_at', { ascending: false });
       
       setEmailLogs(logsData || []);
+
+      // Fetch feedback stats
+      const { data: feedbackData } = await supabase
+        .from('Feedback')
+        .select('feedback_type')
+        .eq('email_id', id)
+        .eq('source', 'email');
+
+      if (feedbackData && feedbackData.length > 0) {
+        const positive = feedbackData.filter(f => f.feedback_type === 'positive').length;
+        const negative = feedbackData.filter(f => f.feedback_type === 'negative').length;
+        setFeedbackStats({ positive, negative });
+      }
 
     } catch (error) {
       toast({
@@ -337,6 +351,34 @@ export default function EmailDetail() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Feedback Stats Card */}
+          {feedbackStats && (feedbackStats.positive > 0 || feedbackStats.negative > 0) && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="w-5 h-5" />
+                  Hodnocení e-mailu
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">👍</span>
+                    <span className="text-sm text-muted-foreground">Pozitivní hodnocení:</span>
+                  </div>
+                  <span className="text-sm font-medium">{feedbackStats.positive}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">👎</span>
+                    <span className="text-sm text-muted-foreground">Negativní hodnocení:</span>
+                  </div>
+                  <span className="text-sm font-medium">{feedbackStats.negative}</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Email Statistics */}
