@@ -3,6 +3,9 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 
 export default function EmailFeedback() {
   const { emailId, choice } = useParams<{ emailId: string; choice: 'positive' | 'negative' }>();
@@ -10,6 +13,9 @@ export default function EmailFeedback() {
   const [submitted, setSubmitted] = useState(false);
   const [alreadyVoted, setAlreadyVoted] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [comment, setComment] = useState('');
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [feedbackId, setFeedbackId] = useState<string | null>(null);
 
   useEffect(() => {
     const submitFeedback = async () => {
@@ -38,7 +44,7 @@ export default function EmailFeedback() {
         const { data: { user } } = await supabase.auth.getUser();
 
         // Submit feedback
-        const { error } = await supabase
+        const { data: feedbackData, error } = await supabase
           .from('Feedback')
           .insert({
             email_id: emailId,
@@ -48,15 +54,24 @@ export default function EmailFeedback() {
             sentiment: choice,
             submitted_at: new Date().toISOString(),
             ip_address: ip
-          });
+          })
+          .select('id');
 
         if (error) throw error;
 
+        if (feedbackData && feedbackData[0]) {
+          setFeedbackId(feedbackData[0].id);
+        }
+
         setSubmitted(true);
-        toast({
-          title: "Děkujeme za zpětnou vazbu!",
-          description: "Vaše hodnocení bylo úspěšně odesláno"
-        });
+        
+        // For positive feedback, show success toast
+        if (choice === 'positive') {
+          toast({
+            title: "Děkujeme za zpětnou vazbu!",
+            description: "Vaše hodnocení bylo úspěšně odesláno"
+          });
+        }
 
       } catch (error) {
         console.error('Error submitting feedback:', error);
@@ -72,6 +87,36 @@ export default function EmailFeedback() {
 
     submitFeedback();
   }, [emailId, choice, toast]);
+
+  const handleCommentSubmit = async () => {
+    if (!feedbackId || !comment.trim()) return;
+    
+    setCommentSubmitting(true);
+    try {
+      const { error } = await supabase
+        .from('Feedback')
+        .update({ comment: comment.trim() })
+        .eq('id', feedbackId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Děkujeme za podrobnější zpětnou vazbu!",
+        description: "Váš komentář byl úspěšně uložen"
+      });
+      
+      setComment(''); // Clear the comment field
+    } catch (error) {
+      console.error('Error updating feedback comment:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se uložit komentář",
+        variant: "destructive"
+      });
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -106,6 +151,32 @@ export default function EmailFeedback() {
               <p className="text-muted-foreground">
                 Vaše hodnocení nám pomůže zlepšit naše e-maily.
               </p>
+              
+              {/* Comment section for negative feedback */}
+              {choice === 'negative' && submitted && (
+                <div className="mt-6 space-y-4">
+                  <div className="text-left">
+                    <Label htmlFor="comment" className="text-sm font-medium">
+                      Co bylo špatně?
+                    </Label>
+                    <Textarea
+                      id="comment"
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      placeholder="Např. moc dlouhý, nesrozumitelný, zbytečný…"
+                      className="mt-2"
+                      rows={3}
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleCommentSubmit}
+                    disabled={!comment.trim() || commentSubmitting}
+                    className="w-full"
+                  >
+                    {commentSubmitting ? 'Odesílám...' : 'Odeslat komentář'}
+                  </Button>
+                </div>
+              )}
             </>
           )}
         </CardContent>
