@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { MultiSelect, MultiSelectOption } from '@/components/ui/multi-select';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -13,15 +14,45 @@ export default function CampaignNew() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [contacts, setContacts] = useState<MultiSelectOption[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     targeting: '',
     email: '',
     post: '',
-    video: ''
+    video: '',
+    selectedContacts: [] as string[]
   });
 
-  const handleInputChange = (field: string, value: string) => {
+  useEffect(() => {
+    fetchContacts();
+  }, []);
+
+  const fetchContacts = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: contactsData, error } = await supabase
+        .from('Contacts')
+        .select('id, name, email, full_name')
+        .eq('user_id', user.id)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+
+      const contactOptions: MultiSelectOption[] = contactsData?.map(contact => ({
+        value: contact.id,
+        label: `${contact.name || contact.full_name || 'Bez jména'} (${contact.email})`
+      })) || [];
+
+      setContacts(contactOptions);
+    } catch (error) {
+      console.error('Chyba při načítání kontaktů:', error);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string | string[]) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -44,7 +75,7 @@ export default function CampaignNew() {
         return;
       }
 
-      const { error } = await supabase
+      const { data: newCampaign, error } = await supabase
         .from('Campaigns')
         .insert({
           name: formData.name,
@@ -52,9 +83,11 @@ export default function CampaignNew() {
           email: formData.email,
           post: formData.post,
           video: formData.video,
-          user_id: user.id, // Automaticky přidáme user_id z přihlášeného uživatele
+          user_id: user.id,
           status: 'draft'
-        });
+        })
+        .select()
+        .single();
 
       if (error) {
         console.error('Chyba při vytváření kampaně:', error);
@@ -63,13 +96,32 @@ export default function CampaignNew() {
           description: "Nepodařilo se vytvořit kampaň: " + error.message,
           variant: "destructive"
         });
-      } else {
-        toast({
-          title: "Úspěch",
-          description: "Kampaň byla úspěšně vytvořena",
-        });
-        navigate('/campaign-review');
+        return;
       }
+
+      // Save selected contacts to campaign_contacts table
+      if (formData.selectedContacts.length > 0) {
+        const contactInserts = formData.selectedContacts.map(contactId => ({
+          campaign_id: newCampaign.id,
+          contact_id: contactId,
+          user_id: user.id
+        }));
+
+        const { error: contactsError } = await supabase
+          .from('campaign_contacts')
+          .insert(contactInserts);
+
+        if (contactsError) {
+          console.error('Chyba při přiřazování kontaktů:', contactsError);
+          // Continue anyway, campaign was created
+        }
+      }
+
+      toast({
+        title: "Úspěch",
+        description: "Kampaň byla úspěšně vytvořena",
+      });
+      navigate(`/campaigns/${newCampaign.id}`);
     } catch (error) {
       console.error('Neočekávaná chyba:', error);
       toast({
@@ -130,6 +182,16 @@ export default function CampaignNew() {
                   onChange={(e) => handleInputChange('targeting', e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="contacts">Cílová skupina</Label>
+              <MultiSelect
+                options={contacts}
+                selected={formData.selectedContacts}
+                onChange={(value) => handleInputChange('selectedContacts', value)}
+                placeholder="Vyberte příjemce..."
+              />
             </div>
 
             <div className="space-y-2">

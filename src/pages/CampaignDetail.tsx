@@ -161,6 +161,45 @@ export default function CampaignDetail() {
     }
   };
 
+  const handleSendEmails = async () => {
+    if (!campaign) return;
+    
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-campaign-emails', {
+        body: { campaignId: campaign.id }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "E-maily byly odeslány",
+        description: data.message || "E-maily byly úspěšně odeslány všem příjemcům"
+      });
+
+      // Update campaign status to active
+      const { error: updateError } = await supabase
+        .from('Campaigns')
+        .update({ status: 'active' })
+        .eq('id', campaign.id)
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+
+      if (!updateError) {
+        setCampaign({ ...campaign, status: 'active' });
+      }
+
+    } catch (error: any) {
+      console.error('Error sending emails:', error);
+      toast({
+        title: "Chyba",
+        description: error.message || "Nepodařilo se odeslat e-maily",
+        variant: "destructive"
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const toggleCampaignStatus = async () => {
     if (!campaign) return;
     
@@ -290,6 +329,10 @@ export default function CampaignDetail() {
                 Spustit
               </>
             )}
+          </Button>
+          <Button variant="gradient" onClick={handleSendEmails} disabled={saving}>
+            <Mail className="w-4 h-4 mr-2" />
+            {saving ? 'Odesílání...' : 'Odeslat e-maily'}
           </Button>
           <Button onClick={handleSave} disabled={saving}>
             <Save className="w-4 h-4 mr-2" />
