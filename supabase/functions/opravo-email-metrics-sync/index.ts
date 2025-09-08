@@ -60,13 +60,17 @@ serve(async (req) => {
     console.log('Starting Opravo email metrics sync...');
 
     // Get last sync watermark
-    const { data: lastSync } = await supabase
+    const { data: lastSync, error: syncError } = await supabase
       .from('AIRequests')
       .select('response')
       .eq('type', 'opravo_email_sync')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    if (syncError) {
+      console.error('Error fetching last sync:', syncError);
+    }
 
     const lastSyncTime = lastSync?.response ? 
       JSON.parse(lastSync.response).last_updated_at : 
@@ -75,6 +79,7 @@ serve(async (req) => {
     console.log('Last sync time:', lastSyncTime);
 
     // Fetch email metrics from Opravo API
+    console.log(`Fetching from: ${opravoBaseUrl}/api/emails/metrics?updated_since=${lastSyncTime}`);
     const opravoResponse = await fetch(`${opravoBaseUrl}/api/emails/metrics?updated_since=${lastSyncTime}`, {
       method: 'GET',
       headers: {
@@ -83,11 +88,23 @@ serve(async (req) => {
       },
     });
 
+    console.log(`Opravo API response status: ${opravoResponse.status}`);
+    
     if (!opravoResponse.ok) {
+      const errorText = await opravoResponse.text();
+      console.error(`Opravo API error response: ${errorText}`);
       throw new Error(`Opravo API error: ${opravoResponse.status} ${opravoResponse.statusText}`);
     }
 
-    const opravoMetrics: OpravoEmailMetric[] = await opravoResponse.json();
+    let opravoMetrics: OpravoEmailMetric[];
+    try {
+      const responseText = await opravoResponse.text();
+      console.log(`Opravo API response text: ${responseText.substring(0, 200)}...`);
+      opravoMetrics = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse Opravo API response as JSON:', parseError);
+      throw new Error(`Invalid JSON response from Opravo API: ${parseError.message}`);
+    }
     console.log(`Fetched ${opravoMetrics.length} email metrics from Opravo`);
 
     if (opravoMetrics.length === 0) {
@@ -117,17 +134,16 @@ serve(async (req) => {
       subject: 'Opravo Email', // Placeholder
     }));
 
-    // Batch upsert email metrics to EmailLogs table
-    const { error: upsertError } = await supabase
+    // Batch insert email metrics to EmailLogs table (no upsert since message_id is not unique)
+    console.log(`Inserting ${metricsToUpsert.length} email metrics to EmailLogs...`);
+    
+    const { error: insertError } = await supabase
       .from('EmailLogs')
-      .upsert(metricsToUpsert, {
-        onConflict: 'message_id',
-        ignoreDuplicates: false,
-      });
+      .insert(metricsToUpsert);
 
-    if (upsertError) {
-      console.error('Upsert error:', upsertError);
-      throw new Error(`Failed to upsert metrics: ${upsertError.message}`);
+    if (insertError) {
+      console.error('Insert error:', insertError);
+      throw new Error(`Failed to insert metrics: ${insertError.message}`);
     }
 
     const latestUpdatedAt = Math.max(...opravoMetrics.map(m => new Date(m.updated_at).getTime()));
