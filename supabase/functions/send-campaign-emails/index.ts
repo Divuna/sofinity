@@ -80,7 +80,16 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!campaignContacts || campaignContacts.length === 0) {
-      throw new Error('No contacts found for this campaign');
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: 'Kampaň nemá žádné kontakty' 
+        }),
+        {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', ...corsHeaders },
+        }
+      );
     }
 
     console.log(`Found ${campaignContacts.length} contacts to send emails to`);
@@ -103,15 +112,21 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`  Contact Name: ${contact.name || contact.full_name || 'N/A'}`);
         
         // Send actual email using Resend
-        const emailResponse = await resend.emails.send({
-          from: 'Sofinity <noreply@opravo.cz>',
-          to: [contact.email],
-          subject: `Kampaň: ${campaign.name}`,
-          html: campaign.email // Use the campaign's email content
-        });
+        let emailResponse;
+        try {
+          emailResponse = await resend.emails.send({
+            from: 'Sofinity <noreply@opravo.cz>',
+            to: [contact.email],
+            subject: `Kampaň: ${campaign.name}`,
+            html: campaign.email // Use the campaign's email content
+          });
 
-        if (emailResponse.error) {
-          throw emailResponse.error;
+          if (emailResponse.error) {
+            throw new Error(emailResponse.error.message || 'Email provider error');
+          }
+        } catch (providerError) {
+          console.log(`❌ EMAIL PROVIDER ERROR:`, providerError);
+          throw providerError;
         }
 
         const emailLog = {
@@ -121,7 +136,12 @@ const handler = async (req: Request): Promise<Response> => {
           subject: `Kampaň: ${campaign.name}`,
           status: 'sent',
           sent_at: new Date().toISOString(),
-          message_id: emailResponse.data?.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+          message_id: emailResponse.data?.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          payload: {
+            response: emailResponse.data,
+            recipient: contact.email,
+            campaign_name: campaign.name
+          }
         };
 
         emailLogs.push(emailLog);
@@ -150,7 +170,13 @@ const handler = async (req: Request): Promise<Response> => {
           subject: `Kampaň: ${campaign.name}`,
           status: 'failed',
           sent_at: new Date().toISOString(),
-          message_id: null
+          message_id: null,
+          payload: {
+            error: errorMessage,
+            error_details: error,
+            recipient: contact.email,
+            campaign_name: campaign.name
+          }
         };
 
         emailLogs.push(emailLog);
