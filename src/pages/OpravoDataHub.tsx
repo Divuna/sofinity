@@ -29,7 +29,6 @@ interface OpravoJob {
   zadavatel_id?: string;
   status?: string;
   project_id?: string;
-  created_at: string;
   user_id: string;
 }
 
@@ -155,15 +154,16 @@ export default function OpravoDataHub() {
       }
 
       // Date filtering
+      // Date filtering - Opravo uses 'vytvoreno' as primary timestamp
       const dateRange = getDateRange(filters.period, filters.dateFrom, filters.dateTo);
       if (dateRange.from) {
-        query = query.gte('created_at', dateRange.from);
+        query = query.gte('vytvoreno', dateRange.from);
       }
       if (dateRange.to) {
-        query = query.lte('created_at', dateRange.to);
+        query = query.lte('vytvoreno', dateRange.to);
       }
 
-      query = query.order('created_at', { ascending: false });
+      query = query.order('vytvoreno', { ascending: false });
       
       const { data, error } = await query;
       if (error) throw error;
@@ -259,14 +259,14 @@ export default function OpravoDataHub() {
             'Urgentní': job.urgentni ? 'Ano' : 'Ne',
             'Stav': job.status === 'published' ? 'Publikováno' : 'Čeká',
             'Vybraný opravář': job.vybrany_opravar ? 'Vybrán' : 'Nevybrán',
-            'Datum vytvoření': job.created_at ? 
+            'Datum vytvoření': job.vytvoreno ? 
               new Intl.DateTimeFormat('cs-CZ', {
                 year: 'numeric',
                 month: '2-digit', 
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit'
-              }).format(new Date(job.created_at)) : ''
+              }).format(new Date(job.vytvoreno)) : ''
           };
         } else {
           const offer = item as OpravoOffer;
@@ -336,7 +336,7 @@ export default function OpravoDataHub() {
       const dateStr = format(date, 'yyyy-MM-dd');
       return {
         date: format(date, 'dd.MM'),
-        jobs: jobs.filter(j => j.created_at?.startsWith(dateStr)).length,
+        jobs: jobs.filter(j => j.vytvoreno?.startsWith(dateStr)).length,
         offers: offers.filter(o => o.created_at?.startsWith(dateStr)).length
       };
     });
@@ -499,7 +499,7 @@ export default function OpravoDataHub() {
         {job.vybrany_opravar ? "Vybrán" : "Nevybrán"}
       </td>
       <td className="p-4">
-        {job.created_at ? format(new Date(job.created_at), 'dd.MM.yyyy', { locale: cs }) : '-'}
+        {job.vytvoreno ? format(new Date(job.vytvoreno), 'dd.MM.yyyy', { locale: cs }) : '-'}
       </td>
       <td className="p-4">
         <div className="flex gap-2">
@@ -1148,7 +1148,7 @@ const JobDetail = ({ job }: { job: OpravoJob }) => {
       <div>
         <label className="text-sm font-medium text-muted-foreground">Datum vytvoření</label>
         <p className="text-sm">
-          {job.created_at ? format(new Date(job.created_at), 'dd.MM.yyyy HH:mm', { locale: cs }) : 'Neuvedeno'}
+          {job.vytvoreno ? format(new Date(job.vytvoreno), 'dd.MM.yyyy HH:mm', { locale: cs }) : 'Neuvedeno'}
         </p>
       </div>
       
