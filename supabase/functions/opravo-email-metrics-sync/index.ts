@@ -16,7 +16,7 @@ interface OpravoEmailMetric {
 }
 
 interface EmailMetric {
-  email_id: string;
+  external_email_id: string;
   sent_at: string;
   status: string;
   opens: number;
@@ -37,10 +37,10 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // Get Opravo API credentials
-    const sofinityApiKey = Deno.env.get('SOFINITY_API_KEY');
-    const sofinityBaseUrl = Deno.env.get('SOFINITY_BASE_URL');
+    const opravoApiKey = Deno.env.get('OPRAVO_API_KEY');
+    const opravoBaseUrl = Deno.env.get('OPRAVO_BASE_URL');
     
-    if (!sofinityApiKey || !sofinityBaseUrl) {
+    if (!opravoApiKey || !opravoBaseUrl) {
       throw new Error('Missing Opravo API credentials');
     }
 
@@ -62,10 +62,10 @@ serve(async (req) => {
     console.log('Last sync time:', lastSyncTime);
 
     // Fetch email metrics from Opravo API
-    const opravoResponse = await fetch(`${sofinityBaseUrl}/api/emails/metrics?updated_since=${lastSyncTime}`, {
+    const opravoResponse = await fetch(`${opravoBaseUrl}/api/emails/metrics?updated_since=${lastSyncTime}`, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${sofinityApiKey}`,
+        'Authorization': `Bearer ${opravoApiKey}`,
         'Content-Type': 'application/json',
       },
     });
@@ -94,7 +94,7 @@ serve(async (req) => {
 
     // Transform and upsert metrics
     const metricsToUpsert: EmailMetric[] = opravoMetrics.map(metric => ({
-      email_id: metric.id,
+      external_email_id: metric.id,
       sent_at: metric.sent_at,
       status: metric.status,
       opens: metric.opens || 0,
@@ -107,7 +107,7 @@ serve(async (req) => {
     const { error: upsertError } = await supabase
       .from('emails_metrics')
       .upsert(metricsToUpsert, {
-        onConflict: 'email_id',
+        onConflict: 'external_email_id',
         ignoreDuplicates: false,
       });
 
