@@ -5,6 +5,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Helper function to validate UUID format
+function isValidUUID(str: string): boolean {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(str);
+}
+
 Deno.serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -162,10 +168,12 @@ async function handleOfferEvent(supabase: any, webhookData: any, corsHeaders: an
       console.error('Error creating OpravoOffer:', opravoOfferError)
     }
 
-    // Extract offer data for legacy offers table
+    // Extract offer data for legacy offers table with external_request_id
+    const offerRequestId = offer.request_id || offer.pozadavek_id;
     const offerData = {
       id: offer.id,
-      request_id: offer.request_id || offer.pozadavek_id,
+      request_id: isValidUUID(offerRequestId) ? offerRequestId : null,
+      external_request_id: offerRequestId,
       repairer_id: offer.repairer_id || offer.opravce_id,
       price: offer.price || offer.cena,
       status: offer.status || 'pending',

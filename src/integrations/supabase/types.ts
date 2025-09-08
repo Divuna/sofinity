@@ -434,37 +434,49 @@ export type Database = {
         Row: {
           campaign_id: string | null
           clicked_at: string | null
+          created_at: string
           id: string
           message_id: string | null
           opened_at: string | null
+          payload: Json | null
+          recipient: string | null
           recipient_email: string
           sent_at: string | null
           status: string | null
           subject: string | null
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
           campaign_id?: string | null
           clicked_at?: string | null
+          created_at?: string
           id?: string
           message_id?: string | null
           opened_at?: string | null
+          payload?: Json | null
+          recipient?: string | null
           recipient_email: string
           sent_at?: string | null
           status?: string | null
           subject?: string | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           campaign_id?: string | null
           clicked_at?: string | null
+          created_at?: string
           id?: string
           message_id?: string | null
           opened_at?: string | null
+          payload?: Json | null
+          recipient?: string | null
           recipient_email?: string
           sent_at?: string | null
           status?: string | null
           subject?: string | null
+          updated_at?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -643,6 +655,7 @@ export type Database = {
       offers: {
         Row: {
           created_at: string
+          external_request_id: string | null
           id: string
           price: number | null
           project_id: string | null
@@ -653,6 +666,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          external_request_id?: string | null
           id?: string
           price?: number | null
           project_id?: string | null
@@ -663,6 +677,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          external_request_id?: string | null
           id?: string
           price?: number | null
           project_id?: string | null
@@ -712,6 +727,7 @@ export type Database = {
       opravojobs: {
         Row: {
           created_at: string
+          external_request_id: string | null
           id: string
           lokalita: string | null
           popis: string | null
@@ -726,6 +742,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          external_request_id?: string | null
           id?: string
           lokalita?: string | null
           popis?: string | null
@@ -740,6 +757,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          external_request_id?: string | null
           id?: string
           lokalita?: string | null
           popis?: string | null

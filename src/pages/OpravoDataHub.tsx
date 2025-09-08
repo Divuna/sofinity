@@ -21,6 +21,7 @@ import Papa from 'papaparse';
 interface OpravoJob {
   id: string;
   request_id?: string;
+  external_request_id?: string;
   popis?: string;
   vytvoreno?: string;
   urgentni?: boolean;
@@ -36,6 +37,7 @@ interface OpravoOffer {
   id: string;
   offer_id?: string;
   zakazka_id?: string;
+  external_request_id?: string;
   opravar_id?: string;
   cena?: number;
   popis?: string;
@@ -1180,7 +1182,7 @@ const JobDetail = ({ job }: { job: OpravoJob }) => {
       <div className="col-span-2 pt-4">
         <Button asChild>
           <a 
-            href={`https://opravo.cz/zakazka/${job.request_id || job.id}`} 
+            href={`https://opravo.cz/zakazka/${job.external_request_id || job.request_id || job.id}`} 
             target="_blank" 
             rel="noopener noreferrer"
           >
@@ -1278,7 +1280,7 @@ const OfferDetail = ({ offer }: { offer: OpravoOffer }) => {
       <div className="col-span-2 pt-4">
         <Button asChild>
           <a 
-            href={`https://opravo.cz/nabidka/${offer.offer_id || offer.id}`} 
+            href={`https://opravo.cz/nabidka/${offer.external_request_id || offer.offer_id || offer.id}`} 
             target="_blank" 
             rel="noopener noreferrer"
           >
