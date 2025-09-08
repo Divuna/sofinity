@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { 
   Save, 
   Play, 
@@ -69,6 +70,7 @@ export default function CampaignDetail() {
   const [schedule, setSchedule] = useState<CampaignSchedule[]>([]);
   const [reports, setReports] = useState<CampaignReport | null>(null);
   const [feedback, setFeedback] = useState<CampaignFeedback[]>([]);
+  const [contactsCount, setContactsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -113,6 +115,13 @@ export default function CampaignDetail() {
         .eq('campaign_id', id)
         .order('created_at', { ascending: false });
       setFeedback(feedbackData || []);
+
+      // Fetch contacts count for this campaign
+      const { count: contactsCount } = await supabase
+        .from('campaign_contacts')
+        .select('*', { count: 'exact', head: true })
+        .eq('campaign_id', id);
+      setContactsCount(contactsCount || 0);
 
     } catch (error) {
       toast({
@@ -163,6 +172,16 @@ export default function CampaignDetail() {
 
   const handleSendEmails = async () => {
     if (!campaign) return;
+    
+    // Check if there are contacts before sending
+    if (contactsCount === 0) {
+      toast({
+        title: "Chyba",
+        description: "Přidejte alespoň jeden kontakt ke kampani",
+        variant: "destructive"
+      });
+      return;
+    }
     
     setSaving(true);
     try {
@@ -336,19 +355,36 @@ export default function CampaignDetail() {
             <Copy className="w-4 h-4 mr-2" />
             Duplikovat
           </Button>
-          <Button variant="outline" onClick={campaign.status === 'active' ? toggleCampaignStatus : handleSendEmails} disabled={saving}>
-            {campaign.status === 'active' ? (
-              <>
-                <Pause className="w-4 h-4 mr-2" />
-                Pozastavit
-              </>
-            ) : (
-              <>
-                <Play className="w-4 h-4 mr-2" />
-                Spustit
-              </>
-            )}
-          </Button>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button 
+                    variant="outline" 
+                    onClick={campaign.status === 'active' ? toggleCampaignStatus : handleSendEmails} 
+                    disabled={saving || (campaign.status !== 'active' && contactsCount === 0)}
+                  >
+                    {campaign.status === 'active' ? (
+                      <>
+                        <Pause className="w-4 h-4 mr-2" />
+                        Pozastavit kampaň
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4 mr-2" />
+                        Spustit kampaň
+                      </>
+                    )}
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              {campaign.status !== 'active' && contactsCount === 0 && (
+                <TooltipContent>
+                  <p>Kampaň nemá žádné kontakty</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
           <Button onClick={handleSave} disabled={saving}>
             <Save className="w-4 h-4 mr-2" />
             {saving ? 'Ukládání...' : 'Uložit'}
