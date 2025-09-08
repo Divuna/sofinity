@@ -121,7 +121,20 @@ export default function AIRequestDetail() {
           project_id: (aiRequest as any).project_id || null
         });
 
-      if (error) throw error;
+      console.log('Campaign insert attempt:', {
+        name: `AI Kampaň - ${formatDistanceToNow(new Date(aiRequest.created_at), { locale: cs })}`,
+        user_id: user.id,
+        status: 'draft',
+        targeting: aiRequest.prompt,
+        email: content,
+        post: content,
+        project_id: (aiRequest as any).project_id || null
+      });
+
+      if (error) {
+        console.error('Supabase insert error:', error);
+        throw error;
+      }
 
       toast({
         title: "Úspěch!",
