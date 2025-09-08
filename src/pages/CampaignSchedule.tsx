@@ -129,9 +129,35 @@ export default function CampaignSchedule() {
     }
 
     try {
+      // Check if user is authenticated
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        toast({
+          title: "Chyba",
+          description: "Musíte být přihlášeni",
+          variant: "destructive"
+        });
+        return;
+      }
+
       const publishDateTime = new Date(selectedDate);
       const [hours, minutes] = newItem.time.split(':');
       publishDateTime.setHours(parseInt(hours), parseInt(minutes));
+
+      // Optimistic UI update
+      const tempItem: ScheduleItem = {
+        id: 'temp-' + Date.now(),
+        campaign_id: newItem.campaign_id || null,
+        channel: newItem.channel,
+        content: newItem.content,
+        publish_at: publishDateTime.toISOString(),
+        published: false,
+        created_at: new Date().toISOString(),
+        user_id: user.id
+      };
+
+      setScheduleItems(prev => [...prev, tempItem]);
 
       const { error } = await supabase
         .from('CampaignSchedule')
@@ -139,15 +165,20 @@ export default function CampaignSchedule() {
           campaign_id: newItem.campaign_id || null,
           channel: newItem.channel,
           content: newItem.content,
-          publish_at: publishDateTime.toISOString(),
-          published: false
+          publish_at: publishDateTime.toISOString(), // Already in UTC
+          published: false,
+          user_id: user.id
         });
 
-      if (error) throw error;
+      if (error) {
+        // Revert optimistic update
+        setScheduleItems(prev => prev.filter(item => item.id !== tempItem.id));
+        throw error;
+      }
 
       toast({
-        title: "Přidáno",
-        description: "Nová publikace byla naplánována"
+        title: "Úspěch",
+        description: "Publikace byla přidána do plánu"
       });
 
       setIsDialogOpen(false);
@@ -159,11 +190,11 @@ export default function CampaignSchedule() {
         time: '09:00'
       });
       setSelectedDate(undefined);
-      fetchScheduleItems();
-    } catch (error) {
+      fetchScheduleItems(); // Refresh to get actual data from server
+    } catch (error: any) {
       toast({
         title: "Chyba",
-        description: "Nepodařilo se naplánovat publikaci",
+        description: error?.message || "Nepodařilo se naplánovat publikaci",
         variant: "destructive"
       });
     }
