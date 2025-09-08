@@ -31,6 +31,17 @@ serve(async (req) => {
   }
 
   try {
+    // Validate custom header
+    const functionSecret = Deno.env.get('FUNCTION_SECRET');
+    const providedKey = req.headers.get('X-FUNC-KEY');
+    
+    if (!functionSecret || !providedKey || providedKey !== functionSecret) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;

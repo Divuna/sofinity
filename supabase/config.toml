@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.sofinity-opravo-status]
 verify_jwt = false
+
+[functions.opravo-email-metrics-sync]
+verify_jwt = false
