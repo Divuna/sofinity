@@ -6,27 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface OpravoEmailMetric {
-  id: string;
-  sent_at: string;
-  status: string;
-  opens: number;
-  clicks: number;
-  updated_at: string;
-}
-
-interface EmailLogMetric {
-  message_id: string;
-  sent_at: string;
-  status: string;
-  opened_at: string | null;
-  clicked_at: string | null;
-  user_id: string;
-  campaign_id?: string;
-  recipient_email: string;
-  subject?: string;
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -49,15 +28,8 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Get Opravo API credentials
-    const opravoApiKey = Deno.env.get('OPRAVO_API_KEY');
-    const opravoBaseUrl = Deno.env.get('OPRAVO_BASE_URL');
-    
-    if (!opravoApiKey || !opravoBaseUrl) {
-      throw new Error('Missing Opravo API credentials');
-    }
-
-    console.log('Starting Opravo email metrics sync...');
+    // We don't need Opravo API credentials anymore since we read directly from EmailLogs
+    console.log('Starting email metrics sync from EmailLogs table...');
 
     // Get last sync watermark
     const { data: lastSync, error: syncError } = await supabase
@@ -78,41 +50,27 @@ serve(async (req) => {
 
     console.log('Last sync time:', lastSyncTime);
 
-    // Fetch email metrics from Opravo API
-    console.log(`Fetching from: ${opravoBaseUrl}/api/emails/metrics?updated_since=${lastSyncTime}`);
-    const opravoResponse = await fetch(`${opravoBaseUrl}/api/emails/metrics?updated_since=${lastSyncTime}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${opravoApiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
+    // Fetch email metrics directly from EmailLogs table
+    console.log(`Fetching email logs updated since: ${lastSyncTime}`);
+    const { data: emailLogs, error: emailLogsError } = await supabase
+      .from('EmailLogs')
+      .select('*')
+      .gte('updated_at', lastSyncTime)
+      .order('updated_at', { ascending: false });
 
-    console.log(`Opravo API response status: ${opravoResponse.status}`);
-    
-    if (!opravoResponse.ok) {
-      const errorText = await opravoResponse.text();
-      console.error(`Opravo API error response: ${errorText}`);
-      throw new Error(`Opravo API error: ${opravoResponse.status} ${opravoResponse.statusText}`);
+    if (emailLogsError) {
+      console.error('Error fetching email logs:', emailLogsError);
+      throw new Error(`Failed to fetch email logs: ${emailLogsError.message}`);
     }
 
-    let opravoMetrics: OpravoEmailMetric[];
-    try {
-      const responseText = await opravoResponse.text();
-      console.log(`Opravo API response text: ${responseText.substring(0, 200)}...`);
-      opravoMetrics = JSON.parse(responseText);
-    } catch (parseError) {
-      console.error('Failed to parse Opravo API response as JSON:', parseError);
-      throw new Error(`Invalid JSON response from Opravo API: ${parseError.message}`);
-    }
-    console.log(`Fetched ${opravoMetrics.length} email metrics from Opravo`);
+    console.log(`Fetched ${emailLogs?.length || 0} email log entries`);
 
-    if (opravoMetrics.length === 0) {
-      console.log('No new metrics to sync');
+    if (!emailLogs || emailLogs.length === 0) {
+      console.log('No new email metrics to sync');
       return new Response(JSON.stringify({ 
         success: true, 
         synced: 0, 
-        message: 'No new metrics to sync' 
+        message: 'No new email metrics to sync' 
       }), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -122,31 +80,42 @@ serve(async (req) => {
     // Get service role user for system operations
     const systemUserId = '00000000-0000-0000-0000-000000000000'; // System user ID
 
-    // Transform and upsert metrics to EmailLogs table
-    const metricsToUpsert: EmailLogMetric[] = opravoMetrics.map(metric => ({
-      message_id: metric.id,
-      sent_at: metric.sent_at,
-      status: metric.status,
-      opened_at: metric.opens > 0 ? new Date().toISOString() : null,
-      clicked_at: metric.clicks > 0 ? new Date().toISOString() : null,
-      user_id: systemUserId,
-      recipient_email: `unknown-${metric.id}@example.com`, // Placeholder since not provided by Opravo API
-      subject: 'Opravo Email', // Placeholder
+    // Aggregate metrics by message_id for summary
+    const metricsMap = new Map();
+    
+    emailLogs.forEach(log => {
+      const key = log.message_id || `log-${log.id}`;
+      if (!metricsMap.has(key)) {
+        metricsMap.set(key, {
+          message_id: key,
+          sent_count: 0,
+          open_count: 0,
+          click_count: 0,
+          latest_updated_at: log.updated_at,
+          recipients: new Set()
+        });
+      }
+      
+      const metric = metricsMap.get(key);
+      metric.sent_count++;
+      if (log.opened_at) metric.open_count++;
+      if (log.clicked_at) metric.click_count++;
+      if (log.recipient_email) metric.recipients.add(log.recipient_email);
+      
+      // Keep track of latest update
+      if (new Date(log.updated_at) > new Date(metric.latest_updated_at)) {
+        metric.latest_updated_at = log.updated_at;
+      }
+    });
+
+    const aggregatedMetrics = Array.from(metricsMap.values()).map(metric => ({
+      ...metric,
+      recipients: Array.from(metric.recipients)
     }));
 
-    // Batch insert email metrics to EmailLogs table (no upsert since message_id is not unique)
-    console.log(`Inserting ${metricsToUpsert.length} email metrics to EmailLogs...`);
-    
-    const { error: insertError } = await supabase
-      .from('EmailLogs')
-      .insert(metricsToUpsert);
+    console.log(`Aggregated ${aggregatedMetrics.length} unique message metrics`);
 
-    if (insertError) {
-      console.error('Insert error:', insertError);
-      throw new Error(`Failed to insert metrics: ${insertError.message}`);
-    }
-
-    const latestUpdatedAt = Math.max(...opravoMetrics.map(m => new Date(m.updated_at).getTime()));
+    const latestUpdatedAt = Math.max(...emailLogs.map(log => new Date(log.updated_at).getTime()));
     const newWatermark = new Date(latestUpdatedAt).toISOString();
 
     // Log successful sync
@@ -157,7 +126,8 @@ serve(async (req) => {
         prompt: `Email metrics sync completed at ${new Date().toISOString()}`,
         response: JSON.stringify({
           success: true,
-          synced_count: opravoMetrics.length,
+          synced_count: emailLogs.length,
+          aggregated_metrics: aggregatedMetrics.length,
           last_updated_at: newWatermark,
           sync_timestamp: new Date().toISOString(),
         }),
@@ -165,11 +135,12 @@ serve(async (req) => {
         user_id: systemUserId,
       });
 
-    console.log(`Successfully synced ${opravoMetrics.length} email metrics`);
+    console.log(`Successfully synced ${emailLogs.length} email log entries into ${aggregatedMetrics.length} aggregated metrics`);
 
     return new Response(JSON.stringify({
       success: true,
-      synced: opravoMetrics.length,
+      synced: emailLogs.length,
+      aggregated_metrics: aggregatedMetrics.length,
       last_updated_at: newWatermark,
     }), {
       status: 200,
