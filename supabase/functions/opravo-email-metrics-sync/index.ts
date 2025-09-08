@@ -15,14 +15,16 @@ interface OpravoEmailMetric {
   updated_at: string;
 }
 
-interface EmailMetric {
-  external_email_id: string;
+interface EmailLogMetric {
+  message_id: string;
   sent_at: string;
   status: string;
-  opens: number;
-  clicks: number;
-  updated_at: string;
+  opened_at: string | null;
+  clicked_at: string | null;
   user_id: string;
+  campaign_id?: string;
+  recipient_email: string;
+  subject?: string;
 }
 
 serve(async (req) => {
@@ -103,22 +105,23 @@ serve(async (req) => {
     // Get service role user for system operations
     const systemUserId = '00000000-0000-0000-0000-000000000000'; // System user ID
 
-    // Transform and upsert metrics
-    const metricsToUpsert: EmailMetric[] = opravoMetrics.map(metric => ({
-      external_email_id: metric.id,
+    // Transform and upsert metrics to EmailLogs table
+    const metricsToUpsert: EmailLogMetric[] = opravoMetrics.map(metric => ({
+      message_id: metric.id,
       sent_at: metric.sent_at,
       status: metric.status,
-      opens: metric.opens || 0,
-      clicks: metric.clicks || 0,
-      updated_at: metric.updated_at,
+      opened_at: metric.opens > 0 ? new Date().toISOString() : null,
+      clicked_at: metric.clicks > 0 ? new Date().toISOString() : null,
       user_id: systemUserId,
+      recipient_email: `unknown-${metric.id}@example.com`, // Placeholder since not provided by Opravo API
+      subject: 'Opravo Email', // Placeholder
     }));
 
-    // Batch upsert email metrics
+    // Batch upsert email metrics to EmailLogs table
     const { error: upsertError } = await supabase
-      .from('emails_metrics')
+      .from('EmailLogs')
       .upsert(metricsToUpsert, {
-        onConflict: 'external_email_id',
+        onConflict: 'message_id',
         ignoreDuplicates: false,
       });
 
