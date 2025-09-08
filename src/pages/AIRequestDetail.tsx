@@ -26,7 +26,8 @@ export default function AIRequestDetail() {
   const { toast } = useToast();
   const [aiRequest, setAiRequest] = useState<AIRequest | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [savingCampaign, setSavingCampaign] = useState(false);
+  const [savingEmail, setSavingEmail] = useState(false);
 
   useEffect(() => {
     const fetchAIRequest = async () => {
@@ -89,10 +90,20 @@ export default function AIRequestDetail() {
   const saveAsCampaign = async () => {
     if (!aiRequest || !aiRequest.response) return;
 
-    setSaving(true);
+    setSavingCampaign(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Musíte být přihlášeni');
+
+      // Safe JSON parsing with fallback to plain text
+      let content = aiRequest.response;
+      try {
+        const parsed = JSON.parse(aiRequest.response);
+        content = parsed.content || parsed.text || parsed.message || parsed.email || aiRequest.response;
+      } catch {
+        // If JSON parsing fails, use the response as is
+        content = aiRequest.response;
+      }
 
       // Extract project name from prompt or use default
       const projectMatch = aiRequest.prompt.match(/projekt[:\s]*([^\n,]+)/i);
@@ -105,8 +116,9 @@ export default function AIRequestDetail() {
           user_id: user.id,
           status: 'draft',
           targeting: aiRequest.prompt,
-          email: aiRequest.response,
-          post: aiRequest.response
+          email: content,
+          post: content,
+          project_id: (aiRequest as any).project_id || null
         });
 
       if (error) throw error;
@@ -125,45 +137,56 @@ export default function AIRequestDetail() {
         variant: "destructive"
       });
     } finally {
-      setSaving(false);
+      setSavingCampaign(false);
     }
   };
 
   const saveAsEmail = async () => {
     if (!aiRequest || !aiRequest.response) return;
 
-    setSaving(true);
+    setSavingEmail(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Musíte být přihlášeni');
 
+      // Safe JSON parsing with fallback to plain text
+      let content = aiRequest.response;
+      try {
+        const parsed = JSON.parse(aiRequest.response);
+        content = parsed.content || parsed.text || parsed.message || parsed.email || aiRequest.response;
+      } catch {
+        // If JSON parsing fails, use the response as is
+        content = aiRequest.response;
+      }
+
       const { error } = await supabase
         .from('Emails')
         .insert({
-          type: 'customer_welcome',
-          content: aiRequest.response,
-          recipient: 'podpora@opravo.cz',
-          project: 'Opravo',
+          type: 'ai_generated',
+          content: content,
+          recipient: '',
+          project: 'AI Generated',
           user_id: user.id,
-          project_id: null
+          project_id: (aiRequest as any).project_id || null
         });
 
       if (error) throw error;
 
       toast({
         title: "Úspěch!",
-        description: "E-mail byl uložen do seznamu.",
+        description: "E-mail byl úspěšně uložen",
       });
 
+      navigate('/emails');
     } catch (error) {
       console.error('Error saving email:', error);
       toast({
         title: "Chyba",
-        description: "Nepodařilo se uložit email",
+        description: "Nepodařilo se uložit e-mail",
         variant: "destructive"
       });
     } finally {
-      setSaving(false);
+      setSavingEmail(false);
     }
   };
 
@@ -288,27 +311,24 @@ export default function AIRequestDetail() {
             </CardHeader>
             <CardContent>
               <div className="flex gap-3">
-                {aiRequest.type === 'campaign_generator' && (
-                  <Button 
-                    onClick={saveAsCampaign}
-                    disabled={saving}
-                    className="flex items-center gap-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    {saving ? 'Ukládám...' : 'Uložit jako kampaň'}
-                  </Button>
-                )}
+                <Button 
+                  onClick={saveAsCampaign}
+                  disabled={savingCampaign}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {savingCampaign ? 'Ukládám...' : 'Uložit jako kampaň'}
+                </Button>
                 
-                {aiRequest.type === 'email_assistant' && (
-                  <Button 
-                    onClick={saveAsEmail}
-                    disabled={saving}
-                    className="flex items-center gap-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    {saving ? 'Ukládám...' : 'Uložit e-mail'}
-                  </Button>
-                )}
+                <Button 
+                  onClick={saveAsEmail}
+                  disabled={savingEmail}
+                  className="flex items-center gap-2"
+                  variant="outline"
+                >
+                  <Save className="h-4 w-4" />
+                  {savingEmail ? 'Ukládám...' : 'Uložit jako e-mail'}
+                </Button>
               </div>
             </CardContent>
           </Card>
