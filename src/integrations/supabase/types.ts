@@ -497,6 +497,7 @@ export type Database = {
           project: string | null
           project_id: string | null
           recipient: string | null
+          status: string | null
           type: string
           updated_at: string
           user_id: string
@@ -508,6 +509,7 @@ export type Database = {
           project?: string | null
           project_id?: string | null
           recipient?: string | null
+          status?: string | null
           type: string
           updated_at?: string
           user_id: string
@@ -519,6 +521,7 @@ export type Database = {
           project?: string | null
           project_id?: string | null
           recipient?: string | null
+          status?: string | null
           type?: string
           updated_at?: string
           user_id?: string
