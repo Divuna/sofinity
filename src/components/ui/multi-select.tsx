@@ -22,36 +22,40 @@ export interface MultiSelectOption {
 }
 
 interface MultiSelectProps {
-  options: MultiSelectOption[]
-  selected: string[]
+  options?: MultiSelectOption[]
+  selected?: string[]
   onChange: (value: string[]) => void
   placeholder?: string
   className?: string
 }
 
 export function MultiSelect({
-  options,
-  selected,
+  options = [],
+  selected = [],
   onChange,
   placeholder = "Vyberte položky...",
   className,
 }: MultiSelectProps) {
   const [open, setOpen] = React.useState(false)
 
+  // Ensure arrays are defined to prevent cmdk errors
+  const safeOptions = options || []
+  const safeSelected = selected || []
+
   const handleUnselect = (item: string) => {
-    onChange(selected.filter((i) => i !== item))
+    onChange(safeSelected.filter((i) => i !== item))
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const input = e.target as HTMLInputElement
     if (input.value === "") {
       if (e.key === "Backspace") {
-        onChange(selected.slice(0, -1))
+        onChange(safeSelected.slice(0, -1))
       }
     }
   }
 
-  const selectables = options.filter((option) => !selected.includes(option.value))
+  const selectables = safeOptions.filter((option) => !safeSelected.includes(option.value))
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -63,9 +67,9 @@ export function MultiSelect({
           className={cn("w-full justify-between", className)}
         >
           <div className="flex gap-1 flex-wrap">
-            {selected.length > 0 ? (
-              selected.map((item) => {
-                const option = options.find((opt) => opt.value === item)
+            {safeSelected.length > 0 ? (
+              safeSelected.map((item) => {
+                const option = safeOptions.find((opt) => opt.value === item)
                 return (
                   <Badge
                     variant="secondary"
@@ -118,14 +122,14 @@ export function MultiSelect({
               <CommandItem
                 key={option.value}
                 onSelect={() => {
-                  onChange([...selected, option.value])
+                  onChange([...safeSelected, option.value])
                   setOpen(true)
                 }}
               >
                 <Check
                   className={cn(
                     "mr-2 h-4 w-4",
-                    selected.includes(option.value) ? "opacity-100" : "opacity-0"
+                    safeSelected.includes(option.value) ? "opacity-100" : "opacity-0"
                   )}
                 />
                 {option.label}
