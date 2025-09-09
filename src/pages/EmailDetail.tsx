@@ -316,16 +316,41 @@ export default function EmailDetail() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Uživatel není přihlášen');
 
-      // Update user preferences in database
-      const { error } = await supabase
+      // First try to update existing preferences
+      const { data: existing } = await supabase
         .from('user_preferences')
-        .upsert({
-          user_id: user.id,
-          email_mode: newMode,
-          updated_at: new Date().toISOString()
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
 
-      if (error) throw error;
+      let error;
+      if (existing) {
+        // Update existing record
+        const result = await supabase
+          .from('user_preferences')
+          .update({
+            email_mode: newMode,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id);
+        error = result.error;
+      } else {
+        // Create new record with all required fields
+        const result = await supabase
+          .from('user_preferences')
+          .insert({
+            user_id: user.id,
+            email_mode: newMode,
+            dark_mode: false,
+            onboarding_complete: false
+          });
+        error = result.error;
+      }
+
+      if (error) {
+        console.error('Database error:', error);
+        throw error;
+      }
 
       toast({
         title: "Režim změněn",
