@@ -14,6 +14,17 @@ interface SendEmailRequest {
   recipient: string;
   subject?: string;
   content: string;
+  email_mode?: 'test' | 'production';
+}
+
+interface SendEmailResponse {
+  ok: boolean;
+  error?: {
+    code: string;
+    message: string;
+    provider?: string;
+  };
+  message_id?: string;
 }
 
 // Email validation and sanitization functions
@@ -66,26 +77,55 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Unauthorized');
     }
 
-    const { email_id, recipient, subject, content }: SendEmailRequest = await req.json();
+    const { email_id, recipient, subject, content, email_mode }: SendEmailRequest = await req.json();
 
     if (!email_id || !recipient || !content) {
-      throw new Error('Email ID, recipient, and content are required');
+      return new Response(
+        JSON.stringify({ 
+          ok: false,
+          error: { code: 'VALIDATION_ERROR', message: 'Email ID, recipient, and content are required' }
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    // Get user's email mode preference
+    const { data: userPrefs } = await supabaseClient
+      .from('UserPreferences')
+      .select('email_mode')
+      .eq('user_id', user.id)
+      .single();
+
+    const effectiveEmailMode = email_mode || userPrefs?.email_mode || 'production';
+    
+    // Apply email mode logic - override recipient if in test mode
+    let effectiveRecipient = recipient;
+    if (effectiveEmailMode === 'test') {
+      effectiveRecipient = 'support@opravo.cz';
     }
 
     // Sanitize and validate recipient email
-    const sanitizedRecipient = sanitizeEmail(recipient);
+    const sanitizedRecipient = sanitizeEmail(effectiveRecipient);
     
     console.log('📧 Email validation start:', {
       email_id,
       original_recipient: recipient,
+      effective_recipient: effectiveRecipient,
       sanitized_recipient: sanitizedRecipient,
+      email_mode: effectiveEmailMode,
       subject
     });
 
     // Validate email format
     if (!validateEmailFormat(sanitizedRecipient)) {
       console.error('❌ Invalid email format:', sanitizedRecipient);
-      throw new Error('Neplatný formát e-mailové adresy příjemce');
+      return new Response(
+        JSON.stringify({ 
+          ok: false,
+          error: { code: 'INVALID_EMAIL', message: 'Neplatný formát e-mailové adresy příjemce' }
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
     }
 
     // Check for non-ASCII characters
@@ -108,7 +148,13 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (emailError || !email) {
-      throw new Error('E-mail nebyl nalezen nebo nemáte oprávnění');
+      return new Response(
+        JSON.stringify({ 
+          ok: false,
+          error: { code: 'EMAIL_NOT_FOUND', message: 'E-mail nebyl nalezen nebo nemáte oprávnění' }
+        }),
+        { status: 404, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
     }
 
     // Send email using Resend with improved error handling
@@ -161,17 +207,67 @@ const handler = async (req: Request): Promise<Response> => {
             
           } catch (fallbackError) {
             console.error('❌ Punycode fallback failed:', fallbackError);
-            throw new Error(`Neplatná e-mailová adresa příjemce. Adresa obsahuje nepodporované znaky: ${sanitizedRecipient}`);
+            return new Response(
+              JSON.stringify({ 
+                ok: false,
+                error: { 
+                  code: 'INVALID_CHARACTERS', 
+                  message: `Neplatná e-mailová adresa příjemce. Adresa obsahuje nepodporované znaky: ${sanitizedRecipient}`,
+                  provider: 'resend'
+                }
+              }),
+              { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+            );
           }
         } else {
-          throw new Error(`Neplatná e-mailová adresa příjemce: ${sanitizedRecipient}`);
+          return new Response(
+            JSON.stringify({ 
+              ok: false,
+              error: { 
+                code: 'INVALID_RECIPIENT', 
+                message: `Neplatná e-mailová adresa příjemce: ${sanitizedRecipient}`,
+                provider: 'resend'
+              }
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          );
         }
       } else if (errorMessage.includes('rate limit') || errorMessage.includes('quota')) {
-        throw new Error('Překročen limit odesílání e-mailů. Zkuste to později.');
+        return new Response(
+          JSON.stringify({ 
+            ok: false,
+            error: { 
+              code: 'RATE_LIMIT', 
+              message: 'Překročen limit odesílání e-mailů. Zkuste to později.',
+              provider: 'resend'
+            }
+          }),
+          { status: 429, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
       } else if (errorMessage.includes('authentication') || errorMessage.includes('API key')) {
-        throw new Error('Chyba autentizace e-mailového servisu. Kontaktujte podporu.');
+        return new Response(
+          JSON.stringify({ 
+            ok: false,
+            error: { 
+              code: 'AUTH_ERROR', 
+              message: 'Chyba autentizace e-mailového servisu. Kontaktujte podporu.',
+              provider: 'resend'
+            }
+          }),
+          { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
       } else {
-        throw new Error(`Chyba při odesílání e-mailu: ${errorMessage}`);
+        return new Response(
+          JSON.stringify({ 
+            ok: false,
+            error: { 
+              code: 'PROVIDER_ERROR', 
+              message: `Chyba při odesílání e-mailu: ${errorMessage}`,
+              provider: 'resend'
+            }
+          }),
+          { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
       }
     }
 
@@ -223,7 +319,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     return new Response(
       JSON.stringify({
-        success: true,
+        ok: true,
         message: 'E-mail byl úspěšně odeslán',
         message_id: emailResponse.data?.id
       }),
@@ -284,8 +380,11 @@ const handler = async (req: Request): Promise<Response> => {
     
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Došlo k neočekávané chybě při odesílání e-mailu',
-        success: false 
+        ok: false,
+        error: {
+          code: 'UNKNOWN_ERROR',
+          message: error.message || 'Došlo k neočekávané chybě při odesílání e-mailu'
+        }
       }),
       {
         status: 500,

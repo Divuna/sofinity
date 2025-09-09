@@ -498,6 +498,7 @@ export type Database = {
           project_id: string | null
           recipient: string | null
           status: string | null
+          subject: string | null
           type: string
           updated_at: string
           user_id: string
@@ -510,6 +511,7 @@ export type Database = {
           project_id?: string | null
           recipient?: string | null
           status?: string | null
+          subject?: string | null
           type: string
           updated_at?: string
           user_id: string
@@ -522,6 +524,7 @@ export type Database = {
           project_id?: string | null
           recipient?: string | null
           status?: string | null
+          subject?: string | null
           type?: string
           updated_at?: string
           user_id?: string
@@ -988,6 +991,7 @@ export type Database = {
         Row: {
           created_at: string | null
           dark_mode: boolean | null
+          email_mode: string | null
           favorite_project: string | null
           id: string
           onboarding_complete: boolean | null
@@ -999,6 +1003,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           dark_mode?: boolean | null
+          email_mode?: string | null
           favorite_project?: string | null
           id?: string
           onboarding_complete?: boolean | null
@@ -1010,6 +1015,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           dark_mode?: boolean | null
+          email_mode?: string | null
           favorite_project?: string | null
           id?: string
           onboarding_complete?: boolean | null

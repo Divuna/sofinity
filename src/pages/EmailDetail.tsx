@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { 
@@ -18,7 +19,9 @@ import {
   Copy,
   Save,
   Send,
-  MessageSquare
+  MessageSquare,
+  TestTube,
+  ShieldCheck
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -30,6 +33,7 @@ interface EmailItem {
   project: string | null;
   type: string;
   status: string | null;
+  subject: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +61,7 @@ export default function EmailDetail() {
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [emailMode, setEmailMode] = useState<'test' | 'production'>('production');
   const [feedbackStats, setFeedbackStats] = useState<{positive: number; negative: number} | null>(null);
   const [comments, setComments] = useState<Array<{id: string; comment: string; submitted_at: string}>>([]);
 
@@ -81,6 +86,17 @@ export default function EmailDetail() {
 
       if (emailError) throw emailError;
       setEmail(emailData);
+
+      // Fetch user preferences for email mode
+      const { data: userPrefs } = await supabase
+        .from('UserPreferences')
+        .select('email_mode')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (userPrefs?.email_mode) {
+        setEmailMode(userPrefs.email_mode as 'test' | 'production');
+      }
 
       // Fetch related email logs
       const { data: logsData } = await supabase
@@ -158,7 +174,8 @@ export default function EmailDetail() {
         .update({
           content: email.content,
           type: email.type,
-          project: email.project
+          project: email.project,
+          subject: email.subject
         })
         .eq('id', email.id)
         .eq('user_id', user.id);
@@ -199,7 +216,12 @@ export default function EmailDetail() {
       if (refetchError) throw refetchError;
 
       // Use database recipient if local state is empty, otherwise use local state
-      const recipientToUse = email.recipient?.trim() || freshEmailData?.recipient?.trim();
+      let recipientToUse = email.recipient?.trim() || freshEmailData?.recipient?.trim();
+      
+      // Apply email mode logic
+      if (emailMode === 'test') {
+        recipientToUse = 'support@opravo.cz';
+      }
       
       if (!recipientToUse) {
         toast({
@@ -215,7 +237,16 @@ export default function EmailDetail() {
         setEmail(freshEmailData);
       }
 
-      // Guard rails for empty content
+      // Validation: check subject and content
+      if (!email.subject?.trim()) {
+        toast({
+          title: "Chyba",
+          description: "Předmět e-mailu je povinný",
+          variant: "destructive"
+        });
+        return;
+      }
+
       if (!email.content?.trim()) {
         toast({
           title: "Chyba", 
@@ -234,20 +265,31 @@ export default function EmailDetail() {
         body: {
           email_id: email.id,
           recipient: recipientToUse,
-          subject: email.project ? `Email od ${email.project}` : undefined,
-          content: email.content
+          subject: email.subject || `Opravo – ${email.type || email.project || 'Zpráva'}`,
+          content: email.content,
+          email_mode: emailMode
         }
       });
 
-      if (response.error) {
+      // Handle structured response from hardened send-email function
+      const result = response.data;
+      
+      if (!result?.ok) {
         // Revert optimistic update on error
         setEmail(prev => prev ? { ...prev, status: 'draft' } : prev);
-        throw response.error;
+        
+        const errorMsg = result?.error?.message || 'Nepodařilo se odeslat e-mail';
+        toast({
+          title: "Chyba při odesílání",
+          description: errorMsg,
+          variant: "destructive"
+        });
+        return;
       }
 
       toast({
         title: "E-mail odeslán",
-        description: `E-mail byl úspěšně odeslán na ${recipientToUse}`
+        description: `E-mail byl úspěšně odeslán na ${recipientToUse}${emailMode === 'test' ? ' (testovací režim)' : ''}`
       });
 
       // Refresh email data to get updated logs
@@ -286,6 +328,7 @@ export default function EmailDetail() {
         content: email.content,
         type: email.type,
         recipient: email.recipient,
+        subject: email.subject,
         project: email.project + " (kopie)",
         project_id: null,
         user_id: user.id
@@ -348,6 +391,10 @@ export default function EmailDetail() {
               {email.project && (
                 <Badge variant="secondary">{email.project}</Badge>
               )}
+              <Badge variant={emailMode === 'test' ? "destructive" : "default"} className="flex items-center gap-1">
+                {emailMode === 'test' ? <TestTube className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
+                {emailMode === 'test' ? 'Testovací režim' : 'Produkční režim'}
+              </Badge>
               <span className="text-muted-foreground text-sm">
                 Vytvořeno {new Date(email.created_at).toLocaleDateString('cs-CZ')}
               </span>
@@ -375,10 +422,10 @@ export default function EmailDetail() {
               {saving ? 'Ukládání...' : 'Uložit'}
             </Button>
           )}
-          {email.status === 'draft' && email.content?.trim() && email.recipient?.trim() && !loading && (
+          {email.status === 'draft' && email.content?.trim() && email.subject?.trim() && !loading && (
             <Button 
               onClick={handleSendEmail} 
-              disabled={sending}
+              disabled={sending || !email.content?.trim() || !email.subject?.trim()}
               className="bg-primary text-primary-foreground hover:bg-primary-hover"
             >
               <Send className="w-4 h-4 mr-2" />
@@ -404,18 +451,36 @@ export default function EmailDetail() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {isEditing ? (
-                  <Textarea
-                    value={email.content}
-                    onChange={(e) => setEmail({ ...email, content: e.target.value })}
-                    rows={12}
-                    className="font-mono text-sm"
-                  />
-                ) : (
-                  <div className="whitespace-pre-wrap font-mono text-sm p-4 bg-muted rounded-lg">
-                    {email.content}
-                  </div>
-                )}
+                <div>
+                  <label className="text-sm font-medium text-foreground">Předmět</label>
+                  {isEditing ? (
+                    <Input
+                      value={email.subject || ''}
+                      onChange={(e) => setEmail({ ...email, subject: e.target.value })}
+                      placeholder="Opravo – Email kampaň"
+                      className="mt-1"
+                    />
+                  ) : (
+                    <div className="mt-1 p-2 bg-muted rounded-md text-sm">
+                      {email.subject || 'Není nastaveno'}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground">Obsah</label>
+                  {isEditing ? (
+                    <Textarea
+                      value={email.content}
+                      onChange={(e) => setEmail({ ...email, content: e.target.value })}
+                      rows={12}
+                      className="font-mono text-sm mt-1"
+                    />
+                  ) : (
+                    <div className="whitespace-pre-wrap font-mono text-sm p-4 bg-muted rounded-lg mt-1">
+                      {email.content}
+                    </div>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -432,7 +497,10 @@ export default function EmailDetail() {
                     <div>
                       <div className="font-medium">Od: noreply@sofinity.com</div>
                       <div className="text-muted-foreground">
-                        Komu: {email.recipient?.trim() || 'Neurčeno'}
+                        Komu: {emailMode === 'test' ? 'support@opravo.cz (testovací režim)' : (email.recipient?.trim() || 'Neurčeno')}
+                      </div>
+                      <div className="font-medium text-foreground">
+                        Předmět: {email.subject || `Opravo – ${email.type || email.project || 'Zpráva'}`}
                       </div>
                     </div>
                     <div className="text-muted-foreground">
