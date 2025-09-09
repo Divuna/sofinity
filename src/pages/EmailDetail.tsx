@@ -29,6 +29,7 @@ interface EmailItem {
   recipient: string | null;
   project: string | null;
   type: string;
+  status: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +55,7 @@ export default function EmailDetail() {
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [feedbackStats, setFeedbackStats] = useState<{positive: number; negative: number} | null>(null);
   const [comments, setComments] = useState<Array<{id: string; comment: string; submitted_at: string}>>([]);
@@ -179,6 +181,74 @@ export default function EmailDetail() {
     }
   };
 
+  const handleSendEmail = async () => {
+    if (!email) return;
+    
+    // Guard rails for missing recipient
+    if (!email.recipient?.trim()) {
+      toast({
+        title: "Chyba",
+        description: "Příjemce e-mailu není vyplněn",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Guard rails for empty content
+    if (!email.content?.trim()) {
+      toast({
+        title: "Chyba", 
+        description: "Obsah e-mailu je prázdný",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setSending(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
+      // Optimistic UI - update local state immediately
+      setEmail(prev => prev ? { ...prev, status: 'sent' } : prev);
+
+      const response = await supabase.functions.invoke('send-email', {
+        body: {
+          email_id: email.id,
+          recipient: email.recipient,
+          subject: email.project ? `Email od ${email.project}` : undefined,
+          content: email.content
+        }
+      });
+
+      if (response.error) {
+        // Revert optimistic update on error
+        setEmail(prev => prev ? { ...prev, status: 'draft' } : prev);
+        throw response.error;
+      }
+
+      toast({
+        title: "E-mail odeslán",
+        description: `E-mail byl úspěšně odeslán na ${email.recipient}`
+      });
+
+      // Refresh email data to get updated logs
+      await fetchEmailData();
+      
+    } catch (error) {
+      // Revert optimistic update on error
+      setEmail(prev => prev ? { ...prev, status: 'draft' } : prev);
+      
+      toast({
+        title: "Chyba při odesílání",
+        description: error instanceof Error ? error.message : "Nepodařilo se odeslat e-mail",
+        variant: "destructive"
+      });
+    } finally {
+      setSending(false);
+    }
+  };
+
   const handleTestSend = async () => {
     // Placeholder for test send functionality
     toast({
@@ -285,6 +355,16 @@ export default function EmailDetail() {
             <Button onClick={handleSave} disabled={saving}>
               <Save className="w-4 h-4 mr-2" />
               {saving ? 'Ukládání...' : 'Uložit'}
+            </Button>
+          )}
+          {email.status === 'draft' && email.content?.trim() && (
+            <Button 
+              onClick={handleSendEmail} 
+              disabled={sending}
+              className="bg-primary text-primary-foreground hover:bg-primary-hover"
+            >
+              <Send className="w-4 h-4 mr-2" />
+              {sending ? 'Odesílání...' : 'Odeslat e-mail'}
             </Button>
           )}
           <Button variant="outline" onClick={handleTestSend}>
