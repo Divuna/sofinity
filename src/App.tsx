@@ -40,6 +40,7 @@ import OpravoAPIDebug from "./pages/OpravoAPIDebug";
 import ProjectDetail from "./pages/ProjectDetail";
 import Prispevky from "./pages/Prispevky";
 import EmailFeedback from "./pages/EmailFeedback";
+import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
@@ -87,6 +88,7 @@ const App = () => (
             <Route path="/opravo-data-hub" element={<AuthGuard><MainLayout><OpravoDataHub /></MainLayout></AuthGuard>} />
             <Route path="/opravo-api-debug" element={<AuthGuard><MainLayout><OpravoAPIDebug /></MainLayout></AuthGuard>} />
             <Route path="/prispevky" element={<AuthGuard><MainLayout><Prispevky /></MainLayout></AuthGuard>} />
+            <Route path="/settings" element={<AuthGuard><MainLayout><Settings /></MainLayout></AuthGuard>} />
             
             {/* Existing routes */}
             <Route path="/team-feedback" element={<AuthGuard><MainLayout><TeamFeedback /></MainLayout></AuthGuard>} />
