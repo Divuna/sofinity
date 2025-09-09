@@ -8,6 +8,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandList,
 } from "@/components/ui/command"
 import {
   Popover,
@@ -49,7 +50,7 @@ export function MultiSelect({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const input = e.target as HTMLInputElement
     if (input.value === "") {
-      if (e.key === "Backspace") {
+      if (e.key === "Backspace" && safeSelected.length > 0) {
         onChange(safeSelected.slice(0, -1))
       }
     }
@@ -116,26 +117,28 @@ export function MultiSelect({
             placeholder="Vyhledat..."
             onKeyDown={handleKeyDown}
           />
-          <CommandEmpty>Žádné výsledky nenalezeny.</CommandEmpty>
-          <CommandGroup className="max-h-64 overflow-auto">
-            {selectables.map((option) => (
-              <CommandItem
-                key={option.value}
-                onSelect={() => {
-                  onChange([...safeSelected, option.value])
-                  setOpen(true)
-                }}
-              >
-                <Check
-                  className={cn(
-                    "mr-2 h-4 w-4",
-                    safeSelected.includes(option.value) ? "opacity-100" : "opacity-0"
-                  )}
-                />
-                {option.label}
-              </CommandItem>
-            ))}
-          </CommandGroup>
+          <CommandList>
+            <CommandEmpty>Žádné výsledky nenalezeny.</CommandEmpty>
+            <CommandGroup className="max-h-64 overflow-auto">
+              {selectables.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  onSelect={() => {
+                    onChange([...safeSelected, option.value])
+                    setOpen(true)
+                  }}
+                >
+                  <Check
+                    className={cn(
+                      "mr-2 h-4 w-4",
+                      safeSelected.includes(option.value) ? "opacity-100" : "opacity-0"
+                    )}
+                  />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
         </Command>
       </PopoverContent>
     </Popover>
