@@ -15,7 +15,7 @@ import { useQuery } from "@tanstack/react-query";
 import { format, subDays, subWeeks, subMonths } from "date-fns";
 import { cs } from "date-fns/locale";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import Papa from 'papaparse';
 
 interface OpravoJob {
@@ -1167,9 +1167,9 @@ const JobDetail = ({ job }: { job: OpravoJob }) => {
               <p className="text-xs text-muted-foreground">Role: {customerProfile.role}</p>
             )}
             <Button asChild size="sm" variant="outline" className="mt-2">
-              <a href={`/profile/${customerProfile.user_id}`}>
+              <Link to={`/profile/${customerProfile.user_id}`}>
                 Zobrazit profil v Sofinity
-              </a>
+              </Link>
             </Button>
           </div>
         ) : job.zadavatel_id ? (
@@ -1265,9 +1265,9 @@ const OfferDetail = ({ offer }: { offer: OpravoOffer }) => {
               <p className="text-xs text-muted-foreground">Role: {repairerProfile.role}</p>
             )}
             <Button asChild size="sm" variant="outline" className="mt-2">
-              <a href={`/profile/${repairerProfile.user_id}`}>
+              <Link to={`/profile/${repairerProfile.user_id}`}>
                 Zobrazit profil v Sofinity
-              </a>
+              </Link>
             </Button>
           </div>
         ) : offer.opravar_id ? (

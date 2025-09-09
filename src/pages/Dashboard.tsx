@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -408,10 +408,10 @@ export default function Dashboard() {
           </p>
         </div>
         <Button variant="gradient" className="shadow-strong" asChild>
-          <a href="/campaign/new">
+          <RouterLink to="/campaign/new">
             <Sparkles className="w-4 h-4 mr-2" />
             Nová kampaň
-          </a>
+          </RouterLink>
         </Button>
       </div>
 
@@ -497,10 +497,10 @@ export default function Dashboard() {
             Nedávné AI žádosti
           </CardTitle>
           <Button variant="ghost" size="sm" asChild>
-            <a href="/ai-assistant">
+            <RouterLink to="/ai-assistant">
               <Eye className="w-4 h-4 mr-2" />
               Zobrazit vše
-            </a>
+            </RouterLink>
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -556,10 +556,10 @@ export default function Dashboard() {
                 {selectedProject ? 'Žádné AI žádosti pro tento projekt' : 'Zatím nemáte žádné AI žádosti'}
               </p>
               <Button variant="outline" className="mt-4" asChild>
-                <a href="/ai-assistant">
+                <RouterLink to="/ai-assistant">
                   <Sparkles className="w-4 h-4 mr-2" />
                   Začít s AI asistentem
-                </a>
+                </RouterLink>
               </Button>
             </div>
           )}
@@ -589,10 +589,10 @@ export default function Dashboard() {
               </DialogContent>
             </Dialog>
             <Button variant="ghost" size="sm" asChild>
-              <a href="/planovac-publikace">
+              <RouterLink to="/planovac-publikace">
                 <Eye className="w-4 h-4 mr-2" />
                 Zobrazit vše
-              </a>
+              </RouterLink>
             </Button>
           </div>
         </CardHeader>
@@ -663,10 +663,10 @@ export default function Dashboard() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Nedávné kampaně</CardTitle>
               <Button variant="ghost" size="sm" asChild>
-                <a href="/campaigns">
+                <RouterLink to="/campaigns">
                   <BarChart3 className="w-4 h-4 mr-2" />
                   Zobrazit vše
-                </a>
+                </RouterLink>
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -697,9 +697,9 @@ export default function Dashboard() {
                           className="h-8 w-8"
                           asChild
                         >
-                          <a href={`/campaign/${campaign.id}`}>
+                          <RouterLink to={`/campaign/${campaign.id}`}>
                             <Eye className="h-4 w-4" />
-                          </a>
+                          </RouterLink>
                         </Button>
                       </div>
                     </div>
@@ -732,10 +732,10 @@ export default function Dashboard() {
                   <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                   <p className="text-muted-foreground">Zatím nemáte žádné kampaně</p>
                   <Button variant="outline" className="mt-4" asChild>
-                    <a href="/campaign/new">
+                    <RouterLink to="/campaign/new">
                       <Sparkles className="w-4 h-4 mr-2" />
                       Vytvořit první kampaň
-                    </a>
+                    </RouterLink>
                   </Button>
                 </div>
               )}

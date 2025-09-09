@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { Link } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   Sparkles, 
@@ -110,10 +111,10 @@ export function Sidebar({ currentPath }: SidebarProps) {
                 )}
                 asChild
               >
-                <a href={item.href}>
+                <Link to={item.href}>
                   <item.icon className="w-5 h-5 mr-3" />
                   {item.name}
-                </a>
+                </Link>
               </Button>
             );
           })}
@@ -136,10 +137,10 @@ export function Sidebar({ currentPath }: SidebarProps) {
                 )}
                 asChild
               >
-                <a href={item.href}>
+                <Link to={item.href}>
                   <item.icon className="w-5 h-5 mr-3" />
                   {item.name}
-                </a>
+                </Link>
               </Button>
             );
           })}
@@ -162,10 +163,10 @@ export function Sidebar({ currentPath }: SidebarProps) {
                 )}
                 asChild
               >
-                <a href={item.href}>
+                <Link to={item.href}>
                   <item.icon className="w-5 h-5 mr-3" />
                   {item.name}
-                </a>
+                </Link>
               </Button>
             );
           })}
@@ -188,10 +189,10 @@ export function Sidebar({ currentPath }: SidebarProps) {
                 )}
                 asChild
               >
-                <a href={item.href}>
+                <Link to={item.href}>
                   <item.icon className="w-5 h-5 mr-3" />
                   {item.name}
-                </a>
+                </Link>
               </Button>
             );
           })}
