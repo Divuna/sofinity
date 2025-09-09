@@ -80,12 +80,6 @@ export default function EmailDetail() {
         .single();
 
       if (emailError) throw emailError;
-      
-      // DEBUG: Log the actual data received from database
-      console.log('🔍 DEBUG fetchEmailData - Raw data from DB:', emailData);
-      console.log('🔍 DEBUG fetchEmailData - Recipient field:', emailData?.recipient);
-      console.log('🔍 DEBUG fetchEmailData - All fields:', Object.keys(emailData || {}));
-      
       setEmail(emailData);
 
       // Fetch related email logs
@@ -190,37 +184,48 @@ export default function EmailDetail() {
   const handleSendEmail = async () => {
     if (!email) return;
     
-    // DEBUG: Log email state before sending
-    console.log('📧 DEBUG handleSendEmail - Current email state:', email);
-    console.log('📧 DEBUG handleSendEmail - Recipient value:', email.recipient);
-    console.log('📧 DEBUG handleSendEmail - Recipient type:', typeof email.recipient);
-    console.log('📧 DEBUG handleSendEmail - Recipient trimmed:', email.recipient?.trim());
-    
-    // Guard rails for missing recipient
-    if (!email.recipient?.trim()) {
-      console.log('❌ DEBUG handleSendEmail - Recipient check failed, showing error');
-      toast({
-        title: "Chyba",
-        description: "Příjemce e-mailu není vyplněn",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Guard rails for empty content
-    if (!email.content?.trim()) {
-      toast({
-        title: "Chyba", 
-        description: "Obsah e-mailu je prázdný",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setSending(true);
+    // Re-fetch email data to ensure we have the latest recipient info
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Uživatel není přihlášen');
+
+      const { data: freshEmailData, error: refetchError } = await supabase
+        .from('Emails')
+        .select('*')
+        .eq('id', email.id)
+        .eq('user_id', user.id)
+        .single();
+
+      if (refetchError) throw refetchError;
+
+      // Use database recipient if local state is empty, otherwise use local state
+      const recipientToUse = email.recipient?.trim() || freshEmailData?.recipient?.trim();
+      
+      if (!recipientToUse) {
+        toast({
+          title: "Chyba",
+          description: "Příjemce e-mailu není vyplněn",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Update local state with fresh data if needed
+      if (freshEmailData && (!email.recipient?.trim() && freshEmailData.recipient?.trim())) {
+        setEmail(freshEmailData);
+      }
+
+      // Guard rails for empty content
+      if (!email.content?.trim()) {
+        toast({
+          title: "Chyba", 
+          description: "Obsah e-mailu je prázdný",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      setSending(true);
 
       // Optimistic UI - update local state immediately
       setEmail(prev => prev ? { ...prev, status: 'sent' } : prev);
@@ -228,7 +233,7 @@ export default function EmailDetail() {
       const response = await supabase.functions.invoke('send-email', {
         body: {
           email_id: email.id,
-          recipient: email.recipient,
+          recipient: recipientToUse,
           subject: email.project ? `Email od ${email.project}` : undefined,
           content: email.content
         }
@@ -242,7 +247,7 @@ export default function EmailDetail() {
 
       toast({
         title: "E-mail odeslán",
-        description: `E-mail byl úspěšně odeslán na ${email.recipient}`
+        description: `E-mail byl úspěšně odeslán na ${recipientToUse}`
       });
 
       // Refresh email data to get updated logs
@@ -370,7 +375,7 @@ export default function EmailDetail() {
               {saving ? 'Ukládání...' : 'Uložit'}
             </Button>
           )}
-          {email.status === 'draft' && email.content?.trim() && (
+          {email.status === 'draft' && email.content?.trim() && email.recipient?.trim() && !loading && (
             <Button 
               onClick={handleSendEmail} 
               disabled={sending}
@@ -427,7 +432,7 @@ export default function EmailDetail() {
                     <div>
                       <div className="font-medium">Od: noreply@sofinity.com</div>
                       <div className="text-muted-foreground">
-                        Komu: {email.recipient || 'Neurčeno'}
+                        Komu: {email.recipient?.trim() || 'Neurčeno'}
                       </div>
                     </div>
                     <div className="text-muted-foreground">
