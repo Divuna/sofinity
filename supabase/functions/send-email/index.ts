@@ -104,9 +104,9 @@ const handler = async (req: Request): Promise<Response> => {
       sent_at: new Date().toISOString(),
       message_id: emailResponse.data?.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       payload: {
+        email_id: email_id,
         response: emailResponse.data,
-        recipient: recipient,
-        email_id: email_id
+        recipient: recipient
       }
     };
 
