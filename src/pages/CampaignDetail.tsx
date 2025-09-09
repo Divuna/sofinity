@@ -526,8 +526,22 @@ export default function CampaignDetail() {
                   </div>
                 </div>
                 {userEmailMode === 'test' && (
+                  <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                    <p>Globální testovací režim je aktivní - všechny e-maily budou přesměrovány</p>
+                    <p>
+                      Pro povolení produkčního režimu u kampaní přejděte do{' '}
+                      <button 
+                        onClick={() => navigate('/settings')} 
+                        className="text-primary hover:underline font-medium"
+                      >
+                        Nastavení
+                      </button>
+                    </p>
+                  </div>
+                )}
+                {userEmailMode === 'production' && (
                   <p className="text-xs text-muted-foreground mt-1">
-                    Globální testovací režim je aktivní - všechny e-maily budou přesměrovány
+                    Aktuální režim: {campaign.email_mode === 'production' ? 'Produkční' : 'Testovací'}
                   </p>
                 )}
               </div>
