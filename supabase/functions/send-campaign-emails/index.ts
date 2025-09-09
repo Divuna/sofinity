@@ -72,8 +72,10 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error('Campaign has no email content');
     }
 
-    // Determine effective email mode: use campaign override if set, otherwise fall back to global
-    const effectiveEmailMode = campaign.email_mode || userEmailMode;
+    // Apply hierarchical email mode logic: global test lock overrides everything
+    const effectiveEmailMode = userEmailMode === 'test' 
+      ? 'test' 
+      : (campaign.email_mode || 'production');
     
     console.log(`Sending mode for campaign ${campaign.id}: ${effectiveEmailMode}`);
     console.log('Email mode details:', {
@@ -136,7 +138,7 @@ const handler = async (req: Request): Promise<Response> => {
         let effectiveRecipient = contact.email;
         if (effectiveEmailMode === 'test') {
           effectiveRecipient = 'support@opravo.cz';
-          console.log(`  🧪 Redirecting to test address: ${effectiveRecipient}`);
+          console.log(`  🧪 TEST MODE: Redirecting ${contact.email} → ${effectiveRecipient}`);
         }
         
         // Send actual email using Resend

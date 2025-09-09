@@ -479,12 +479,43 @@ export default function CampaignDetail() {
                     <Switch
                       id="email-mode"
                       checked={campaign.email_mode === 'production'}
-                      onCheckedChange={(checked) => {
+                      onCheckedChange={async (checked) => {
+                        const newEmailMode = checked ? 'production' : 'test';
+                        
                         // Optimistic update
                         setCampaign({ 
                           ...campaign, 
-                          email_mode: checked ? 'production' : 'test' 
+                          email_mode: newEmailMode 
                         });
+                        
+                        // Save to database
+                        try {
+                          const { error } = await supabase
+                            .from('Campaigns')
+                            .update({ email_mode: newEmailMode })
+                            .eq('id', campaign.id);
+                          
+                          if (error) throw error;
+                          
+                          toast({
+                            title: "Režim e-mailů byl změněn",
+                            description: newEmailMode === 'production' 
+                              ? "Režim e-mailů byl změněn na PRODUKČNÍ" 
+                              : "Režim e-mailů byl změněn na TESTOVACÍ"
+                          });
+                        } catch (error) {
+                          // Revert optimistic update on error
+                          setCampaign({ 
+                            ...campaign, 
+                            email_mode: campaign.email_mode 
+                          });
+                          
+                          toast({
+                            title: "Chyba",
+                            description: "Nepodařilo se změnit režim e-mailů",
+                            variant: "destructive"
+                          });
+                        }
                       }}
                       disabled={userEmailMode === 'test'}
                     />
@@ -494,9 +525,18 @@ export default function CampaignDetail() {
                   </div>
                 </div>
                 {userEmailMode === 'test' && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Globální testovací režim je aktivní - všechny e-maily budou přesměrovány
-                  </p>
+                  <div className="text-xs text-muted-foreground mt-1 space-y-1">
+                    <p>Globální testovací režim je aktivní – přepínače jsou dočasně uzamčeny.</p>
+                    <p>
+                      Pro změnu přejděte do{' '}
+                      <button 
+                        onClick={() => navigate('/settings')}
+                        className="text-primary hover:underline font-medium"
+                      >
+                        Nastavení
+                      </button>
+                    </p>
+                  </div>
                 )}
               </div>
               <div>
