@@ -80,6 +80,12 @@ export default function EmailDetail() {
         .single();
 
       if (emailError) throw emailError;
+      
+      // DEBUG: Log the actual data received from database
+      console.log('🔍 DEBUG fetchEmailData - Raw data from DB:', emailData);
+      console.log('🔍 DEBUG fetchEmailData - Recipient field:', emailData?.recipient);
+      console.log('🔍 DEBUG fetchEmailData - All fields:', Object.keys(emailData || {}));
+      
       setEmail(emailData);
 
       // Fetch related email logs
@@ -184,8 +190,15 @@ export default function EmailDetail() {
   const handleSendEmail = async () => {
     if (!email) return;
     
+    // DEBUG: Log email state before sending
+    console.log('📧 DEBUG handleSendEmail - Current email state:', email);
+    console.log('📧 DEBUG handleSendEmail - Recipient value:', email.recipient);
+    console.log('📧 DEBUG handleSendEmail - Recipient type:', typeof email.recipient);
+    console.log('📧 DEBUG handleSendEmail - Recipient trimmed:', email.recipient?.trim());
+    
     // Guard rails for missing recipient
     if (!email.recipient?.trim()) {
+      console.log('❌ DEBUG handleSendEmail - Recipient check failed, showing error');
       toast({
         title: "Chyba",
         description: "Příjemce e-mailu není vyplněn",
