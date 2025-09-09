@@ -350,13 +350,26 @@ const handler = async (req: Request): Promise<Response> => {
         if (user) {
           const requestBody = await req.clone().json().catch(() => ({}));
           
+          // Update email status to 'error' in database
+          if (requestBody.email_id) {
+            await supabaseClient
+              .from('Emails')
+              .update({
+                status: 'error',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', requestBody.email_id)
+              .eq('user_id', user.id)
+              .catch(updateError => console.error('Failed to update email status to error:', updateError));
+          }
+          
           // Log failed attempt
           const failedEmailLog = {
             user_id: user.id,
             campaign_id: null,
             recipient_email: requestBody.recipient || 'unknown',
             subject: requestBody.subject || 'Email od Sofinity',
-            status: 'failed',
+            status: 'error',
             sent_at: new Date().toISOString(),
             message_id: `failed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             payload: {

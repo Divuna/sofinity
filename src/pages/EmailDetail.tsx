@@ -21,9 +21,12 @@ import {
   Send,
   MessageSquare,
   TestTube,
-  ShieldCheck
+  ShieldCheck,
+  RotateCcw
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface EmailItem {
   id: string;
@@ -271,6 +274,8 @@ export default function EmailDetail() {
       
       if (!result?.ok) {        
         const errorMsg = result?.error?.message || 'Nepodařilo se odeslat e-mail';
+        // Update status to 'error' on failure
+        setEmail(prev => prev ? { ...prev, status: 'error' } : prev);
         toast({
           title: "Chyba při odesílání",
           description: errorMsg,
@@ -291,6 +296,8 @@ export default function EmailDetail() {
       await fetchEmailData();
       
     } catch (error) {      
+      // Update status to 'error' on exception
+      setEmail(prev => prev ? { ...prev, status: 'error' } : prev);
       toast({
         title: "Chyba při odesílání",
         description: error instanceof Error ? error.message : "Nepodařilo se odeslat e-mail",
@@ -299,6 +306,50 @@ export default function EmailDetail() {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleEmailModeToggle = async (checked: boolean) => {
+    const newMode = checked ? 'production' : 'test';
+    setEmailMode(newMode);
+    
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
+      // Update user preferences in database
+      const { error } = await supabase
+        .from('UserPreferences')
+        .upsert({
+          user_id: user.id,
+          email_mode: newMode,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Režim změněn",
+        description: `Přepnuto do ${newMode === 'test' ? 'testovacího' : 'produkčního'} režimu`
+      });
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se změnit režim odesílání",
+        variant: "destructive"
+      });
+      // Revert the state change
+      setEmailMode(newMode === 'test' ? 'production' : 'test');
+    }
+  };
+
+  const handleRetryEmail = async () => {
+    if (!email) return;
+    
+    // Update status to draft temporarily for retry
+    setEmail(prev => prev ? { ...prev, status: 'draft' } : prev);
+    
+    // Use the existing handleSendEmail logic
+    await handleSendEmail();
   };
 
   const handleTestSend = async () => {
@@ -387,6 +438,19 @@ export default function EmailDetail() {
                 {emailMode === 'test' ? <TestTube className="w-3 h-3" /> : <ShieldCheck className="w-3 h-3" />}
                 {emailMode === 'test' ? 'Testovací režim' : 'Produkční režim'}
               </Badge>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="email-mode-toggle" className="text-sm text-muted-foreground">
+                  Test
+                </Label>
+                <Switch
+                  id="email-mode-toggle"
+                  checked={emailMode === 'production'}
+                  onCheckedChange={handleEmailModeToggle}
+                />
+                <Label htmlFor="email-mode-toggle" className="text-sm text-muted-foreground">
+                  Produkce
+                </Label>
+              </div>
               <span className="text-muted-foreground text-sm">
                 Vytvořeno {new Date(email.created_at).toLocaleDateString('cs-CZ')}
               </span>
@@ -422,6 +486,17 @@ export default function EmailDetail() {
             >
               <Send className="w-4 h-4 mr-2" />
               {sending ? 'Odesílání...' : 'Odeslat e-mail'}
+            </Button>
+          )}
+          {email.status === 'error' && !loading && (
+            <Button 
+              onClick={handleRetryEmail} 
+              disabled={sending}
+              variant="outline"
+              className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            >
+              <RotateCcw className="w-4 h-4 mr-2" />
+              {sending ? 'Opakování...' : 'Opakovat odeslání'}
             </Button>
           )}
           <Button variant="outline" onClick={handleTestSend}>
