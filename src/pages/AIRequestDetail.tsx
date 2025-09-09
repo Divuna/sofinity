@@ -109,10 +109,11 @@ export default function AIRequestDetail() {
       const projectMatch = aiRequest.prompt.match(/projekt[:\s]*([^\n,]+)/i);
       const projectName = projectMatch ? projectMatch[1].trim() : 'Nespecifikovaný projekt';
 
+      const today = new Date().toLocaleDateString('cs-CZ');
       const { error } = await supabase
         .from('Campaigns')
         .insert({
-          name: `AI Kampaň - ${formatDistanceToNow(new Date(aiRequest.created_at), { locale: cs })}`,
+          name: `AI kampaň – ${today}`,
           user_id: user.id,
           status: 'draft',
           targeting: aiRequest.prompt,
@@ -137,7 +138,7 @@ export default function AIRequestDetail() {
       }
 
       toast({
-        title: "Úspěch!",
+        title: "Uloženo",
         description: "Kampaň byla úspěšně uložena",
       });
 
@@ -145,7 +146,7 @@ export default function AIRequestDetail() {
     } catch (error) {
       console.error('Error saving campaign:', error);
       toast({
-        title: "Chyba",
+        title: "Chyba – zkuste to znovu",
         description: "Nepodařilo se uložit kampaň",
         variant: "destructive"
       });
@@ -178,7 +179,7 @@ export default function AIRequestDetail() {
           type: 'ai_generated',
           content: content,
           recipient: '',
-          project: 'AI Generated',
+          project: aiRequest.prompt, // Store original prompt in project field
           user_id: user.id,
           project_id: (aiRequest as any).project_id || null
         });
@@ -186,7 +187,7 @@ export default function AIRequestDetail() {
       if (error) throw error;
 
       toast({
-        title: "Úspěch!",
+        title: "Uloženo",
         description: "E-mail byl úspěšně uložen",
       });
 
@@ -194,7 +195,7 @@ export default function AIRequestDetail() {
     } catch (error) {
       console.error('Error saving email:', error);
       toast({
-        title: "Chyba",
+        title: "Chyba – zkuste to znovu",
         description: "Nepodařilo se uložit e-mail",
         variant: "destructive"
       });
@@ -324,24 +325,28 @@ export default function AIRequestDetail() {
             </CardHeader>
             <CardContent>
               <div className="flex gap-3">
-                <Button 
-                  onClick={saveAsCampaign}
-                  disabled={savingCampaign}
-                  className="flex items-center gap-2"
-                >
-                  <Save className="h-4 w-4" />
-                  {savingCampaign ? 'Ukládám...' : 'Uložit jako kampaň'}
-                </Button>
+                {aiRequest.type === 'campaign_generator' && (
+                  <Button 
+                    onClick={saveAsCampaign}
+                    disabled={savingCampaign}
+                    className="flex items-center gap-2"
+                  >
+                    <Save className="h-4 w-4" />
+                    {savingCampaign ? 'Ukládám...' : 'Uložit jako kampaň'}
+                  </Button>
+                )}
                 
-                <Button 
-                  onClick={saveAsEmail}
-                  disabled={savingEmail}
-                  className="flex items-center gap-2"
-                  variant="outline"
-                >
-                  <Save className="h-4 w-4" />
-                  {savingEmail ? 'Ukládám...' : 'Uložit jako e-mail'}
-                </Button>
+                {aiRequest.type === 'email_assistant' && (
+                  <Button 
+                    onClick={saveAsEmail}
+                    disabled={savingEmail}
+                    className="flex items-center gap-2"
+                    variant="outline"
+                  >
+                    <Save className="h-4 w-4" />
+                    {savingEmail ? 'Ukládám...' : 'Uložit jako e-mail'}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
