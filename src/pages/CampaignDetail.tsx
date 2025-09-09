@@ -358,8 +358,7 @@ export default function CampaignDetail() {
       const { error } = await supabase
         .from('Campaigns')
         .update({ email_mode: newEmailMode })
-        .eq('id', campaign.id)
-        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+        .eq('id', campaign.id);
 
       if (error) throw error;
 
