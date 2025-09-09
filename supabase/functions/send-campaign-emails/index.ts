@@ -46,17 +46,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Sending emails for campaign:', campaignId);
 
-    // Get user's email mode preference for test mode protection
+    // Get user's email mode preference for global safety lock
     const { data: userPrefs } = await supabaseClient
       .from('user_preferences')
       .select('email_mode')
       .eq('user_id', user.id)
       .single();
 
-    const effectiveEmailMode = userPrefs?.email_mode || 'production';
-    console.log('User email mode:', effectiveEmailMode);
+    const userEmailMode = userPrefs?.email_mode || 'production';
+    console.log('User global email mode:', userEmailMode);
 
-    // Get campaign details
+    // Get campaign details including its email_mode
     const { data: campaign, error: campaignError } = await supabaseClient
       .from('Campaigns')
       .select('*')
@@ -71,6 +71,17 @@ const handler = async (req: Request): Promise<Response> => {
     if (!campaign.email) {
       throw new Error('Campaign has no email content');
     }
+
+    // Apply hierarchical email mode logic: global test lock overrides everything
+    const effectiveEmailMode = userEmailMode === 'test' 
+      ? 'test' 
+      : (campaign.email_mode || 'production');
+    
+    console.log('Email mode hierarchy:', {
+      userEmailMode,
+      campaignEmailMode: campaign.email_mode,
+      effectiveEmailMode
+    });
 
     // Get campaign contacts
     console.log('Fetching campaign contacts for campaign:', campaignId, 'user:', user.id);

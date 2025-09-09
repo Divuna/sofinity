@@ -7,6 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -36,6 +38,7 @@ interface Campaign {
   video: string | null;
   created_at: string;
   user_id: string;
+  email_mode: 'test' | 'production' | null;
 }
 
 interface CampaignSchedule {
@@ -169,7 +172,8 @@ export default function CampaignDetail() {
           email: campaign.email,
           post: campaign.post,
           video: campaign.video,
-          status: campaign.status
+          status: campaign.status,
+          email_mode: campaign.email_mode
         })
         .eq('id', campaign.id)
         .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
@@ -212,6 +216,14 @@ export default function CampaignDetail() {
 
       if (error) throw error;
 
+      // Apply hierarchical logic to determine final email mode
+      const finalEmailMode = userEmailMode === 'test' 
+        ? 'test' 
+        : (campaign.email_mode || 'production');
+      
+      // Use consistent variable naming for the effective email mode
+      const effectiveEmailMode = finalEmailMode;
+      
       // Show individual toast for each email result
       if (data.emailResults && Array.isArray(data.emailResults)) {
         data.emailResults.forEach((result: any) => {
@@ -231,8 +243,8 @@ export default function CampaignDetail() {
       }
 
       toast({
-        title: userEmailMode === 'test' ? "Test kampaň spuštěna" : "E-maily byly odeslány", 
-        description: userEmailMode === 'test' 
+        title: effectiveEmailMode === 'test' ? "Test kampaň spuštěna" : "E-maily byly odeslány", 
+        description: effectiveEmailMode === 'test'
           ? "Všechny e-maily byly přesměrovány na testovací adresu"
           : (data.message || "E-maily byly úspěšně odeslány všem příjemcům")
       });
@@ -304,7 +316,8 @@ export default function CampaignDetail() {
         video: campaign.video,
         project: null,
         project_id: null,
-        user_id: user.id
+        user_id: user.id,
+        email_mode: null // Reset to default for duplicates
       };
 
       const { data: newCampaign, error } = await supabase
@@ -453,6 +466,38 @@ export default function CampaignDetail() {
                     <SelectItem value="done">Dokončeno</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="email-mode" className="text-sm font-medium">
+                    Režim e-mailů
+                  </Label>
+                  <div className="flex items-center space-x-2">
+                    <Label htmlFor="email-mode" className={`text-sm ${userEmailMode === 'test' ? 'text-muted-foreground' : ''}`}>
+                      Testovací
+                    </Label>
+                    <Switch
+                      id="email-mode"
+                      checked={campaign.email_mode === 'production'}
+                      onCheckedChange={(checked) => {
+                        // Optimistic update
+                        setCampaign({ 
+                          ...campaign, 
+                          email_mode: checked ? 'production' : 'test' 
+                        });
+                      }}
+                      disabled={userEmailMode === 'test'}
+                    />
+                    <Label htmlFor="email-mode" className={`text-sm ${userEmailMode === 'test' ? 'text-muted-foreground' : ''}`}>
+                      Produkční
+                    </Label>
+                  </div>
+                </div>
+                {userEmailMode === 'test' && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Globální testovací režim je aktivní - všechny e-maily budou přesměrovány
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">Cílení</label>

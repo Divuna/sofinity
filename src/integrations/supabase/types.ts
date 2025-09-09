@@ -252,6 +252,7 @@ export type Database = {
         Row: {
           created_at: string | null
           email: string | null
+          email_mode: string | null
           id: string
           name: string
           post: string | null
@@ -265,6 +266,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           email?: string | null
+          email_mode?: string | null
           id?: string
           name: string
           post?: string | null
@@ -278,6 +280,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           email?: string | null
+          email_mode?: string | null
           id?: string
           name?: string
           post?: string | null

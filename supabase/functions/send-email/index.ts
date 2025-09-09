@@ -89,14 +89,19 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get user's email mode preference
+    // Get user's email mode preference for global safety lock
     const { data: userPrefs } = await supabaseClient
       .from('user_preferences')
       .select('email_mode')
       .eq('user_id', user.id)
       .single();
 
-    const effectiveEmailMode = email_mode || userPrefs?.email_mode || 'production';
+    const userEmailMode = userPrefs?.email_mode || 'production';
+    
+    // Apply hierarchical email mode logic: global test lock overrides everything
+    const effectiveEmailMode = userEmailMode === 'test' 
+      ? 'test' 
+      : (email_mode || 'production');
     
     // Apply email mode logic - override recipient if in test mode
     let effectiveRecipient = recipient;
