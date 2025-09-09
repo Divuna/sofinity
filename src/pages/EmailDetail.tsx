@@ -59,6 +59,7 @@ export default function EmailDetail() {
   const { toast } = useToast();
   
   const [email, setEmail] = useState<EmailItem | null>(null);
+  const [userEmailMode, setUserEmailMode] = useState<'test' | 'production'>('production');
   const [emailLogs, setEmailLogs] = useState<EmailLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -70,9 +71,29 @@ export default function EmailDetail() {
 
   useEffect(() => {
     if (id) {
+      fetchUserEmailMode();
       fetchEmailData();
     }
   }, [id]);
+
+  const fetchUserEmailMode = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('email_mode')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data?.email_mode && (data.email_mode === 'test' || data.email_mode === 'production')) {
+        setUserEmailMode(data.email_mode);
+      }
+    } catch (error) {
+      console.error('Error fetching user email mode:', error);
+    }
+  };
 
   const fetchEmailData = async () => {
     try {

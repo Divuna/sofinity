@@ -493,6 +493,7 @@ export type Database = {
         Row: {
           content: string
           created_at: string
+          email_mode: string
           id: string
           project: string | null
           project_id: string | null
@@ -506,6 +507,7 @@ export type Database = {
         Insert: {
           content: string
           created_at?: string
+          email_mode?: string
           id?: string
           project?: string | null
           project_id?: string | null
@@ -519,6 +521,7 @@ export type Database = {
         Update: {
           content?: string
           created_at?: string
+          email_mode?: string
           id?: string
           project?: string | null
           project_id?: string | null

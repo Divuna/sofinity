@@ -46,6 +46,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Sending emails for campaign:', campaignId);
 
+    // Get user's email mode preference for test mode protection
+    const { data: userPrefs } = await supabaseClient
+      .from('user_preferences')
+      .select('email_mode')
+      .eq('user_id', user.id)
+      .single();
+
+    const effectiveEmailMode = userPrefs?.email_mode || 'production';
+    console.log('User email mode:', effectiveEmailMode);
+
     // Get campaign details
     const { data: campaign, error: campaignError } = await supabaseClient
       .from('Campaigns')
@@ -108,15 +118,23 @@ const handler = async (req: Request): Promise<Response> => {
         // Detailed logging for each contact
         console.log(`📧 SENDING EMAIL:`);
         console.log(`  Campaign: ${campaign.name} (ID: ${campaignId})`);
-        console.log(`  Recipient: ${contact.email}`);
+        console.log(`  Original Recipient: ${contact.email}`);
         console.log(`  Contact Name: ${contact.name || contact.full_name || 'N/A'}`);
+        console.log(`  Email Mode: ${effectiveEmailMode}`);
+        
+        // Apply email mode protection - override recipient if in test mode
+        let effectiveRecipient = contact.email;
+        if (effectiveEmailMode === 'test') {
+          effectiveRecipient = 'support@opravo.cz';
+          console.log(`  🧪 TEST MODE: Redirecting to ${effectiveRecipient}`);
+        }
         
         // Send actual email using Resend
         let emailResponse;
         try {
           emailResponse = await resend.emails.send({
             from: 'Sofinity <noreply@opravo.cz>',
-            to: [contact.email],
+            to: [effectiveRecipient],
             subject: `Kampaň: ${campaign.name}`,
             html: campaign.email // Use the campaign's email content
           });
@@ -132,27 +150,29 @@ const handler = async (req: Request): Promise<Response> => {
         const emailLog = {
           user_id: user.id,
           campaign_id: campaignId,
-          recipient_email: contact.email,
+          recipient_email: effectiveRecipient,
           subject: `Kampaň: ${campaign.name}`,
           status: 'sent',
           sent_at: new Date().toISOString(),
           message_id: emailResponse.data?.id || `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
           payload: {
             response: emailResponse.data,
-            recipient: contact.email,
+            original_recipient: contact.email,
+            final_recipient: effectiveRecipient,
+            email_mode: effectiveEmailMode,
             campaign_name: campaign.name
           }
         };
 
         emailLogs.push(emailLog);
         emailResults.push({
-          email: contact.email,
+          email: effectiveEmailMode === 'test' ? `${contact.email} → ${effectiveRecipient}` : contact.email,
           status: 'success',
           error: null
         });
         successCount++;
         
-        console.log(`✅ SUCCESS: Email successfully sent to ${contact.email}`);
+        console.log(`✅ SUCCESS: Email successfully sent to ${effectiveRecipient}${effectiveEmailMode === 'test' ? ` (original: ${contact.email})` : ''}`);
         
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
@@ -166,7 +186,7 @@ const handler = async (req: Request): Promise<Response> => {
         const emailLog = {
           user_id: user.id,
           campaign_id: campaignId,
-          recipient_email: contact.email,
+          recipient_email: effectiveRecipient,
           subject: `Kampaň: ${campaign.name}`,
           status: 'failed',
           sent_at: new Date().toISOString(),
@@ -174,7 +194,9 @@ const handler = async (req: Request): Promise<Response> => {
           payload: {
             error: errorMessage,
             error_details: error,
-            recipient: contact.email,
+            original_recipient: contact.email,
+            final_recipient: effectiveRecipient,
+            email_mode: effectiveEmailMode,
             campaign_name: campaign.name
           }
         };

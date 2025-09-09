@@ -91,7 +91,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Get user's email mode preference
     const { data: userPrefs } = await supabaseClient
-      .from('UserPreferences')
+      .from('user_preferences')
       .select('email_mode')
       .eq('user_id', user.id)
       .single();
@@ -271,11 +271,12 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // Update email status to 'sent'
+    // Update email status to 'sent' and set email_mode
     const { error: updateError } = await supabaseClient
       .from('Emails')
       .update({
         status: 'sent',
+        email_mode: effectiveEmailMode,
         updated_at: new Date().toISOString()
       })
       .eq('id', email_id)

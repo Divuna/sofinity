@@ -42,6 +42,7 @@ interface Project {
 
 export default function EmailCenter() {
   const [emails, setEmails] = useState<EmailItem[]>([]);
+  const [userEmailMode, setUserEmailMode] = useState<'test' | 'production'>('production');
   const [loading, setLoading] = useState(true);
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const { toast } = useToast();
@@ -67,8 +68,28 @@ export default function EmailCenter() {
   }, [location.state, location.search]);
 
   useEffect(() => {
+    fetchUserEmailMode();
     fetchEmails();
   }, [currentProject]);
+
+  const fetchUserEmailMode = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('email_mode')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data?.email_mode && (data.email_mode === 'test' || data.email_mode === 'production')) {
+        setUserEmailMode(data.email_mode);
+      }
+    } catch (error) {
+      console.error('Error fetching user email mode:', error);
+    }
+  };
 
   const fetchEmails = async () => {
     try {
@@ -78,38 +99,41 @@ export default function EmailCenter() {
       let emailsByProjectId: EmailItem[] = [];
       let emailsByProjectName: EmailItem[] = [];
 
-      // Primary query: by project_id
+      // Primary query: by project_id with email mode filter
       if (currentProject?.id) {
         const { data: projectIdData, error: projectIdError } = await supabase
           .from('Emails')
           .select('*')
           .eq('user_id', user.id)
           .eq('project_id', currentProject.id)
+          .eq('email_mode', userEmailMode)
           .order('created_at', { ascending: false });
 
         if (projectIdError) throw projectIdError;
         emailsByProjectId = (projectIdData || []) as EmailItem[];
       }
 
-      // Fallback query: by project name (only if needed)
+      // Fallback query: by project name with email mode filter (only if needed)
       if (currentProject?.name && emailsByProjectId.length === 0) {
         const { data: projectNameData, error: projectNameError } = await supabase
           .from('Emails')
           .select('*')
           .eq('user_id', user.id)
           .eq('project', currentProject.name)
+          .eq('email_mode', userEmailMode)
           .order('created_at', { ascending: false });
 
         if (projectNameError) throw projectNameError;
         emailsByProjectName = (projectNameData || []) as EmailItem[];
       }
 
-      // No project selected - get all emails
+      // No project selected - get all emails filtered by email mode
       if (!currentProject) {
         const { data: allData, error: allError } = await supabase
           .from('Emails')
           .select('*')
           .eq('user_id', user.id)
+          .eq('email_mode', userEmailMode)
           .order('created_at', { ascending: false });
 
         if (allError) throw allError;
@@ -140,7 +164,7 @@ export default function EmailCenter() {
             E-maily{currentProject ? ` — ${currentProject.name}` : ''}
           </h1>
           <p className="text-muted-foreground mt-1">
-            Správa e-mailů a sledování jejich doručení
+            Správa e-mailů a sledování jejich doručení ({userEmailMode === 'test' ? 'Test režim' : 'Produkční režim'})
           </p>
         </div>
       </div>

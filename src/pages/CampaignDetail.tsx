@@ -73,12 +73,33 @@ export default function CampaignDetail() {
   const [contactsCount, setContactsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [userEmailMode, setUserEmailMode] = useState<'test' | 'production'>('production');
 
   useEffect(() => {
     if (id) {
+      fetchUserEmailMode();
       fetchCampaignData();
     }
   }, [id]);
+
+  const fetchUserEmailMode = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data } = await supabase
+        .from('user_preferences')
+        .select('email_mode')
+        .eq('user_id', user.id)
+        .single();
+
+      if (data?.email_mode && (data.email_mode === 'test' || data.email_mode === 'production')) {
+        setUserEmailMode(data.email_mode);
+      }
+    } catch (error) {
+      console.error('Error fetching user email mode:', error);
+    }
+  };
 
   const fetchCampaignData = async () => {
     try {
@@ -209,10 +230,11 @@ export default function CampaignDetail() {
         });
       }
 
-      // Show summary toast
       toast({
-        title: "E-maily byly odeslány",
-        description: data.message || "E-maily byly úspěšně odeslány všem příjemcům"
+        title: userEmailMode === 'test' ? "Test kampaň spuštěna" : "E-maily byly odeslány", 
+        description: userEmailMode === 'test' 
+          ? "Všechny e-maily byly přesměrovány na testovací adresu"
+          : (data.message || "E-maily byly úspěšně odeslány všem příjemcům")
       });
 
       // Update campaign status to active
@@ -229,8 +251,8 @@ export default function CampaignDetail() {
     } catch (error: any) {
       console.error('Error sending emails:', error);
       toast({
-        title: "Chyba",
-        description: error.message || "Nepodařilo se odeslat e-maily",
+        title: "Nepodařilo se odeslat e-maily",
+        description: "Zkontrolujte připojení nebo režim – " + (error.message || 'Neznámá chyba'),
         variant: "destructive"
       });
     } finally {
