@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.opravo-email-metrics-sync]
 verify_jwt = false
+
+[functions.email-events-ingest]
+verify_jwt = false
