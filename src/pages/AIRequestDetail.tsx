@@ -179,6 +179,7 @@ export default function AIRequestDetail() {
           type: 'ai_generated',
           content: content,
           recipient: '',
+          subject: `Opravo – ${aiRequest.type === 'email_assistant' ? 'AI e-mail' : 'AI obsah'}`,
           project: aiRequest.prompt, // Store original prompt in project field
           user_id: user.id,
           project_id: (aiRequest as any).project_id || null

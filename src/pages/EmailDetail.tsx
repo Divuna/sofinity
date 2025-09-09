@@ -237,14 +237,12 @@ export default function EmailDetail() {
         setEmail(freshEmailData);
       }
 
-      // Validation: check subject and content
+      // Ensure we have a subject (use fallback if needed)
+      const finalSubject = email.subject?.trim() || `Opravo – ${email.type || email.project || 'Zpráva'}`;
+      
+      // Update subject in state if using fallback
       if (!email.subject?.trim()) {
-        toast({
-          title: "Chyba",
-          description: "Předmět e-mailu je povinný",
-          variant: "destructive"
-        });
-        return;
+        setEmail(prev => prev ? { ...prev, subject: finalSubject } : prev);
       }
 
       if (!email.content?.trim()) {
@@ -258,14 +256,11 @@ export default function EmailDetail() {
       
       setSending(true);
 
-      // Optimistic UI - update local state immediately
-      setEmail(prev => prev ? { ...prev, status: 'sent' } : prev);
-
       const response = await supabase.functions.invoke('send-email', {
         body: {
           email_id: email.id,
           recipient: recipientToUse,
-          subject: email.subject || `Opravo – ${email.type || email.project || 'Zpráva'}`,
+          subject: finalSubject,
           content: email.content,
           email_mode: emailMode
         }
@@ -274,10 +269,7 @@ export default function EmailDetail() {
       // Handle structured response from hardened send-email function
       const result = response.data;
       
-      if (!result?.ok) {
-        // Revert optimistic update on error
-        setEmail(prev => prev ? { ...prev, status: 'draft' } : prev);
-        
+      if (!result?.ok) {        
         const errorMsg = result?.error?.message || 'Nepodařilo se odeslat e-mail';
         toast({
           title: "Chyba při odesílání",
@@ -287,6 +279,9 @@ export default function EmailDetail() {
         return;
       }
 
+      // Update status to 'sent' only after successful sending
+      setEmail(prev => prev ? { ...prev, status: 'sent' } : prev);
+
       toast({
         title: "E-mail odeslán",
         description: `E-mail byl úspěšně odeslán na ${recipientToUse}${emailMode === 'test' ? ' (testovací režim)' : ''}`
@@ -295,10 +290,7 @@ export default function EmailDetail() {
       // Refresh email data to get updated logs
       await fetchEmailData();
       
-    } catch (error) {
-      // Revert optimistic update on error
-      setEmail(prev => prev ? { ...prev, status: 'draft' } : prev);
-      
+    } catch (error) {      
       toast({
         title: "Chyba při odesílání",
         description: error instanceof Error ? error.message : "Nepodařilo se odeslat e-mail",
@@ -328,7 +320,7 @@ export default function EmailDetail() {
         content: email.content,
         type: email.type,
         recipient: email.recipient,
-        subject: email.subject,
+        subject: email.subject || `Opravo – ${email.type || email.project || 'Zpráva'}`,
         project: email.project + " (kopie)",
         project_id: null,
         user_id: user.id
@@ -422,10 +414,10 @@ export default function EmailDetail() {
               {saving ? 'Ukládání...' : 'Uložit'}
             </Button>
           )}
-          {email.status === 'draft' && email.content?.trim() && email.subject?.trim() && !loading && (
+          {email.status === 'draft' && email.content?.trim() && !loading && (
             <Button 
               onClick={handleSendEmail} 
-              disabled={sending || !email.content?.trim() || !email.subject?.trim()}
+              disabled={sending || !email.content?.trim()}
               className="bg-primary text-primary-foreground hover:bg-primary-hover"
             >
               <Send className="w-4 h-4 mr-2" />
