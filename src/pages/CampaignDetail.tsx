@@ -343,6 +343,45 @@ export default function CampaignDetail() {
     }
   };
 
+  const handleEmailModeToggle = async (checked: boolean) => {
+    if (!campaign) return;
+    
+    const newEmailMode = checked ? 'production' : 'test';
+    
+    // Optimistic update
+    setCampaign({ 
+      ...campaign, 
+      email_mode: newEmailMode 
+    });
+    
+    try {
+      const { error } = await supabase
+        .from('Campaigns')
+        .update({ email_mode: newEmailMode })
+        .eq('id', campaign.id)
+        .eq('user_id', (await supabase.auth.getUser()).data.user?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Režim e-mailů byl změněn",
+        description: `Režim e-mailů byl změněn na ${newEmailMode === 'production' ? 'PRODUKČNÍ' : 'TESTOVACÍ'}`
+      });
+    } catch (error) {
+      // Revert optimistic update on error
+      setCampaign({ 
+        ...campaign, 
+        email_mode: campaign.email_mode 
+      });
+      
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se změnit režim e-mailů",
+        variant: "destructive"
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-8">
@@ -479,13 +518,7 @@ export default function CampaignDetail() {
                     <Switch
                       id="email-mode"
                       checked={campaign.email_mode === 'production'}
-                      onCheckedChange={(checked) => {
-                        // Optimistic update
-                        setCampaign({ 
-                          ...campaign, 
-                          email_mode: checked ? 'production' : 'test' 
-                        });
-                      }}
+                      onCheckedChange={handleEmailModeToggle}
                       disabled={userEmailMode === 'test'}
                     />
                     <Label htmlFor="email-mode" className={`text-sm ${userEmailMode === 'test' ? 'text-muted-foreground' : ''}`}>
