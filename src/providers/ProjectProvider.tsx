@@ -48,9 +48,9 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
 
       let projectToSelect: Project | null = null;
 
-      // 1. Try to load from Supabase UserPreferences
+      // 1. Try to load from Supabase user_preferences
       const { data: userPrefs } = await supabase
-        .from('UserPreferences')
+        .from('user_preferences')
         .select('selected_project_id')
         .eq('user_id', user.id)
         .maybeSingle();
@@ -118,7 +118,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
     try {
       // First check if user preferences exist
       const { data: existingPrefs } = await supabase
-        .from('UserPreferences')
+        .from('user_preferences')
         .select('id')
         .eq('user_id', userId)
         .maybeSingle();
@@ -126,13 +126,13 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
       if (existingPrefs) {
         // Update existing preferences
         await supabase
-          .from('UserPreferences')
+          .from('user_preferences')
           .update({ selected_project_id: projectId })
           .eq('user_id', userId);
       } else {
         // Create new preferences record
         await supabase
-          .from('UserPreferences')
+          .from('user_preferences')
           .insert({
             user_id: userId,
             selected_project_id: projectId
@@ -164,7 +164,7 @@ export const ProjectProvider: React.FC<ProjectProviderProps> = ({ children }) =>
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           await supabase
-            .from('UserPreferences')
+            .from('user_preferences')
             .update({ selected_project_id: null })
             .eq('user_id', user.id);
         }

@@ -987,7 +987,7 @@ export type Database = {
         }
         Relationships: []
       }
-      UserPreferences: {
+      user_preferences: {
         Row: {
           created_at: string | null
           dark_mode: boolean | null

@@ -92,10 +92,10 @@ export default function EmailDetail() {
 
       // Fetch user preferences for email mode
       const { data: userPrefs } = await supabase
-        .from('UserPreferences')
+        .from('user_preferences')
         .select('email_mode')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
       
       if (userPrefs?.email_mode) {
         setEmailMode(userPrefs.email_mode as 'test' | 'production');
@@ -318,7 +318,7 @@ export default function EmailDetail() {
 
       // Update user preferences in database
       const { error } = await supabase
-        .from('UserPreferences')
+        .from('user_preferences')
         .upsert({
           user_id: user.id,
           email_mode: newMode,
@@ -332,6 +332,7 @@ export default function EmailDetail() {
         description: `Přepnuto do ${newMode === 'test' ? 'testovacího' : 'produkčního'} režimu`
       });
     } catch (error) {
+      console.error('Email mode toggle error:', error);
       toast({
         title: "Chyba",
         description: "Nepodařilo se změnit režim odesílání",
