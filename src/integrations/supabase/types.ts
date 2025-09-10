@@ -433,6 +433,41 @@ export type Database = {
           },
         ]
       }
+      EmailEvents: {
+        Row: {
+          email_id: string | null
+          event_timestamp: string | null
+          event_type: string
+          id: string
+          raw_data: Json | null
+          recipient_email: string
+        }
+        Insert: {
+          email_id?: string | null
+          event_timestamp?: string | null
+          event_type: string
+          id?: string
+          raw_data?: Json | null
+          recipient_email: string
+        }
+        Update: {
+          email_id?: string | null
+          event_timestamp?: string | null
+          event_type?: string
+          id?: string
+          raw_data?: Json | null
+          recipient_email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "EmailEvents_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "Emails"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       EmailLogs: {
         Row: {
           campaign_id: string | null
@@ -442,13 +477,15 @@ export type Database = {
           message_id: string | null
           opened_at: string | null
           payload: Json | null
+          project: string | null
           recipient: string | null
           recipient_email: string
           sent_at: string | null
           status: string | null
           subject: string | null
+          type: string | null
           updated_at: string | null
-          user_id: string | null
+          user_id: string
         }
         Insert: {
           campaign_id?: string | null
@@ -458,13 +495,15 @@ export type Database = {
           message_id?: string | null
           opened_at?: string | null
           payload?: Json | null
+          project?: string | null
           recipient?: string | null
           recipient_email: string
           sent_at?: string | null
           status?: string | null
           subject?: string | null
+          type?: string | null
           updated_at?: string | null
-          user_id?: string | null
+          user_id: string
         }
         Update: {
           campaign_id?: string | null
@@ -474,13 +513,15 @@ export type Database = {
           message_id?: string | null
           opened_at?: string | null
           payload?: Json | null
+          project?: string | null
           recipient?: string | null
           recipient_email?: string
           sent_at?: string | null
           status?: string | null
           subject?: string | null
+          type?: string | null
           updated_at?: string | null
-          user_id?: string | null
+          user_id?: string
         }
         Relationships: [
           {
