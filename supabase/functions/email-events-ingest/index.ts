@@ -102,6 +102,21 @@ const handler = async (req: Request): Promise<Response> => {
       .select()
       .single();
 
+    // Also insert into EmailLogs for tracking
+    const { error: logError } = await supabaseClient
+      .from('EmailLogs')
+      .insert({
+        user_id: emailRecord.user_id,
+        recipient_email: eventData.recipient_email,
+        status: eventData.event_type,
+        type: 'webhook_event',
+        subject: `Email ${eventData.event_type}`,
+        recipient: eventData.recipient_email,
+        payload: eventData
+      })
+      .select()
+      .single();
+
     // If there's a unique constraint violation (duplicate), we ignore it
     if (insertError && insertError.code === '23505') {
       console.log(`Duplicate email event ignored for message_id: ${eventData.message_id}, event_type: ${eventData.event_type}`);
