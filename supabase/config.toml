@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.send-email-resend]
 verify_jwt = false
+
+[functions.insert_opravo_job]
+verify_jwt = false
