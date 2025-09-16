@@ -17,7 +17,9 @@ export type Database = {
       AIRequests: {
         Row: {
           created_at: string
+          event_name: string | null
           id: string
+          metadata: Json | null
           project_id: string | null
           prompt: string
           response: string | null
@@ -27,7 +29,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          event_name?: string | null
           id?: string
+          metadata?: Json | null
           project_id?: string | null
           prompt: string
           response?: string | null
@@ -37,7 +41,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          event_name?: string | null
           id?: string
+          metadata?: Json | null
           project_id?: string | null
           prompt?: string
           response?: string | null
@@ -46,6 +52,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "AIRequests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "AIRequests_project_id_fkey"
             columns: ["project_id"]
@@ -87,6 +100,54 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          created_at: string
+          event_data: Json | null
+          event_name: string
+          id: string
+          ip_address: unknown | null
+          project_id: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          event_data?: Json | null
+          event_name: string
+          id?: string
+          ip_address?: unknown | null
+          project_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          event_data?: Json | null
+          event_name?: string
+          id?: string
+          ip_address?: unknown | null
+          project_id?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "audit_logs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       Autoresponses: {
         Row: {
@@ -296,6 +357,13 @@ export type Database = {
             foreignKeyName: "Campaigns_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "Campaigns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
             referencedRelation: "Projects"
             referencedColumns: ["id"]
           },
@@ -424,6 +492,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "Contacts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "Contacts_project_id_fkey"
             columns: ["project_id"]
@@ -577,6 +652,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "Emails_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "Emails_project_id_fkey"
             columns: ["project_id"]
@@ -824,6 +906,13 @@ export type Database = {
           zadavatel_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "opravojobs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
           {
             foreignKeyName: "opravojobs_project_id_fkey"
             columns: ["project_id"]
@@ -1076,6 +1165,13 @@ export type Database = {
             foreignKeyName: "UserPreferences_selected_project_id_fkey"
             columns: ["selected_project_id"]
             isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "UserPreferences_selected_project_id_fkey"
+            columns: ["selected_project_id"]
+            isOneToOne: false
             referencedRelation: "Projects"
             referencedColumns: ["id"]
           },
@@ -1083,7 +1179,17 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      onemill_reporting: {
+        Row: {
+          created_at: string | null
+          event_data: Json | null
+          event_name: string | null
+          id: string | null
+          project_id: string | null
+          project_name: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_safe_integration_data: {
