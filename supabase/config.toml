@@ -59,3 +59,9 @@ verify_jwt = false
 
 [functions.insert_opravo_job]
 verify_jwt = false
+
+[functions.sofinity-event]
+verify_jwt = false
+
+[functions.register-onemill-project]
+verify_jwt = false
