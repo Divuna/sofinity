@@ -314,6 +314,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           email_mode: string | null
+          event_id: string | null
           id: string
           name: string
           post: string | null
@@ -328,6 +329,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           email_mode?: string | null
+          event_id?: string | null
           id?: string
           name: string
           post?: string | null
@@ -342,6 +344,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           email_mode?: string | null
+          event_id?: string | null
           id?: string
           name?: string
           post?: string | null
@@ -353,6 +356,13 @@ export type Database = {
           video?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "Campaigns_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "EventLogs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "Campaigns_project_id_fkey"
             columns: ["project_id"]
@@ -403,6 +413,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "CampaignSchedule_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "Campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      CampaignStats: {
+        Row: {
+          campaign_id: string | null
+          clicks: number | null
+          conversions: number | null
+          created_at: string | null
+          id: string
+          impressions: number | null
+          revenue: number | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          clicks?: number | null
+          conversions?: number | null
+          created_at?: string | null
+          id?: string
+          impressions?: number | null
+          revenue?: number | null
+        }
+        Update: {
+          campaign_id?: string | null
+          clicks?: number | null
+          conversions?: number | null
+          created_at?: string | null
+          id?: string
+          impressions?: number | null
+          revenue?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "CampaignStats_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "Campaigns"
@@ -510,6 +558,7 @@ export type Database = {
       }
       EmailEvents: {
         Row: {
+          campaign_id: string | null
           email_id: string | null
           event_timestamp: string | null
           event_type: string
@@ -518,6 +567,7 @@ export type Database = {
           recipient_email: string
         }
         Insert: {
+          campaign_id?: string | null
           email_id?: string | null
           event_timestamp?: string | null
           event_type: string
@@ -526,6 +576,7 @@ export type Database = {
           recipient_email: string
         }
         Update: {
+          campaign_id?: string | null
           email_id?: string | null
           event_timestamp?: string | null
           event_type?: string
@@ -534,6 +585,13 @@ export type Database = {
           recipient_email?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "EmailEvents_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "Campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "EmailEvents_email_id_fkey"
             columns: ["email_id"]
@@ -661,6 +719,51 @@ export type Database = {
           },
           {
             foreignKeyName: "Emails_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      EventLogs: {
+        Row: {
+          contest_id: string | null
+          created_at: string
+          event_name: string
+          id: string
+          metadata: Json | null
+          project_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          contest_id?: string | null
+          created_at?: string
+          event_name: string
+          id?: string
+          metadata?: Json | null
+          project_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          contest_id?: string | null
+          created_at?: string
+          event_name?: string
+          id?: string
+          metadata?: Json | null
+          project_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "EventLogs_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "EventLogs_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "Projects"
