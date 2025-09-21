@@ -41,6 +41,7 @@ import ProjectDetail from "./pages/ProjectDetail";
 import Prispevky from "./pages/Prispevky";
 import EmailFeedback from "./pages/EmailFeedback";
 import Settings from "./pages/Settings";
+import OneMilSofinityTestSuite from "./pages/OneMilSofinityTestSuite";
 
 const queryClient = new QueryClient();
 
@@ -97,6 +98,7 @@ const App = () => (
             <Route path="/ai-assistant/:id" element={<AuthGuard><MainLayout><AIRequestDetail /></MainLayout></AuthGuard>} />
             <Route path="/knowledge-base" element={<AuthGuard><MainLayout><KnowledgeBase /></MainLayout></AuthGuard>} />
             <Route path="/setup-wizard" element={<AuthGuard><MainLayout><SetupWizard /></MainLayout></AuthGuard>} />
+            <Route path="/onemill-sofinity-test" element={<AuthGuard><MainLayout><OneMilSofinityTestSuite /></MainLayout></AuthGuard>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
