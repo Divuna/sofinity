@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.register-onemill-project]
 verify_jwt = false
+
+[functions.storage-soft-rollback]
+verify_jwt = false
