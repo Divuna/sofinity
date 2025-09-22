@@ -271,12 +271,12 @@ export default function OneMilSofinityTestSuite() {
     const validCampaignUsers = campaignUsers?.filter(c => userIds.has(c.user_id)).length || 0;
     const invalidCampaignUsers = (campaignUsers?.length || 0) - validCampaignUsers;
 
-    // Check for test user existence
-    const { data: testUser } = await supabase
+    // Check current user's profile exists
+    const { data: currentUserProfile } = await supabase
       .from('profiles')
       .select('user_id, email')
-      .eq('email', 'test@onemil.cz')
-      .single();
+      .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
+      .maybeSingle();
 
     // Check for contests (if table exists)
     let contestCheck = { valid: 0, invalid: 0, status: true };
@@ -353,7 +353,7 @@ export default function OneMilSofinityTestSuite() {
         total_events_7days: total7Days || 0,
         total_events_24hours: total24Hours || 0,
         event_distribution: {
-          test_user_exists: testUser ? 1 : 0,
+          current_user_profile_exists: currentUserProfile ? 1 : 0,
           contests_available: contestCheck.valid
         }
       }
@@ -467,9 +467,9 @@ export default function OneMilSofinityTestSuite() {
         passed_tests++;
       }
 
-      // Test User Check
-      if (dataIntegrity.historical_data.event_distribution.test_user_exists === 0) {
-        warnings.push('Test uživatel (test@onemil.cz) nebyl nalezen');
+      // Current User Profile Check
+      if (dataIntegrity.historical_data.event_distribution.current_user_profile_exists === 0) {
+        warnings.push('Profil aktuálního uživatele nebyl nalezen v databázi');
         warning_tests++;
       } else {
         passed_tests++;
@@ -492,8 +492,8 @@ export default function OneMilSofinityTestSuite() {
         recommendations.push('Implementujte všech 6 požadovaných event typů pro úplnou funkcionalnost');
       }
 
-      if (dataIntegrity.historical_data.event_distribution.test_user_exists === 0) {
-        recommendations.push('Vytvořte test uživatele (test@onemil.cz) pro testování funkcí');
+      if (dataIntegrity.historical_data.event_distribution.current_user_profile_exists === 0) {
+        recommendations.push('Zkontrolujte, zda je váš uživatelský profil správně nastaven v databázi');
       }
 
       if (dataIntegrity.json_metadata_validation.validation_rate < 95) {

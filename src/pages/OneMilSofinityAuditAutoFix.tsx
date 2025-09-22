@@ -342,11 +342,11 @@ export default function OneMilSofinityAuditAutoFix() {
   const runDataIntegrityTests = async (): Promise<DataIntegrityResult> => {
     setCurrentTest('🔗 Kontrola integrity dat a cizích klíčů...');
     
-    // Check test user existence
-    const { data: testUser } = await supabase
+    // Check current user profile exists
+    const { data: currentUserProfile } = await supabase
       .from('profiles')
       .select('user_id, email')
-      .eq('email', 'test@onemil.cz')
+      .eq('user_id', (await supabase.auth.getUser()).data.user?.id)
       .maybeSingle();
 
     // Check test contest existence
@@ -437,11 +437,11 @@ export default function OneMilSofinityAuditAutoFix() {
         validation_rate: (allEventLogs?.length || 0) > 0 ? (validJson / (allEventLogs?.length || 1)) * 100 : 0
       },
       test_data_status: {
-        test_user_exists: !!testUser,
-        test_user_id: testUser?.user_id || null,
+        test_user_exists: !!currentUserProfile,
+        test_user_id: currentUserProfile?.user_id || null,
         test_contest_exists: !!testContest,
         test_contest_id: testContest?.id || null,
-        test_profile_exists: !!testUser
+        test_profile_exists: !!currentUserProfile
       },
       historical_data: {
         total_events_7days: total7Days || 0,
@@ -461,29 +461,24 @@ export default function OneMilSofinityAuditAutoFix() {
     const issues: AuditIssue[] = [];
     let issueId = 1;
 
-    // 1. Missing test user in auth.users and profiles
+    // 1. Current user profile missing
     if (!integrityResult.test_data_status.test_user_exists) {
       issues.push({
         id: `ISSUE_${issueId++}`,
-        type: 'critical',
+        type: 'warning',
         category: 'test_data',
-        title: 'Test user missing',
-        description: 'Test user (test@onemil.cz) not found in profiles table. This is required for OneMil integration testing.',
-        impact: 'OneMil integration tests will fail without a test user',
-        sql_fix: `-- Create test user profile (requires auth.users entry to exist first)
-INSERT INTO public.profiles (user_id, email, name, role, onboarding_complete, created_at, updated_at)
-VALUES (
-    '00000000-0000-0000-0000-000000000001'::uuid,
-    'test@onemil.cz',
-    'Test User OneMil',
-    'team_lead',
-    true,
-    now(),
-    now()
-)
-ON CONFLICT (user_id) DO NOTHING;`,
-        verification_query: `SELECT user_id, email, name FROM profiles WHERE email = 'test@onemil.cz';`,
-        priority: 1
+        title: 'Current user profile missing',
+        description: 'Current user profile not found in profiles table. This may indicate RLS policy issues or missing profile creation.',
+        impact: 'User may experience authentication and data access issues',
+        sql_fix: `-- Verify current user profile exists
+-- This should be handled automatically by the handle_new_user() trigger
+-- If not working, check trigger configuration:
+SELECT user_id, email, name, role FROM profiles WHERE user_id = auth.uid();
+
+-- If profile is missing, it should be created automatically on user signup
+-- Check that the handle_new_user() trigger is properly configured`,
+        verification_query: `SELECT user_id, email, name FROM profiles WHERE user_id = auth.uid();`,
+        priority: 2
       });
     }
 
