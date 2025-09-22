@@ -111,7 +111,7 @@ export default function OneMilSofinityTestSuite() {
     // Expected critical column types for validation
     const expectedColumns = {
       'profiles': ['user_id:uuid', 'email:text', 'role:text', 'name:text'],
-      'EventLogs': ['event_name:text', 'user_id:uuid', 'metadata:jsonb', 'created_at:timestamp'],
+      'EventLogs': ['event_name:text', 'user_id:uuid', 'metadata:jsonb', 'timestamp:timestamp'],
       'audit_logs': ['user_id:uuid', 'event_name:text', 'event_data:jsonb', 'created_at:timestamp'],
       'Notifications': ['user_id:uuid', 'type:text', 'title:text', 'message:text'],
       'Campaigns': ['user_id:uuid', 'name:text', 'status:text', 'created_at:timestamp'],
@@ -195,16 +195,16 @@ export default function OneMilSofinityTestSuite() {
     // Fetch all events to analyze
     const { data: allEvents } = await supabase
       .from('EventLogs')
-      .select('event_name, metadata, created_at')
-      .order('created_at', { ascending: false })
+      .select('event_name, metadata, timestamp')
+      .order('timestamp', { ascending: false })
       .limit(1000);
 
     const events7Days = (allEvents || []).filter(e => 
-      new Date(e.created_at) >= new Date(sevenDaysAgo)
+      new Date(e.timestamp) >= new Date(sevenDaysAgo)
     );
 
     const events24Hours = (allEvents || []).filter(e => 
-      new Date(e.created_at) >= new Date(oneDayAgo)
+      new Date(e.timestamp) >= new Date(oneDayAgo)
     );
 
     // Count events per type for 7 days
@@ -322,12 +322,12 @@ export default function OneMilSofinityTestSuite() {
     const { count: total7Days } = await supabase
       .from('EventLogs')
       .select('*', { count: 'exact', head: true })
-      .gte('created_at', sevenDaysAgo);
+      .gte('timestamp', sevenDaysAgo);
     
     const { count: total24Hours } = await supabase
       .from('EventLogs')
       .select('*', { count: 'exact', head: true })
-      .gte('created_at', oneDayAgo);
+      .gte('timestamp', oneDayAgo);
 
     return {
       fk_integrity: {
@@ -366,15 +366,15 @@ export default function OneMilSofinityTestSuite() {
     // Get last 50 events for realtime monitoring
     const { data: recentEvents } = await supabase
       .from('EventLogs')
-      .select('event_name, user_id, created_at, project_id')
-      .order('created_at', { ascending: false })
+      .select('event_name, user_id, timestamp, project_id')
+      .order('timestamp', { ascending: false })
       .limit(50);
 
     return {
       last_50_events: (recentEvents || []).map(event => ({
         event_name: event.event_name,
         user_id: event.user_id,
-        timestamp: event.created_at,
+        timestamp: event.timestamp,
         project_id: event.project_id
       }))
     };
