@@ -16,6 +16,7 @@ import TeamFeedback from "./pages/TeamFeedback";
 import VersionTracker from "./pages/VersionTracker";
 import AIAssistant from "./pages/AIAssistant";
 import AIRequestDetail from "./pages/AIRequestDetail";
+import OneMilSofinityTestSuite from "./pages/OneMilSofinityTestSuite";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import SetupWizard from "./pages/SetupWizard";
 import NotFound from "./pages/NotFound";
@@ -41,7 +42,6 @@ import ProjectDetail from "./pages/ProjectDetail";
 import Prispevky from "./pages/Prispevky";
 import EmailFeedback from "./pages/EmailFeedback";
 import Settings from "./pages/Settings";
-import OneMilSofinityTestSuite from "./pages/OneMilSofinityTestSuite";
 
 const queryClient = new QueryClient();
 
@@ -96,9 +96,9 @@ const App = () => (
             <Route path="/version-tracker" element={<AuthGuard><MainLayout><VersionTracker /></MainLayout></AuthGuard>} />
             <Route path="/ai-assistant" element={<AuthGuard><MainLayout><AIAssistant /></MainLayout></AuthGuard>} />
             <Route path="/ai-assistant/:id" element={<AuthGuard><MainLayout><AIRequestDetail /></MainLayout></AuthGuard>} />
+            <Route path="/onemil-test-suite" element={<AuthGuard><MainLayout><OneMilSofinityTestSuite /></MainLayout></AuthGuard>} />
             <Route path="/knowledge-base" element={<AuthGuard><MainLayout><KnowledgeBase /></MainLayout></AuthGuard>} />
             <Route path="/setup-wizard" element={<AuthGuard><MainLayout><SetupWizard /></MainLayout></AuthGuard>} />
-            <Route path="/onemill-sofinity-test" element={<AuthGuard><MainLayout><OneMilSofinityTestSuite /></MainLayout></AuthGuard>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
