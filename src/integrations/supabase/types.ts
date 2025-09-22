@@ -1463,6 +1463,15 @@ export type Database = {
       }
     }
     Functions: {
+      check_fk_integrity_admin: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          invalid_count: number
+          status: boolean
+          table_name: string
+          valid_count: number
+        }[]
+      }
       get_safe_integration_data: {
         Args: { integration_id: string }
         Returns: Json
