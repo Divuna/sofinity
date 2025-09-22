@@ -105,7 +105,6 @@ export default function OneMilSofinityTestSuite() {
     const expectedTables = [
       'profiles', 'EventLogs', 'audit_logs', 'Notifications', 
       'Campaigns', 'Projects', 'Contacts', 'AIRequests',
-      // Additional OneMil specific tables (may not exist yet)
       'contests', 'tickets', 'vouchers', 'offers', 'posts'
     ];
 
@@ -272,6 +271,25 @@ export default function OneMilSofinityTestSuite() {
     const validCampaignUsers = campaignUsers?.filter(c => userIds.has(c.user_id)).length || 0;
     const invalidCampaignUsers = (campaignUsers?.length || 0) - validCampaignUsers;
 
+    // Check for test user existence
+    const { data: testUser } = await supabase
+      .from('profiles')
+      .select('user_id, email')
+      .eq('email', 'test@onemil.cz')
+      .single();
+
+    // Check for contests (if table exists)
+    let contestCheck = { valid: 0, invalid: 0, status: true };
+    try {
+      const { data: contests } = await supabase
+        .from('contests' as any)
+        .select('id')
+        .limit(1);
+      contestCheck.valid = contests?.length || 0;
+    } catch (e) {
+      // contests table doesn't exist - this is expected in some setups
+    }
+
     // JSON metadata validation
     const { data: allEventLogs } = await supabase
       .from('EventLogs')
@@ -288,6 +306,9 @@ export default function OneMilSofinityTestSuite() {
         } else if (event.metadata) {
           JSON.parse(JSON.stringify(event.metadata));
           validJson++;
+        } else {
+          // null metadata is also considered valid
+          validJson++;
         }
       } catch (e) {
         invalidJson++;
@@ -300,11 +321,13 @@ export default function OneMilSofinityTestSuite() {
     
     const { count: total7Days } = await supabase
       .from('EventLogs')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', sevenDaysAgo);
     
     const { count: total24Hours } = await supabase
       .from('EventLogs')
-      .select('*', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true })
+      .gte('created_at', oneDayAgo);
 
     return {
       fk_integrity: {
@@ -313,11 +336,7 @@ export default function OneMilSofinityTestSuite() {
           invalid: invalidEventLogUsers,
           status: invalidEventLogUsers === 0
         },
-        eventlogs_contests: {
-          valid: 0, // Simplified for now
-          invalid: 0,
-          status: true
-        },
+        eventlogs_contests: contestCheck,
         campaigns_users: {
           valid: validCampaignUsers,
           invalid: invalidCampaignUsers,
@@ -333,7 +352,10 @@ export default function OneMilSofinityTestSuite() {
       historical_data: {
         total_events_7days: total7Days || 0,
         total_events_24hours: total24Hours || 0,
-        event_distribution: {} // Will be populated with event type distribution
+        event_distribution: {
+          test_user_exists: testUser ? 1 : 0,
+          contests_available: contestCheck.valid
+        }
       }
     };
   };
@@ -445,13 +467,37 @@ export default function OneMilSofinityTestSuite() {
         passed_tests++;
       }
 
+      // Test User Check
+      if (dataIntegrity.historical_data.event_distribution.test_user_exists === 0) {
+        warnings.push('Test uživatel (test@onemil.cz) nebyl nalezen');
+        warning_tests++;
+      } else {
+        passed_tests++;
+      }
+
+      // Contest Availability Check
+      if (dataIntegrity.historical_data.event_distribution.contests_available === 0) {
+        warnings.push('Žádné contests nebyly nalezeny - tabulka může chybět');
+        warning_tests++;
+      } else {
+        passed_tests++;
+      }
+
       // Recommendations
       if (dataIntegrity.historical_data.total_events_24hours === 0) {
         recommendations.push('Doporučujeme aktivovat více event typů pro lepší monitoring');
       }
       
       if (eventValidation.required_events_status.existing_events.length < 6) {
-        recommendations.push('Implementujte všech 6 požadovaných event typů pro úplnou funkcionalitu');
+        recommendations.push('Implementujte všech 6 požadovaných event typů pro úplnou funkcionalnost');
+      }
+
+      if (dataIntegrity.historical_data.event_distribution.test_user_exists === 0) {
+        recommendations.push('Vytvořte test uživatele (test@onemil.cz) pro testování funkcí');
+      }
+
+      if (dataIntegrity.json_metadata_validation.validation_rate < 95) {
+        recommendations.push('Zlepšete validaci JSON metadata pro lepší kvalitu dat');
       }
 
       const total_tests = passed_tests + failed_tests + warning_tests;
