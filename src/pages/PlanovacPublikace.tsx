@@ -24,7 +24,7 @@ import {
   Youtube
 } from 'lucide-react';
 import { format } from 'date-fns';
-import { cs } from 'date-fns/locale';
+import { cs } from 'date-fns/locale/cs';
 
 interface Post {
   id: string;

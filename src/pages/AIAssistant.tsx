@@ -9,7 +9,7 @@ import { Bot, Loader2, MessageSquare, Clock, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
-import { cs } from 'date-fns/locale';
+import { cs } from 'date-fns/locale/cs';
 import { useSelectedProject } from '@/providers/ProjectProvider';
 
 interface AIRequest {

@@ -1,9 +1,12 @@
+import React, { Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProjectProvider } from "./providers/ProjectProvider";
+import ErrorBoundary from "./components/ErrorBoundary";
+import { useToast } from "@/hooks/use-toast";
 
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
@@ -19,7 +22,7 @@ import AIRequestDetail from "./pages/AIRequestDetail";
 import OneMilSofinityTestSuite from "./pages/OneMilSofinityTestSuite";
 import OneMilSofinityAuditAutoFix from "./pages/OneMilSofinityAuditAutoFix";
 import OneMilAudit from "./pages/OneMilAudit";
-import OneMilEmailGenerator from "./pages/OneMilEmailGenerator";
+const OneMilEmailGenerator = React.lazy(() => import("./pages/OneMilEmailGenerator"));
 import KnowledgeBase from "./pages/KnowledgeBase";
 import SetupWizard from "./pages/SetupWizard";
 import NotFound from "./pages/NotFound";
@@ -48,14 +51,35 @@ import Settings from "./pages/Settings";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ProjectProvider>
-      <TooltipProvider>
-        <BrowserRouter>
-          <Toaster />
-          <Sonner />
-          <Routes>
+const App = () => {
+  // Global error handlers
+  React.useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      console.error('Global error:', event.error);
+    };
+    
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled promise rejection:', event.reason);
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ProjectProvider>
+        <TooltipProvider>
+          <BrowserRouter>
+            <ErrorBoundary>
+              <Toaster />
+              <Sonner />
+              <Routes>
             <Route path="/auth" element={<Auth />} />
             <Route path="/" element={<Index />} />
             <Route path="/dashboard" element={<AuthGuard><MainLayout><Dashboard /></MainLayout></AuthGuard>} />
@@ -102,16 +126,26 @@ const App = () => (
             <Route path="/onemil-test-suite" element={<AuthGuard><MainLayout><OneMilSofinityTestSuite /></MainLayout></AuthGuard>} />
             <Route path="/onemil-audit-autofix" element={<AuthGuard><MainLayout><OneMilSofinityAuditAutoFix /></MainLayout></AuthGuard>} />
             <Route path="/onemil-audit" element={<AuthGuard><MainLayout><OneMilAudit /></MainLayout></AuthGuard>} />
-            <Route path="/onemil-email-generator" element={<AuthGuard><MainLayout><OneMilEmailGenerator /></MainLayout></AuthGuard>} />
+            <Route path="/onemil-email-generator" element={
+              <AuthGuard>
+                <MainLayout>
+                  <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+                    <OneMilEmailGenerator />
+                  </Suspense>
+                </MainLayout>
+              </AuthGuard>
+            } />
             <Route path="/knowledge-base" element={<AuthGuard><MainLayout><KnowledgeBase /></MainLayout></AuthGuard>} />
             <Route path="/setup-wizard" element={<AuthGuard><MainLayout><SetupWizard /></MainLayout></AuthGuard>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ProjectProvider>
-  </QueryClientProvider>
-);
+              </Routes>
+            </ErrorBoundary>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ProjectProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
