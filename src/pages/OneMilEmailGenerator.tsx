@@ -1632,6 +1632,195 @@ export default function OneMilEmailGenerator() {
           </CardContent>
         </Card>
 
+        {/* Scheduled Email Publishing Workflow */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5" />
+              Scheduled Email Publishing Workflow
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                Vyberte draft e-maily a nastavte automatickou publikaci ve stanovený čas. Systém bude kontrolovat každou minutu a publikuje e-maily přesně v naplánovaný čas.
+              </p>
+              
+              <div className="grid gap-6 lg:grid-cols-2">
+                {/* Email Scheduling */}
+                <div className="space-y-4">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <Send className="h-4 w-4" />
+                    Naplánovat publikaci e-mailu
+                  </h4>
+                  
+                  <div className="space-y-3">
+                    <Label>Vybrat draft e-mail</Label>
+                    <Select value={selectedScheduledEmail} onValueChange={setSelectedScheduledEmail}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Vyberte e-mail k naplánování..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {draftEmails.map((email) => (
+                          <SelectItem key={email.id} value={email.id}>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm font-medium">{email.subject}</span>
+                              <span className="text-xs text-muted-foreground">
+                                Vytvořen: {new Date(email.created_at).toLocaleDateString('cs-CZ')}
+                              </span>
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-3">
+                    <Label>Datum a čas publikace</Label>
+                    <Input
+                      type="datetime-local"
+                      value={newScheduledAt}
+                      onChange={(e) => setNewScheduledAt(e.target.value)}
+                      min={new Date().toISOString().slice(0, 16)}
+                    />
+                  </div>
+
+                  <Button 
+                    onClick={setEmailSchedule} 
+                    disabled={!selectedScheduledEmail || !newScheduledAt || schedulingLoading}
+                    className="w-full"
+                  >
+                    {schedulingLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Nastavuji plán...
+                      </>
+                    ) : (
+                      <>
+                        <Clock className="w-4 h-4 mr-2" />
+                        Naplánovat publikaci
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Scheduled Emails Overview */}
+                <div className="space-y-4">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Naplánované e-maily
+                  </h4>
+                  
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {scheduledEmails.length > 0 ? (
+                      scheduledEmails.map((email) => (
+                        <div key={email.id} className="p-3 border rounded-lg space-y-1">
+                          <div className="text-sm font-medium">{email.subject}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Publikace: {new Date(email.scheduled_at).toLocaleString('cs-CZ')}
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {email.status}
+                          </Badge>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-muted-foreground">
+                        <Clock className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs">Žádné naplánované e-maily</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={fetchScheduledEmails}
+                    className="w-full"
+                  >
+                    <Loader2 className="w-3 h-3 mr-2" />
+                    Aktualizovat seznam
+                  </Button>
+                </div>
+              </div>
+
+              {/* Scheduling Report */}
+              {schedulingReport && (
+                <div className="mt-6 p-4 border rounded-lg space-y-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-green-600" />
+                    Report publikace naplánovaných e-mailů
+                  </h4>
+                  
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">
+                        {schedulingReport.successfulPublications}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Úspěšně publikované
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-destructive">
+                        {schedulingReport.failedPublications}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Neúspěšné publikace
+                      </div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold">
+                        {schedulingReport.totalScheduled}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        Celkem zpracovaných
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Detaily publikací:</div>
+                    <div className="max-h-32 overflow-y-auto space-y-1">
+                      {schedulingReport.results.map((result, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs p-2 border rounded">
+                          <span className="truncate flex-1">{result.emailSubject}</span>
+                          <Badge variant={result.success ? "default" : "destructive"} className="ml-2">
+                            {result.success ? "✓" : "✗"}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    Poslední kontrola: {new Date(schedulingReport.lastCheck).toLocaleString('cs-CZ')}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => window.open('/emails', '_blank')}
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Zkontrolovat e-maily
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => window.open('/notifications', '_blank')}
+                    >
+                      <Bell className="w-4 h-4 mr-2" />
+                      Zkontrolovat notifikace
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Campaign Selection */}
           <Card>
