@@ -7,9 +7,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell, Send, Clock, FileText, Camera } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { fromZonedTime, toZonedTime } from 'date-fns-tz';
+import { cs } from 'date-fns/locale';
 
 interface Campaign {
   id: string;
@@ -104,6 +108,27 @@ interface SchedulingReport {
 }
 
 const ONEMIL_PROJECT_ID = 'defababe-004b-4c63-9ff1-311540b0a3c9';
+const PRAGUE_TIMEZONE = 'Europe/Prague';
+
+// Timezone utility functions
+const convertLocalToPragueTime = (localDateTime: string): Date => {
+  // Input is from datetime-local which gives local time
+  const localDate = new Date(localDateTime);
+  // Convert to Prague timezone (this handles DST automatically)
+  return fromZonedTime(localDate, PRAGUE_TIMEZONE);
+};
+
+const convertUtcToPragueTime = (utcDateTime: string): string => {
+  const utcDate = parseISO(utcDateTime);
+  const pragueTime = toZonedTime(utcDate, PRAGUE_TIMEZONE);
+  return format(pragueTime, 'yyyy-MM-dd\'T\'HH:mm', { locale: cs });
+};
+
+const formatPragueTime = (utcDateTime: string): string => {
+  const utcDate = parseISO(utcDateTime);
+  const pragueTime = toZonedTime(utcDate, PRAGUE_TIMEZONE);
+  return format(pragueTime, 'dd.MM.yyyy HH:mm', { locale: cs });
+};
 
 export default function OneMilEmailGenerator() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -116,7 +141,7 @@ export default function OneMilEmailGenerator() {
   
   // Publishing workflow state
   const [draftEmails, setDraftEmails] = useState<DraftEmail[]>([]);
-  const [selectedDraftEmail, setSelectedDraftEmail] = useState<string>('');
+  const [selectedDraftEmails, setSelectedDraftEmails] = useState<string[]>([]);
   const [scheduledAt, setScheduledAt] = useState<string>('');
   const [publishingLoading, setPublishingLoading] = useState(false);
   const [publishingResult, setPublishingResult] = useState<PublishingResult | null>(null);
@@ -683,10 +708,10 @@ export default function OneMilEmailGenerator() {
   };
 
   const publishEmailImmediately = async () => {
-    if (!selectedDraftEmail) {
+    if (selectedDraftEmails.length === 0) {
       toast({
         title: "Chyba",
-        description: "Vyberte e-mail pro publikaci",
+        description: "Vyberte alespoň jeden e-mail pro publikaci",
         variant: "destructive"
       });
       return;
@@ -699,14 +724,89 @@ export default function OneMilEmailGenerator() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Uživatel není přihlášen');
 
-      const selectedEmail = draftEmails.find(email => email.id === selectedDraftEmail);
-      if (!selectedEmail) throw new Error('E-mail nenalezen');
+      // Validate emails belong to user
+      const { data: userEmails, error: validationError } = await supabase
+        .from('Emails')
+        .select('id, subject')
+        .in('id', selectedDraftEmails)
+        .eq('user_id', user.id)
+        .eq('status', 'draft');
 
-      // Step 1: Update email status to 'sent'
+      if (validationError) throw validationError;
+      if (userEmails.length !== selectedDraftEmails.length) {
+        throw new Error('Některé vybrané e-maily vám nepatří nebo již nejsou ve stavu draft');
+      }
+
+      // Update email statuses
       const { error: emailError } = await supabase
         .from('Emails')
         .update({ status: 'sent', updated_at: new Date().toISOString() })
-        .eq('id', selectedDraftEmail);
+        .in('id', selectedDraftEmails)
+        .eq('user_id', user.id);
+
+      if (emailError) throw emailError;
+
+      // Create notifications and audit logs
+      const notifications = [];
+      const auditLogs = [];
+      
+      for (const email of userEmails) {
+        notifications.push({
+          user_id: user.id,
+          type: 'email_published',
+          title: 'E-mail publikován',
+          message: `E-mail "${email.subject}" byl úspěšně publikován.`
+        });
+
+        auditLogs.push({
+          user_id: user.id,
+          project_id: ONEMIL_PROJECT_ID,
+          event_name: 'email_published',
+          event_data: {
+            email_id: email.id,
+            email_subject: email.subject,
+            publication_type: 'immediate',
+            published_at: new Date().toISOString()
+          }
+        });
+      }
+
+      await supabase.from('Notifications').insert(notifications);
+      await supabase.from('audit_logs').insert(auditLogs);
+
+      setPublishingResult({
+        emailUpdated: true,
+        notificationSent: true,
+        auditLogged: true
+      });
+
+      toast({
+        title: "🎉 Publikace úspěšná!",
+        description: `${selectedDraftEmails.length} e-mail${selectedDraftEmails.length > 1 ? 'ů' : ''} bylo úspěšně publikováno`,
+      });
+
+      setSelectedDraftEmails([]);
+      await fetchDraftEmails();
+
+    } catch (error: any) {
+      console.error('Publishing failed:', error);
+      
+      setPublishingResult({
+        emailUpdated: false,
+        notificationSent: false,
+        auditLogged: false,
+        error: error.message
+      });
+
+      toast({
+        title: "❌ Publikace selhala",
+        description: error.message || "Nepodařilo se publikovat e-maily",
+        variant: "destructive"
+      });
+    } finally {
+      setPublishingLoading(false);
+    }
+  };
 
       if (emailError) throw new Error(`Email update error: ${emailError.message}`);
 
