@@ -1974,112 +1974,6 @@ export default function OneMilEmailGenerator() {
             </div>
           </CardContent>
         </Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5" />
-              Email & Notification Publishing Workflow
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <p className="text-sm text-muted-foreground">
-                Vyberte draft e-mail z OneMil projektu a nastavte datum publikace nebo publikujte okamžitě.
-              </p>
-              
-              <div className="grid gap-4 md:grid-cols-2">
-                {/* Draft Email Selection */}
-                <div className="space-y-3">
-                  <Label>Draft e-maily (OneMil projekt)</Label>
-                  <div className="text-sm text-muted-foreground mb-2">
-                    Tato sekce byla nahrazena komplexním workflow výše
-                  </div>
-                </div>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Vyberte draft e-mail..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {draftEmails.map((email) => (
-                        <SelectItem key={email.id} value={email.id}>
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-xs">
-                              {email.type}
-                            </Badge>
-                            <span className="truncate max-w-48">{email.subject}</span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  
-                  {draftEmails.length === 0 && (
-                    <div className="text-center py-4 text-muted-foreground">
-                      <FileText className="h-6 w-6 mx-auto mb-2 opacity-50" />
-                      <p className="text-xs">Žádné draft e-maily nenalezeny</p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Scheduled Publication */}
-                <div className="space-y-3">
-                  <Label>Datum a čas publikace (volitelné)</Label>
-                  <Input
-                    type="datetime-local"
-                    value={scheduledAt}
-                    onChange={(e) => setScheduledAt(e.target.value)}
-                    min={new Date().toISOString().slice(0, 16)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Pokud nevyplníte, použije se okamžitá publikace
-                  </p>
-                </div>
-              </div>
-
-              {selectedDraftEmails.length > 0 && selectedDraftEmails[0] && (
-                <div className="p-4 bg-muted rounded-lg">
-                  <h4 className="font-medium mb-2">Náhled vybraného e-mailu:</h4>
-                  {(() => {
-                    const email = draftEmails.find(e => e.id === selectedDraftEmails[0]);
-                    return email ? (
-                      <div className="text-sm space-y-1">
-                        <p><strong>Předmět:</strong> {email.subject}</p>
-                        <p><strong>Typ:</strong> {email.type}</p>
-                        <p><strong>Vytvořen:</strong> {new Date(email.created_at).toLocaleString('cs-CZ')}</p>
-                      </div>
-                    ) : null;
-                  })()}
-                </div>
-              )}
-
-              <div className="flex gap-2">
-                <Button 
-                  onClick={publishEmailImmediately}
-                  disabled={selectedDraftEmails.length === 0 || publishingLoading}
-                  className="flex-1"
-                >
-                  {publishingLoading ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Publikuji...
-                    </>
-                  ) : (
-                    <>
-                      <Send className="w-4 h-4 mr-2" />
-                      Publikovat okamžitě
-                    </>
-                  )}
-                </Button>
-                <Button 
-                  onClick={scheduleEmailPublication}
-                  disabled={selectedDraftEmails.length === 0 || !scheduledAt}
-                  variant="outline"
-                >
-                  <Clock className="w-4 h-4 mr-2" />
-                  Naplánovat
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
 
         {/* Enhanced Scheduled Email Publishing Workflow */}
                 <Button 
@@ -2453,6 +2347,8 @@ export default function OneMilEmailGenerator() {
             </div>
           </CardContent>
         </Card>
+
+        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Campaign Selection */}
