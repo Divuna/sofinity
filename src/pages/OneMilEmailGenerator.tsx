@@ -52,6 +52,28 @@ interface PublishingResult {
   error?: string;
 }
 
+interface BatchProcessingResult {
+  campaignId: string;
+  campaignName: string;
+  emailGenerated: boolean;
+  emailId?: string;
+  emailPublished: boolean;
+  notificationSent: boolean;
+  auditLogged: boolean;
+  error?: string;
+}
+
+interface BatchReportResult {
+  totalCampaigns: number;
+  processedCampaigns: number;
+  successCount: number;
+  errorCount: number;
+  results: BatchProcessingResult[];
+  startTime: string;
+  endTime: string;
+  duration: number;
+}
+
 const ONEMIL_PROJECT_ID = 'defababe-004b-4c63-9ff1-311540b0a3c9';
 
 export default function OneMilEmailGenerator() {
@@ -69,6 +91,11 @@ export default function OneMilEmailGenerator() {
   const [scheduledAt, setScheduledAt] = useState<string>('');
   const [publishingLoading, setPublishingLoading] = useState(false);
   const [publishingResult, setPublishingResult] = useState<PublishingResult | null>(null);
+  
+  // Batch processing state
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchReport, setBatchReport] = useState<BatchReportResult | null>(null);
+  const [batchScheduledAt, setBatchScheduledAt] = useState<string>('');
   
   const { toast } = useToast();
 
@@ -569,6 +596,217 @@ export default function OneMilEmailGenerator() {
     }
   };
 
+  const runBatchEmailWorkflow = async () => {
+    setBatchProcessing(true);
+    setBatchReport(null);
+
+    const startTime = new Date().toISOString();
+    const results: BatchProcessingResult[] = [];
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
+      // Step 1: Fetch all draft campaigns from OneMil project
+      const { data: allCampaigns, error: campaignError } = await supabase
+        .from('Campaigns')
+        .select('*')
+        .eq('project_id', ONEMIL_PROJECT_ID)
+        .eq('status', 'draft')
+        .order('created_at', { ascending: false });
+
+      if (campaignError) throw new Error(`Campaign fetch error: ${campaignError.message}`);
+      if (!allCampaigns || allCampaigns.length === 0) {
+        throw new Error('Žádné draft kampaně nenalezeny');
+      }
+
+      // Step 2: Process each campaign
+      for (const campaign of allCampaigns) {
+        const result: BatchProcessingResult = {
+          campaignId: campaign.id,
+          campaignName: campaign.name,
+          emailGenerated: false,
+          emailPublished: false,
+          notificationSent: false,
+          auditLogged: false
+        };
+
+        try {
+          // Generate email content for this campaign
+          const campaignData = {
+            name: campaign.name,
+            targeting: campaign.targeting,
+            existing_email: campaign.email,
+            post_content: campaign.post,
+            video_content: campaign.video
+          };
+
+          const emailContent = generateCzechMarketingEmail(campaignData);
+          result.emailGenerated = true;
+
+          // Save email as draft
+          const { data: emailData, error: emailSaveError } = await supabase
+            .from('Emails')
+            .insert({
+              user_id: user.id,
+              project_id: ONEMIL_PROJECT_ID,
+              project: 'OneMil',
+              type: 'batch_marketing_campaign',
+              subject: emailContent.subject,
+              content: emailContent.content,
+              status: 'draft',
+              email_mode: 'production',
+              recipient: `batch-campaign-${campaign.id}@onemill.cz`
+            })
+            .select('id')
+            .single();
+
+          if (emailSaveError) throw new Error(`Email save error: ${emailSaveError.message}`);
+          result.emailId = emailData.id;
+
+          // Determine publication time
+          const shouldPublishNow = !batchScheduledAt || new Date(batchScheduledAt) <= new Date();
+
+          if (shouldPublishNow) {
+            // Publish immediately
+            const { error: emailUpdateError } = await supabase
+              .from('Emails')
+              .update({ status: 'sent', updated_at: new Date().toISOString() })
+              .eq('id', emailData.id);
+
+            if (emailUpdateError) throw new Error(`Email publish error: ${emailUpdateError.message}`);
+            result.emailPublished = true;
+
+            // Create notification
+            const { error: notificationError } = await supabase
+              .from('Notifications')
+              .insert({
+                user_id: user.id,
+                type: 'info',
+                title: 'Batch e-mail publikován',
+                message: `E-mail pro kampaň "${campaign.name}" byl úspěšně publikován v rámci batch workflow.`,
+                read: false
+              });
+
+            if (notificationError) throw new Error(`Notification error: ${notificationError.message}`);
+            result.notificationSent = true;
+          }
+
+          // Log to audit_logs
+          const { error: auditError } = await supabase
+            .from('audit_logs')
+            .insert({
+              user_id: user.id,
+              project_id: ONEMIL_PROJECT_ID,
+              event_name: 'batch_email_processed',
+              event_data: {
+                campaign_id: campaign.id,
+                campaign_name: campaign.name,
+                email_id: emailData.id,
+                email_subject: emailContent.subject,
+                published_immediately: shouldPublishNow,
+                scheduled_at: batchScheduledAt || null,
+                processed_at: new Date().toISOString(),
+                result: 'success'
+              }
+            });
+
+          if (auditError) throw new Error(`Audit log error: ${auditError.message}`);
+          result.auditLogged = true;
+
+        } catch (error) {
+          result.error = error.message;
+          console.error(`Error processing campaign ${campaign.id}:`, error);
+
+          // Log error to audit_logs
+          try {
+            await supabase
+              .from('audit_logs')
+              .insert({
+                user_id: user.id,
+                project_id: ONEMIL_PROJECT_ID,
+                event_name: 'batch_email_error',
+                event_data: {
+                  campaign_id: campaign.id,
+                  campaign_name: campaign.name,
+                  error: error.message,
+                  processed_at: new Date().toISOString(),
+                  result: 'error'
+                }
+              });
+          } catch (logError) {
+            console.error('Failed to log error to audit_logs:', logError);
+          }
+        }
+
+        results.push(result);
+      }
+
+      const endTime = new Date().toISOString();
+      const duration = new Date(endTime).getTime() - new Date(startTime).getTime();
+
+      const report: BatchReportResult = {
+        totalCampaigns: allCampaigns.length,
+        processedCampaigns: results.length,
+        successCount: results.filter(r => !r.error).length,
+        errorCount: results.filter(r => r.error).length,
+        results,
+        startTime,
+        endTime,
+        duration
+      };
+
+      setBatchReport(report);
+
+      toast({
+        title: "🎉 Batch workflow dokončen!",
+        description: `Zpracováno ${report.processedCampaigns} kampaní, ${report.successCount} úspěšných, ${report.errorCount} chyb`,
+      });
+
+      // Refresh draft emails list
+      await fetchDraftEmails();
+
+    } catch (error) {
+      console.error('Batch workflow failed:', error);
+      
+      const endTime = new Date().toISOString();
+      const duration = new Date(endTime).getTime() - new Date(startTime).getTime();
+
+      const report: BatchReportResult = {
+        totalCampaigns: 0,
+        processedCampaigns: results.length,
+        successCount: 0,
+        errorCount: results.length,
+        results,
+        startTime,
+        endTime,
+        duration
+      };
+
+      if (results.length === 0) {
+        report.results.push({
+          campaignId: 'unknown',
+          campaignName: 'Batch workflow',
+          emailGenerated: false,
+          emailPublished: false,
+          notificationSent: false,
+          auditLogged: false,
+          error: error.message
+        });
+      }
+
+      setBatchReport(report);
+
+      toast({
+        title: "❌ Batch workflow selhal",
+        description: error.message || "Nepodařilo se dokončit batch e-mail workflow",
+        variant: "destructive"
+      });
+    } finally {
+      setBatchProcessing(false);
+    }
+  };
+
   const runAutonomousWorkflowTest = async () => {
     if (campaigns.length === 0) {
       toast({
@@ -765,6 +1003,184 @@ export default function OneMilEmailGenerator() {
                         Chyba: {testResult.error}
                       </div>
                     )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => window.open('/emails', '_blank')}
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Zkontrolovat e-maily
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => window.open('/notifications', '_blank')}
+                    >
+                      <Bell className="w-4 h-4 mr-2" />
+                      Zkontrolovat notifikace
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Batch Email Generation & Publishing Workflow */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Batch Email Generation & Publishing Workflow
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                Automaticky zpracuje všechny draft kampaně z OneMil projektu - vygeneruje e-maily, publikuje je a zaloguje všechny akce.
+              </p>
+              
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-3">
+                  <Label>Plánované datum publikace (volitelné)</Label>
+                  <Input
+                    type="datetime-local"
+                    value={batchScheduledAt}
+                    onChange={(e) => setBatchScheduledAt(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Pokud nevyplníte, e-maily se publikují okamžitě
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <Label>Předpokládané kampaně</Label>
+                  <div className="p-3 bg-muted rounded-lg">
+                    <p className="text-sm font-medium">{campaigns.length} draft kampaní</p>
+                    <p className="text-xs text-muted-foreground">
+                      Projekt: OneMil (defababe-004b-4c63-9ff1-311540b0a3c9)
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <Button 
+                onClick={runBatchEmailWorkflow}
+                disabled={batchProcessing || campaigns.length === 0}
+                className="w-full"
+                size="lg"
+              >
+                {batchProcessing ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Zpracovávám batch workflow...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-5 h-5 mr-2" />
+                    Spustit batch e-mail workflow ({campaigns.length} kampaní)
+                  </>
+                )}
+              </Button>
+
+              {/* Batch Report Results */}
+              {batchReport && (
+                <div className="mt-6 p-4 border rounded-lg space-y-4">
+                  <h4 className="font-medium flex items-center gap-2">
+                    {batchReport.errorCount > 0 ? (
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    )}
+                    Batch Workflow Report
+                  </h4>
+                  
+                  {/* Summary */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Celkem kampaní</p>
+                      <p className="font-bold text-lg">{batchReport.totalCampaigns}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Úspěšných</p>
+                      <p className="font-bold text-lg text-green-600">{batchReport.successCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Chyb</p>
+                      <p className="font-bold text-lg text-destructive">{batchReport.errorCount}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Doba trvání</p>
+                      <p className="font-bold text-lg">{Math.round(batchReport.duration / 1000)}s</p>
+                    </div>
+                  </div>
+
+                  {/* Detailed Results */}
+                  <div className="space-y-2">
+                    <h5 className="font-medium">Detailní výsledky:</h5>
+                    <div className="max-h-64 overflow-y-auto space-y-2">
+                      {batchReport.results.map((result, index) => (
+                        <div key={index} className="p-3 bg-muted rounded text-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-medium truncate">{result.campaignName}</span>
+                            <Badge variant={result.error ? "destructive" : "default"}>
+                              {result.error ? "Chyba" : "Úspěch"}
+                            </Badge>
+                          </div>
+                          
+                          <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="flex items-center gap-1">
+                              <span>E-mail vygenerován:</span>
+                              {result.emailGenerated ? (
+                                <CheckCircle className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <XCircle className="h-3 w-3 text-destructive" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span>E-mail publikován:</span>
+                              {result.emailPublished ? (
+                                <CheckCircle className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <XCircle className="h-3 w-3 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span>Notifikace:</span>
+                              {result.notificationSent ? (
+                                <CheckCircle className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <XCircle className="h-3 w-3 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span>Audit log:</span>
+                              {result.auditLogged ? (
+                                <CheckCircle className="h-3 w-3 text-green-600" />
+                              ) : (
+                                <XCircle className="h-3 w-3 text-destructive" />
+                              )}
+                            </div>
+                          </div>
+
+                          {result.emailId && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              E-mail ID: {result.emailId}
+                            </div>
+                          )}
+
+                          {result.error && (
+                            <div className="text-xs text-destructive bg-destructive/10 p-2 rounded mt-1">
+                              Chyba: {result.error}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
 
                   <div className="flex gap-2 pt-2">
