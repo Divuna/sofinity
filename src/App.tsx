@@ -18,6 +18,7 @@ import AIAssistant from "./pages/AIAssistant";
 import AIRequestDetail from "./pages/AIRequestDetail";
 import OneMilSofinityTestSuite from "./pages/OneMilSofinityTestSuite";
 import OneMilSofinityAuditAutoFix from "./pages/OneMilSofinityAuditAutoFix";
+import OneMilAudit from "./pages/OneMilAudit";
 import KnowledgeBase from "./pages/KnowledgeBase";
 import SetupWizard from "./pages/SetupWizard";
 import NotFound from "./pages/NotFound";
@@ -99,6 +100,7 @@ const App = () => (
             <Route path="/ai-assistant/:id" element={<AuthGuard><MainLayout><AIRequestDetail /></MainLayout></AuthGuard>} />
             <Route path="/onemil-test-suite" element={<AuthGuard><MainLayout><OneMilSofinityTestSuite /></MainLayout></AuthGuard>} />
             <Route path="/onemil-audit-autofix" element={<AuthGuard><MainLayout><OneMilSofinityAuditAutoFix /></MainLayout></AuthGuard>} />
+            <Route path="/onemil-audit" element={<AuthGuard><MainLayout><OneMilAudit /></MainLayout></AuthGuard>} />
             <Route path="/knowledge-base" element={<AuthGuard><MainLayout><KnowledgeBase /></MainLayout></AuthGuard>} />
             <Route path="/setup-wizard" element={<AuthGuard><MainLayout><SetupWizard /></MainLayout></AuthGuard>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

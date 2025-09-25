@@ -49,6 +49,7 @@ const navigation = [
 const advancedNavigation = [
   { name: 'AI Asistent', href: '/ai-assistant', icon: Bot },
   { name: 'OneMil Test Suite', href: '/onemil-test-suite', icon: BrainCircuit },
+  { name: 'OneMil Audit', href: '/onemil-audit', icon: Database },
   { name: 'Notifikace', href: '/notifications', icon: Bell },
   { name: 'Týmová zpětná vazba', href: '/team-feedback', icon: MessageSquare },
   { name: 'Historie verzí', href: '/version-tracker', icon: FileText },
