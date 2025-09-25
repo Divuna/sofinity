@@ -1955,8 +1955,25 @@ export default function OneMilEmailGenerator() {
           </CardContent>
         </Card>
 
-        {/* Email & Notification Publishing Workflow */}
+        {/* Email & Notification Publishing Workflow - Simplified */}
         <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Email & Notification Publishing Workflow
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Tato sekce byla nahrazena pokročilým workflow výše pro lepší funkcionalitu.
+              </p>
+              <div className="p-4 bg-muted/50 rounded-lg text-center">
+                <p className="text-sm">Použijte "Kompletní Scheduled Email Workflow" sekci výše pro publikaci e-mailů.</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Send className="h-5 w-5" />
@@ -2017,11 +2034,11 @@ export default function OneMilEmailGenerator() {
                 </div>
               </div>
 
-              {selectedDraftEmail && (
+              {selectedDraftEmails.length > 0 && selectedDraftEmails[0] && (
                 <div className="p-4 bg-muted rounded-lg">
                   <h4 className="font-medium mb-2">Náhled vybraného e-mailu:</h4>
                   {(() => {
-                    const email = draftEmails.find(e => e.id === selectedDraftEmail);
+                    const email = draftEmails.find(e => e.id === selectedDraftEmails[0]);
                     return email ? (
                       <div className="text-sm space-y-1">
                         <p><strong>Předmět:</strong> {email.subject}</p>
@@ -2033,8 +2050,38 @@ export default function OneMilEmailGenerator() {
                 </div>
               )}
 
-              {/* Action Buttons */}
-              <div className="flex gap-3">
+              <div className="flex gap-2">
+                <Button 
+                  onClick={publishEmailImmediately}
+                  disabled={selectedDraftEmails.length === 0 || publishingLoading}
+                  className="flex-1"
+                >
+                  {publishingLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Publikuji...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Publikovat okamžitě
+                    </>
+                  )}
+                </Button>
+                <Button 
+                  onClick={scheduleEmailPublication}
+                  disabled={selectedDraftEmails.length === 0 || !scheduledAt}
+                  variant="outline"
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  Naplánovat
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Enhanced Scheduled Email Publishing Workflow */}
                 <Button 
                   onClick={publishEmailImmediately}
                   disabled={selectedDraftEmails.length === 0 || publishingLoading}
