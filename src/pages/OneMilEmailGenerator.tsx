@@ -7,10 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell, Send, Clock, FileText, Camera, Calendar, Users, TestTube } from 'lucide-react';
+import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell, Send, Clock, FileText, Camera } from 'lucide-react';
 
 interface Campaign {
   id: string;
@@ -50,15 +49,6 @@ interface PublishingResult {
   emailUpdated: boolean;
   notificationSent: boolean;
   auditLogged: boolean;
-  successCount?: number;
-  errorCount?: number;
-  results?: Array<{
-    emailId: string;
-    subject: string;
-    success: boolean;
-    notificationId?: string;
-    error?: string;
-  }>;
   error?: string;
 }
 
@@ -124,14 +114,12 @@ export default function OneMilEmailGenerator() {
   const [testRunning, setTestRunning] = useState(false);
   const [testResult, setTestResult] = useState<WorkflowTestResult | null>(null);
   
-  // Enhanced Publishing workflow state
+  // Publishing workflow state
   const [draftEmails, setDraftEmails] = useState<DraftEmail[]>([]);
-  const [selectedDraftEmails, setSelectedDraftEmails] = useState<string[]>([]);
+  const [selectedDraftEmail, setSelectedDraftEmail] = useState<string>('');
   const [scheduledAt, setScheduledAt] = useState<string>('');
   const [publishingLoading, setPublishingLoading] = useState(false);
   const [publishingResult, setPublishingResult] = useState<PublishingResult | null>(null);
-  const [workflowTesting, setWorkflowTesting] = useState(false);
-  const [workflowTestResults, setWorkflowTestResults] = useState<any>(null);
   
   // Batch processing state
   const [batchProcessing, setBatchProcessing] = useState(false);
@@ -743,7 +731,7 @@ export default function OneMilEmailGenerator() {
           project_id: ONEMIL_PROJECT_ID,
           event_name: 'email_published',
           event_data: {
-            email_id: selectedDraftEmails[0],
+            email_id: selectedDraftEmail,
             email_subject: selectedEmail.subject,
             publication_type: 'immediate',
             published_at: new Date().toISOString(),
@@ -953,394 +941,68 @@ export default function OneMilEmailGenerator() {
     }
   };
 
-  // Convert Prague timezone to UTC
-  const convertPragueToUTC = (pragueTimeString: string): string => {
-    if (!pragueTimeString) return '';
-    
-    // Create date object assuming Prague timezone
-    const pragueDate = new Date(pragueTimeString);
-    
-    // Prague is UTC+1 (UTC+2 during daylight saving time)
-    // For simplicity, we'll assume UTC+1 (you can enhance this with proper timezone library)
-    const utcTime = new Date(pragueDate.getTime() - (1 * 60 * 60 * 1000));
-    
-    return utcTime.toISOString();
-  };
-
-  // Convert UTC to Prague timezone for display
-  const convertUTCToPrague = (utcTimeString: string): string => {
-    if (!utcTimeString) return '';
-    
-    const utcDate = new Date(utcTimeString);
-    const pragueTime = new Date(utcDate.getTime() + (1 * 60 * 60 * 1000));
-    
-    return pragueTime.toISOString().slice(0, 16);
-  };
-
-  // Enhanced email scheduling with multiple selection and UTC conversion
   const scheduleEmailPublication = async () => {
-    if (selectedDraftEmails.length === 0) {
+    if (!selectedDraftEmail || !scheduledAt) {
       toast({
         title: "Chyba",
-        description: "Vyberte alespoň jeden e-mail",
+        description: "Vyberte e-mail a nastavte datum publikace",
         variant: "destructive"
       });
       return;
     }
 
-    // Validate if scheduling time or immediate publication
-    const isImmediate = !scheduledAt;
-    let utcScheduledTime = '';
-    
-    if (!isImmediate) {
-      const scheduledDate = new Date(scheduledAt);
-      const now = new Date();
+    const scheduledDate = new Date(scheduledAt);
+    const now = new Date();
 
-      if (scheduledDate <= now) {
-        toast({
-          title: "Chyba",
-          description: "Datum publikace musí být v budoucnosti",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      utcScheduledTime = convertPragueToUTC(scheduledAt);
+    if (scheduledDate <= now) {
+      toast({
+        title: "Chyba",
+        description: "Datum publikace musí být v budoucnosti",
+        variant: "destructive"
+      });
+      return;
     }
-
-    setPublishingLoading(true);
-    setPublishingResult(null);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Uživatel není přihlášen');
 
-      const results = [];
-      let successCount = 0;
-      let errorCount = 0;
+      const selectedEmail = draftEmails.find(email => email.id === selectedDraftEmail);
+      if (!selectedEmail) throw new Error('E-mail nenalezen');
 
-      // Process each selected email
-      for (const emailId of selectedDraftEmails) {
-        try {
-          const selectedEmail = draftEmails.find(email => email.id === emailId);
-          if (!selectedEmail) {
-            throw new Error(`E-mail s ID ${emailId} nenalezen`);
+      // Log scheduled publication to audit_logs
+      const { error: auditError } = await supabase
+        .from('audit_logs')
+        .insert({
+          user_id: user.id,
+          project_id: ONEMIL_PROJECT_ID,
+          event_name: 'email_scheduled',
+          event_data: {
+            email_id: selectedDraftEmail,
+            email_subject: selectedEmail.subject,
+            scheduled_at: scheduledAt,
+            scheduled_by: user.id,
+            created_at: new Date().toISOString()
           }
+        });
 
-          // Validate email belongs to user
-          if (selectedEmail.project !== 'OneMil') {
-            throw new Error(`E-mail ${emailId} nepatří do projektu OneMil`);
-          }
-
-          let emailUpdateData: any = {};
-          
-          if (isImmediate) {
-            // Immediate publication
-            emailUpdateData = {
-              status: 'sent',
-              updated_at: new Date().toISOString()
-            };
-          } else {
-            // Scheduled publication
-            emailUpdateData = {
-              scheduled_at: utcScheduledTime,
-              updated_at: new Date().toISOString()
-            };
-          }
-
-          // Update email in database
-          const { error: emailUpdateError } = await supabase
-            .from('Emails')
-            .update(emailUpdateData)
-            .eq('id', emailId)
-            .eq('user_id', user.id); // Security check
-
-          if (emailUpdateError) throw emailUpdateError;
-
-          // Create notification
-          const notificationMessage = isImmediate 
-            ? `E-mail "${selectedEmail.subject}" byl okamžitě publikován.`
-            : `E-mail "${selectedEmail.subject}" byl naplánován k publikaci na ${new Date(utcScheduledTime).toLocaleString('cs-CZ')}.`;
-
-          const { data: notificationData, error: notificationError } = await supabase
-            .from('Notifications')
-            .insert({
-              user_id: user.id,
-              type: 'info',
-              title: isImmediate ? 'E-mail publikován' : 'E-mail naplánován',
-              message: notificationMessage,
-              read: false
-            })
-            .select('id')
-            .single();
-
-          if (notificationError) throw notificationError;
-
-          // Log to audit_logs
-          const { error: auditError } = await supabase
-            .from('audit_logs')
-            .insert({
-              user_id: user.id,
-              project_id: ONEMIL_PROJECT_ID,
-              event_name: isImmediate ? 'email_published_immediately' : 'email_scheduled',
-              event_data: {
-                email_id: emailId,
-                email_subject: selectedEmail.subject,
-                scheduled_at: utcScheduledTime || null,
-                published_at: isImmediate ? new Date().toISOString() : null,
-                notification_id: notificationData.id,
-                publication_type: isImmediate ? 'immediate' : 'scheduled',
-                prague_time: scheduledAt || null,
-                utc_time: utcScheduledTime || null
-              }
-            });
-
-          if (auditError) throw auditError;
-
-          results.push({
-            emailId,
-            subject: selectedEmail.subject,
-            success: true,
-            notificationId: notificationData.id
-          });
-          
-          successCount++;
-
-        } catch (error) {
-          console.error(`Error processing email ${emailId}:`, error);
-          
-          // Log error to audit_logs
-          await supabase
-            .from('audit_logs')
-            .insert({
-              user_id: user.id,
-              project_id: ONEMIL_PROJECT_ID,
-              event_name: 'email_scheduling_error',
-              event_data: {
-                email_id: emailId,
-                error: error instanceof Error ? error.message : 'Unknown error',
-                failed_at: new Date().toISOString()
-              }
-            });
-
-          results.push({
-            emailId,
-            subject: draftEmails.find(e => e.id === emailId)?.subject || 'Neznámý',
-            success: false,
-            error: error instanceof Error ? error.message : 'Neznámá chyba'
-          });
-
-          errorCount++;
-        }
-      }
-
-      setPublishingResult({
-        emailUpdated: successCount > 0,
-        notificationSent: successCount > 0,
-        auditLogged: successCount > 0,
-        successCount,
-        errorCount,
-        results
-      } as any);
-
-      const message = isImmediate 
-        ? `${successCount} e-mailů bylo okamžitě publikováno`
-        : `${successCount} e-mailů bylo naplánováno k publikaci`;
+      if (auditError) throw new Error(`Audit log error: ${auditError.message}`);
 
       toast({
-        title: successCount > 0 ? "✅ Úspěch!" : "❌ Chyba",
-        description: `${message}. Chyby: ${errorCount}`,
-        variant: successCount > 0 ? "default" : "destructive"
+        title: "📅 E-mail naplánován",
+        description: `E-mail byl naplánován k publikaci na ${new Date(scheduledAt).toLocaleString('cs-CZ')}`,
       });
 
-      // Reset selections and refresh data
-      setSelectedDraftEmails([]);
-      setScheduledAt('');
-      await fetchDraftEmails();
-
-    } catch (error) {
-      console.error('Batch scheduling failed:', error);
-      setPublishingResult({
-        emailUpdated: false,
-        notificationSent: false,
-        auditLogged: false,
-        error: error instanceof Error ? error.message : 'Neočekávaná chyba'
-      });
+      // Note: In a real system, you would set up a cron job or background task
+      // to check for scheduled emails and publish them at the right time
       
+    } catch (error) {
+      console.error('Scheduling failed:', error);
       toast({
         title: "❌ Plánování selhalo",
-        description: error instanceof Error ? error.message : "Nepodařilo se naplánovat e-maily",
+        description: error.message || "Nepodařilo se naplánovat e-mail",
         variant: "destructive"
       });
-    } finally {
-      setPublishingLoading(false);
-    }
-  };
-
-  // Autonomous workflow testing
-  const runWorkflowTest = async () => {
-    setWorkflowTesting(true);
-    setWorkflowTestResults(null);
-
-    const testResults = {
-      startTime: new Date().toISOString(),
-      endTime: '',
-      totalTests: 0,
-      passedTests: 0,
-      failedTests: 0,
-      details: []
-    };
-
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Uživatel není přihlášen');
-
-      // Test 1: Create test email
-      testResults.totalTests++;
-      try {
-        const testEmailContent = {
-          subject: `TEST: Autonomous Workflow ${new Date().toLocaleString('cs-CZ')}`,
-          content: `<p>Toto je testovací e-mail vygenerovaný autonomním workflow testem v ${new Date().toLocaleString('cs-CZ')}.</p>`
-        };
-
-        const { data: testEmail, error: emailError } = await supabase
-          .from('Emails')
-          .insert({
-            user_id: user.id,
-            project_id: ONEMIL_PROJECT_ID,
-            project: 'OneMil',
-            type: 'test_workflow',
-            subject: testEmailContent.subject,
-            content: testEmailContent.content,
-            status: 'draft',
-            email_mode: 'test'
-          })
-          .select('id')
-          .single();
-
-        if (emailError) throw emailError;
-
-        testResults.passedTests++;
-        testResults.details.push({
-          test: 'Test email creation',
-          status: 'passed',
-          details: `Email ID: ${testEmail.id}`
-        });
-
-        // Test 2: Schedule test email
-        testResults.totalTests++;
-        const futureTime = new Date();
-        futureTime.setMinutes(futureTime.getMinutes() + 5); // 5 minutes from now
-        const pragueTime = futureTime.toISOString().slice(0, 16);
-        const utcTime = convertPragueToUTC(pragueTime);
-
-        const { error: scheduleError } = await supabase
-          .from('Emails')
-          .update({
-            scheduled_at: utcTime,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', testEmail.id);
-
-        if (scheduleError) throw scheduleError;
-
-        testResults.passedTests++;
-        testResults.details.push({
-          test: 'Email scheduling',
-          status: 'passed',
-          details: `Scheduled for: ${futureTime.toLocaleString('cs-CZ')} (UTC: ${utcTime})`
-        });
-
-        // Test 3: Create notification
-        testResults.totalTests++;
-        const { data: notificationData, error: notificationError } = await supabase
-          .from('Notifications')
-          .insert({
-            user_id: user.id,
-            type: 'info',
-            title: 'Test workflow notification',
-            message: `Test notification created at ${new Date().toLocaleString('cs-CZ')}`,
-            read: false
-          })
-          .select('id')
-          .single();
-
-        if (notificationError) throw notificationError;
-
-        testResults.passedTests++;
-        testResults.details.push({
-          test: 'Notification creation',
-          status: 'passed',
-          details: `Notification ID: ${notificationData.id}`
-        });
-
-        // Test 4: Audit logging
-        testResults.totalTests++;
-        const { error: auditError } = await supabase
-          .from('audit_logs')
-          .insert({
-            user_id: user.id,
-            project_id: ONEMIL_PROJECT_ID,
-            event_name: 'workflow_test_completed',
-            event_data: {
-              test_email_id: testEmail.id,
-              test_notification_id: notificationData.id,
-              test_timestamp: new Date().toISOString(),
-              test_status: 'passed'
-            }
-          });
-
-        if (auditError) throw auditError;
-
-        testResults.passedTests++;
-        testResults.details.push({
-          test: 'Audit logging',
-          status: 'passed',
-          details: 'Test logged successfully'
-        });
-
-        // Clean up test email after successful test
-        await supabase.from('Emails').delete().eq('id', testEmail.id);
-
-      } catch (error) {
-        testResults.failedTests++;
-        testResults.details.push({
-          test: 'Overall workflow test',
-          status: 'failed',
-          details: error instanceof Error ? error.message : 'Unknown error'
-        });
-      }
-
-      testResults.endTime = new Date().toISOString();
-      testResults.failedTests = testResults.totalTests - testResults.passedTests;
-      
-      setWorkflowTestResults(testResults);
-
-      toast({
-        title: testResults.passedTests === testResults.totalTests ? "✅ Všechny testy prošly" : "⚠️ Některé testy selhaly",
-        description: `${testResults.passedTests}/${testResults.totalTests} testů úspěšných`,
-        variant: testResults.passedTests === testResults.totalTests ? "default" : "destructive"
-      });
-
-    } catch (error) {
-      console.error('Workflow test failed:', error);
-      testResults.failedTests = testResults.totalTests;
-      testResults.endTime = new Date().toISOString();
-      testResults.details.push({
-        test: 'Workflow test setup',
-        status: 'failed',
-        details: error instanceof Error ? error.message : 'Test setup failed'
-      });
-      
-      setWorkflowTestResults(testResults);
-      
-      toast({
-        title: "❌ Test workflow selhal",
-        description: error instanceof Error ? error.message : "Neočekávaná chyba",
-        variant: "destructive"
-      });
-    } finally {
-      setWorkflowTesting(false);
     }
   };
 
@@ -1955,7 +1617,7 @@ export default function OneMilEmailGenerator() {
           </CardContent>
         </Card>
 
-        {/* Email & Notification Publishing Workflow - Simplified */}
+        {/* Email & Notification Publishing Workflow */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -1964,21 +1626,77 @@ export default function OneMilEmailGenerator() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="space-y-6">
               <p className="text-sm text-muted-foreground">
-                Tato sekce byla nahrazena pokročilým workflow výše pro lepší funkcionalitu.
+                Vyberte draft e-mail z OneMil projektu a nastavte datum publikace nebo publikujte okamžitě.
               </p>
-              <div className="p-4 bg-muted/50 rounded-lg text-center">
-                <p className="text-sm">Použijte "Kompletní Scheduled Email Workflow" sekci výše pro publikaci e-mailů.</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Draft Email Selection */}
+                <div className="space-y-3">
+                  <Label>Draft e-maily (OneMil projekt)</Label>
+                  <Select value={selectedDraftEmail} onValueChange={setSelectedDraftEmail}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Vyberte draft e-mail..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {draftEmails.map((email) => (
+                        <SelectItem key={email.id} value={email.id}>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {email.type}
+                            </Badge>
+                            <span className="truncate max-w-48">{email.subject}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  {draftEmails.length === 0 && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <FileText className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                      <p className="text-xs">Žádné draft e-maily nenalezeny</p>
+                    </div>
+                  )}
+                </div>
 
-        {/* Enhanced Scheduled Email Publishing Workflow */}
+                {/* Scheduled Publication */}
+                <div className="space-y-3">
+                  <Label>Datum a čas publikace (volitelné)</Label>
+                  <Input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Pokud nevyplníte, použije se okamžitá publikace
+                  </p>
+                </div>
+              </div>
+
+              {selectedDraftEmail && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-medium mb-2">Náhled vybraného e-mailu:</h4>
+                  {(() => {
+                    const email = draftEmails.find(e => e.id === selectedDraftEmail);
+                    return email ? (
+                      <div className="text-sm space-y-1">
+                        <p><strong>Předmět:</strong> {email.subject}</p>
+                        <p><strong>Typ:</strong> {email.type}</p>
+                        <p><strong>Vytvořen:</strong> {new Date(email.created_at).toLocaleString('cs-CZ')}</p>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
                 <Button 
                   onClick={publishEmailImmediately}
-                  disabled={selectedDraftEmails.length === 0 || publishingLoading}
+                  disabled={!selectedDraftEmail || publishingLoading}
                   className="flex-1"
                 >
                   {publishingLoading ? (
@@ -1996,7 +1714,7 @@ export default function OneMilEmailGenerator() {
                 
                 <Button 
                   onClick={scheduleEmailPublication}
-                  disabled={selectedDraftEmails.length === 0 || !scheduledAt}
+                  disabled={!selectedDraftEmail || !scheduledAt}
                   variant="outline"
                   className="flex-1"
                 >
@@ -2078,229 +1796,146 @@ export default function OneMilEmailGenerator() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-6 lg:grid-cols-2">
-
-        {/* Enhanced Scheduled Email Publishing Workflow */}
+        {/* Scheduled Email Publishing Workflow */}
         <Card className="mb-6">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Send className="h-5 w-5" />
-              Kompletní Scheduled Email Workflow
+              <Clock className="h-5 w-5" />
+              Scheduled Email Publishing Workflow
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
               <p className="text-sm text-muted-foreground">
-                Vyberte jeden nebo více draft e-mailů, nastavte publikační čas v pražském času (nebo publikujte okamžitě). 
-                Systém automaticky převede čas na UTC pro databázi a zajistí bezpečnou validaci.
+                Vyberte draft e-maily a nastavte automatickou publikaci ve stanovený čas. Systém bude kontrolovat každou minutu a publikuje e-maily přesně v naplánovaný čas.
               </p>
               
               <div className="grid gap-6 lg:grid-cols-2">
-                {/* Multiple Email Selection */}
+                {/* Email Scheduling */}
                 <div className="space-y-4">
                   <h4 className="font-medium flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    Výběr draft e-mailů ({selectedDraftEmails.length} vybráno)
+                    <Send className="h-4 w-4" />
+                    Naplánovat publikaci e-mailu
                   </h4>
                   
-                  <div className="space-y-2 max-h-64 overflow-y-auto border rounded-lg p-3">
-                    {draftEmails.length > 0 ? (
-                      draftEmails.map((email) => (
-                        <div key={email.id} className="flex items-start space-x-3 p-2 hover:bg-muted/50 rounded">
-                          <Checkbox
-                            id={email.id}
-                            checked={selectedDraftEmails.includes(email.id)}
-                            onCheckedChange={(checked) => {
-                              if (checked) {
-                                setSelectedDraftEmails(prev => [...prev, email.id]);
-                              } else {
-                                setSelectedDraftEmails(prev => prev.filter(id => id !== email.id));
-                              }
-                            }}
-                            className="mt-1"
-                          />
-                          <label htmlFor={email.id} className="flex-1 cursor-pointer">
-                            <div className="text-sm font-medium">{email.subject || 'Bez předmětu'}</div>
-                            <div className="text-xs text-muted-foreground">
-                              Vytvořen: {new Date(email.created_at).toLocaleDateString('cs-CZ')} • 
-                              Status: {email.status} • 
-                              Typ: {email.type}
+                  <div className="space-y-3">
+                    <Label>Vybrat draft e-mail</Label>
+                    <Select value={selectedScheduledEmail} onValueChange={setSelectedScheduledEmail}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Vyberte e-mail k naplánování..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {draftEmails.map((email) => (
+                          <SelectItem key={email.id} value={email.id}>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm font-medium">{email.subject}</span>
+                              <span className="text-xs text-muted-foreground">
+                                Vytvořen: {new Date(email.created_at).toLocaleDateString('cs-CZ')}
+                              </span>
                             </div>
-                          </label>
-                        </div>
-                      ))
-                    ) : (
-                      <div className="text-center py-4 text-muted-foreground">
-                        <Mail className="h-6 w-6 mx-auto mb-2 opacity-50" />
-                        <p className="text-xs">Žádné draft e-maily z OneMil projektu</p>
-                      </div>
-                    )}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-
-                  <div className="flex gap-2">
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => setSelectedDraftEmails(draftEmails.map(e => e.id))}
-                      disabled={draftEmails.length === 0}
-                    >
-                      Vybrat vše
-                    </Button>
-                    <Button 
-                      size="sm" 
-                      variant="outline"
-                      onClick={() => setSelectedDraftEmails([])}
-                      disabled={selectedDraftEmails.length === 0}
-                    >
-                      Zrušit výběr
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Scheduling Options */}
-                <div className="space-y-4">
-                  <h4 className="font-medium flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    Nastavení publikace
-                  </h4>
 
                   <div className="space-y-3">
-                    <Label>Datum a čas publikace (pražský čas)</Label>
+                    <Label>Datum a čas publikace</Label>
                     <Input
                       type="datetime-local"
-                      value={scheduledAt}
-                      onChange={(e) => setScheduledAt(e.target.value)}
+                      value={newScheduledAt}
+                      onChange={(e) => setNewScheduledAt(e.target.value)}
                       min={new Date().toISOString().slice(0, 16)}
-                      placeholder="Ponechte prázdné pro okamžitou publikaci"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      {scheduledAt ? (
-                        <>
-                          Pražský čas: {new Date(scheduledAt).toLocaleString('cs-CZ')}<br/>
-                          UTC (databáze): {convertPragueToUTC(scheduledAt) ? new Date(convertPragueToUTC(scheduledAt)).toLocaleString('en-GB') : 'N/A'}
-                        </>
-                      ) : (
-                        'Ponechte prázdné pro okamžitou publikaci'
-                      )}
-                    </p>
                   </div>
 
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={scheduleEmailPublication} 
-                      disabled={selectedDraftEmails.length === 0 || publishingLoading}
-                      className="flex-1"
-                    >
-                      {publishingLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Zpracovávám...
-                        </>
-                      ) : (
-                        <>
-                          {scheduledAt ? (
-                            <>
-                              <Clock className="w-4 h-4 mr-2" />
-                              Naplánovat ({selectedDraftEmails.length})
-                            </>
-                          ) : (
-                            <>
-                              <Send className="w-4 h-4 mr-2" />
-                              Publikovat nyní ({selectedDraftEmails.length})
-                            </>
-                          )}
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Workflow Testing */}
-              <div className="border-t pt-6">
-                <h4 className="font-medium flex items-center gap-2 mb-4">
-                  <TestTube className="h-4 w-4" />
-                  Autonomní test workflow
-                </h4>
-                
-                <div className="flex gap-2 mb-4">
                   <Button 
-                    onClick={runWorkflowTest}
-                    disabled={workflowTesting}
-                    variant="outline"
-                    size="sm"
+                    onClick={setEmailSchedule} 
+                    disabled={!selectedScheduledEmail || !newScheduledAt || schedulingLoading}
+                    className="w-full"
                   >
-                    {workflowTesting ? (
+                    {schedulingLoading ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Spouštím test...
+                        Nastavuji plán...
                       </>
                     ) : (
                       <>
-                        <TestTube className="w-4 h-4 mr-2" />
-                        Spustit test workflow
+                        <Clock className="w-4 h-4 mr-2" />
+                        Naplánovat publikaci
                       </>
                     )}
                   </Button>
                 </div>
 
-                {workflowTestResults && (
-                  <div className="bg-muted/50 p-4 rounded-lg space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h5 className="font-medium">Výsledky testů</h5>
-                      <Badge variant={workflowTestResults.passedTests === workflowTestResults.totalTests ? "default" : "destructive"}>
-                        {workflowTestResults.passedTests}/{workflowTestResults.totalTests}
-                      </Badge>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      {workflowTestResults.details.map((detail, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-sm">
-                          <span>{detail.test}</span>
-                          <div className="flex items-center gap-2">
-                            <Badge variant={detail.status === 'passed' ? "default" : "destructive"} className="text-xs">
-                              {detail.status === 'passed' ? '✓' : '✗'}
-                            </Badge>
+                {/* Scheduled Emails Overview */}
+                <div className="space-y-4">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Naplánované e-maily
+                  </h4>
+                  
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {scheduledEmails.length > 0 ? (
+                      scheduledEmails.map((email) => (
+                        <div key={email.id} className="p-3 border rounded-lg space-y-1">
+                          <div className="text-sm font-medium">{email.subject}</div>
+                          <div className="text-xs text-muted-foreground">
+                            Publikace: {new Date(email.scheduled_at).toLocaleString('cs-CZ')}
                           </div>
+                          <Badge variant="outline" className="text-xs">
+                            {email.status}
+                          </Badge>
                         </div>
-                      ))}
-                    </div>
-                    
-                    <div className="text-xs text-muted-foreground">
-                      Test dokončen: {new Date(workflowTestResults.endTime).toLocaleString('cs-CZ')}
-                    </div>
+                      ))
+                    ) : (
+                      <div className="text-center py-4 text-muted-foreground">
+                        <Clock className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                        <p className="text-xs">Žádné naplánované e-maily</p>
+                      </div>
+                    )}
                   </div>
-                )}
+
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={fetchScheduledEmails}
+                    className="w-full"
+                  >
+                    <Loader2 className="w-3 h-3 mr-2" />
+                    Aktualizovat seznam
+                  </Button>
+                </div>
               </div>
 
-              {/* Publishing Results */}
-              {publishingResult && (
+              {/* Scheduling Report */}
+              {schedulingReport && (
                 <div className="mt-6 p-4 border rounded-lg space-y-3">
                   <h4 className="font-medium flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-600" />
-                    Report publikace e-mailů
+                    Report publikace naplánovaných e-mailů
                   </h4>
                   
                   <div className="grid gap-4 md:grid-cols-3">
                     <div className="text-center">
                       <div className="text-2xl font-bold text-green-600">
-                        {publishingResult.successCount || 0}
+                        {schedulingReport.successfulPublications}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Úspěšně zpracované
+                        Úspěšně publikované
                       </div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold text-destructive">
-                        {publishingResult.errorCount || 0}
+                        {schedulingReport.failedPublications}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Chyby
+                        Neúspěšné publikace
                       </div>
                     </div>
                     <div className="text-center">
                       <div className="text-2xl font-bold">
-                        {(publishingResult.successCount || 0) + (publishingResult.errorCount || 0)}
+                        {schedulingReport.totalScheduled}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         Celkem zpracovaných
@@ -2308,21 +1943,23 @@ export default function OneMilEmailGenerator() {
                     </div>
                   </div>
 
-                  {publishingResult.results && (
-                    <div className="space-y-2">
-                      <div className="text-sm font-medium">Detaily publikací:</div>
-                      <div className="max-h-32 overflow-y-auto space-y-1">
-                        {publishingResult.results.map((result, idx) => (
-                          <div key={idx} className="flex items-center justify-between text-xs p-2 border rounded">
-                            <span className="truncate flex-1">{result.subject}</span>
-                            <Badge variant={result.success ? "default" : "destructive"} className="ml-2">
-                              {result.success ? "✓" : "✗"}
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
+                  <div className="space-y-2">
+                    <div className="text-sm font-medium">Detaily publikací:</div>
+                    <div className="max-h-32 overflow-y-auto space-y-1">
+                      {schedulingReport.results.map((result, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-xs p-2 border rounded">
+                          <span className="truncate flex-1">{result.emailSubject}</span>
+                          <Badge variant={result.success ? "default" : "destructive"} className="ml-2">
+                            {result.success ? "✓" : "✗"}
+                          </Badge>
+                        </div>
+                      ))}
                     </div>
-                  )}
+                  </div>
+
+                  <div className="text-xs text-muted-foreground">
+                    Poslední kontrola: {new Date(schedulingReport.lastCheck).toLocaleString('cs-CZ')}
+                  </div>
 
                   <div className="flex gap-2 pt-2">
                     <Button 
@@ -2347,8 +1984,6 @@ export default function OneMilEmailGenerator() {
             </div>
           </CardContent>
         </Card>
-
-        </div>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Campaign Selection */}
