@@ -132,7 +132,6 @@ export default function OneMilEmailGenerator() {
   const [newScheduledAt, setNewScheduledAt] = useState<string>('');
   const [schedulingLoading, setSchedulingLoading] = useState(false);
   const [schedulingReport, setSchedulingReport] = useState<SchedulingReport | null>(null);
-  const [autoCheckInterval, setAutoCheckInterval] = useState<NodeJS.Timeout | null>(null);
   
   const { toast } = useToast();
 
@@ -143,13 +142,9 @@ export default function OneMilEmailGenerator() {
     
     // Start auto-check interval for scheduled emails (check every minute)
     const interval = setInterval(checkScheduledEmails, 60000);
-    setAutoCheckInterval(interval);
     
     // Cleanup interval on unmount
     return () => {
-      if (autoCheckInterval) {
-        clearInterval(autoCheckInterval);
-      }
       clearInterval(interval);
     };
   }, []);
