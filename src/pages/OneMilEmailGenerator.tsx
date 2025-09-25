@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, Trophy, Gift, ExternalLink, Loader2 } from 'lucide-react';
+import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell } from 'lucide-react';
 
 interface Campaign {
   id: string;
@@ -26,6 +26,14 @@ interface GeneratedEmail {
   content: string;
 }
 
+interface WorkflowTestResult {
+  emailSaved: boolean;
+  emailId?: string;
+  notificationSent: boolean;
+  notificationId?: string;
+  error?: string;
+}
+
 const ONEMIL_PROJECT_ID = 'defababe-004b-4c63-9ff1-311540b0a3c9';
 
 export default function OneMilEmailGenerator() {
@@ -34,6 +42,8 @@ export default function OneMilEmailGenerator() {
   const [generatedEmail, setGeneratedEmail] = useState<GeneratedEmail | null>(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [testRunning, setTestRunning] = useState(false);
+  const [testResult, setTestResult] = useState<WorkflowTestResult | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -349,6 +359,111 @@ export default function OneMilEmailGenerator() {
     }
   };
 
+  const runAutonomousWorkflowTest = async () => {
+    if (campaigns.length === 0) {
+      toast({
+        title: "Chyba",
+        description: "Nejprve načtěte OneMil kampaně",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setTestRunning(true);
+    setTestResult(null);
+
+    try {
+      // Step 1: Auto-select first available draft campaign
+      const testCampaign = campaigns[0];
+      console.log('Selected campaign for test:', testCampaign.name);
+
+      // Step 2: Generate Czech marketing email based on campaign metadata
+      const campaignData = {
+        name: testCampaign.name,
+        targeting: testCampaign.targeting,
+        existing_email: testCampaign.email,
+        post_content: testCampaign.post,
+        video_content: testCampaign.video
+      };
+
+      const emailContent = generateCzechMarketingEmail(campaignData);
+      console.log('Generated email:', emailContent.subject);
+
+      // Step 3: Save generated email to Emails table
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
+      const { data: emailData, error: emailError } = await supabase
+        .from('Emails')
+        .insert({
+          user_id: user.id,
+          project_id: ONEMIL_PROJECT_ID,
+          project: 'OneMil',
+          type: 'autonomous_workflow_test',
+          subject: emailContent.subject,
+          content: emailContent.content,
+          status: 'draft',
+          email_mode: 'test',
+          recipient: 'test@onemill.cz'
+        })
+        .select('id')
+        .single();
+
+      if (emailError) throw new Error(`Email save error: ${emailError.message}`);
+
+      // Step 4: Create test notification (simulating OneSignal)
+      const { data: notificationData, error: notificationError } = await supabase
+        .from('Notifications')
+        .insert({
+          user_id: user.id,
+          type: 'email_workflow_test',
+          title: 'Nový e-mail je připraven',
+          message: `Automaticky vygenerovaný e-mail "${emailContent.subject}" byl uložen jako koncept v systému OneMil.`,
+          read: false
+        })
+        .select('id')
+        .single();
+
+      if (notificationError) throw new Error(`Notification error: ${notificationError.message}`);
+
+      // Step 5: Verification - Check if both operations completed
+      const result: WorkflowTestResult = {
+        emailSaved: !!emailData?.id,
+        emailId: emailData?.id,
+        notificationSent: !!notificationData?.id,
+        notificationId: notificationData?.id
+      };
+
+      setTestResult(result);
+
+      toast({
+        title: "🎉 Test workflow úspěšný!",
+        description: "E-mail i notifikace byly úspěšně vytvořeny",
+      });
+
+      console.log('Workflow test result:', result);
+
+    } catch (error) {
+      console.error('Autonomous workflow test failed:', error);
+      
+      const result: WorkflowTestResult = {
+        emailSaved: false,
+        notificationSent: false,
+        error: error.message
+      };
+
+      setTestResult(result);
+
+      toast({
+        title: "❌ Test workflow selhal",
+        description: error.message || "Nepodařilo se dokončit automatický workflow test",
+        variant: "destructive"
+      });
+    } finally {
+      setTestRunning(false);
+    }
+  };
+
   return (
     <MainLayout>
       <div className="space-y-6">
@@ -364,6 +479,107 @@ export default function OneMilEmailGenerator() {
             </p>
           </div>
         </div>
+
+        {/* Autonomous Workflow Test */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Play className="h-5 w-5" />
+              Autonomní workflow test
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Automatický test celého e-mailového workflow: výběr kampaně → generování e-mailu → uložení → notifikace
+              </p>
+              
+              <Button 
+                onClick={runAutonomousWorkflowTest}
+                disabled={testRunning || campaigns.length === 0}
+                className="w-full"
+              >
+                {testRunning ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Spouštím workflow test...
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4 mr-2" />
+                    Spustit autonomní test workflow
+                  </>
+                )}
+              </Button>
+
+              {testResult && (
+                <div className="mt-4 p-4 border rounded-lg space-y-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    {testResult.error ? (
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    )}
+                    Výsledky workflow testu
+                  </h4>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span>E-mail uložen v Emails tabulce:</span>
+                      <Badge variant={testResult.emailSaved ? "default" : "destructive"}>
+                        {testResult.emailSaved ? "✓ Úspěch" : "✗ Selhalo"}
+                      </Badge>
+                    </div>
+                    
+                    {testResult.emailId && (
+                      <div className="text-xs text-muted-foreground">
+                        E-mail ID: {testResult.emailId}
+                      </div>
+                    )}
+                    
+                    <div className="flex items-center justify-between">
+                      <span>Notifikace vytvořena v Notifications:</span>
+                      <Badge variant={testResult.notificationSent ? "default" : "destructive"}>
+                        {testResult.notificationSent ? "✓ Úspěch" : "✗ Selhalo"}
+                      </Badge>
+                    </div>
+                    
+                    {testResult.notificationId && (
+                      <div className="text-xs text-muted-foreground">
+                        Notifikace ID: {testResult.notificationId}
+                      </div>
+                    )}
+                    
+                    {testResult.error && (
+                      <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
+                        Chyba: {testResult.error}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => window.open('/emails', '_blank')}
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Zkontrolovat e-maily
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => window.open('/notifications', '_blank')}
+                    >
+                      <Bell className="w-4 h-4 mr-2" />
+                      Zkontrolovat notifikace
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Campaign Selection */}
