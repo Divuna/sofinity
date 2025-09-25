@@ -7,7 +7,7 @@ import { Bot, MessageSquare, Clock, CheckCircle, Filter, FileText } from 'lucide
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
-import { cs } from 'date-fns/locale/cs';
+import { cs } from 'date-fns/locale';
 import { dedupeById, truncateText } from '@/lib/utils-helpers';
 import { useSelectedProject } from '@/providers/ProjectProvider';
 

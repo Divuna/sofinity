@@ -8,7 +8,7 @@ import { ArrowLeft, Save, FileText, Mail, MessageSquare, Bot, Clock, CheckCircle
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
-import { cs } from 'date-fns/locale/cs';
+import { cs } from 'date-fns/locale';
 
 interface AIRequest {
   id: string;

@@ -6,7 +6,7 @@ import { RefreshCw, Wifi, WifiOff, AlertCircle } from 'lucide-react';
 import { getOpravoStatus, saveOpravoStatusToStorage, loadOpravoStatusFromStorage, type OpravoStatus } from '@/lib/integrations';
 import { useToast } from '@/hooks/use-toast';
 import { formatDistanceToNow } from 'date-fns';
-import { cs } from 'date-fns/locale/cs';
+import { cs } from 'date-fns/locale';
 
 interface OpravoStatusProps {
   projectId?: string;
