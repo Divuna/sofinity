@@ -11,9 +11,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell, Send, Clock, FileText, Camera } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import { fromZonedTime, toZonedTime } from 'date-fns-tz';
-import { cs } from 'date-fns/locale';
+import { pragueUtcToLabel, pragueLocalInputToUtc, nowPragueLabel, utcToPragueInput } from '@/lib/time';
 
 interface Campaign {
   id: string;
@@ -90,7 +88,6 @@ interface MultimediaReport {
 }
 
 const ONEMIL_PROJECT_ID = '1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p';
-const PRAGUE_TIMEZONE = 'Europe/Prague';
 
 export default function OneMilEmailGenerator() {
   const { toast } = useToast();
@@ -264,7 +261,7 @@ Tým OneMil
 
 ---
 E-mail ${index} z ${emailCount}
-Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE })}`;
+Vygenerováno: ${nowPragueLabel()}`;
   };
 
   const testWorkflow = async () => {
@@ -362,22 +359,11 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
   };
 
   const formatPragueDate = (utcDateString: string) => {
-    const pragueDate = toZonedTime(parseISO(utcDateString), PRAGUE_TIMEZONE);
-    return format(pragueDate, 'dd.MM.yyyy HH:mm', { locale: cs });
+    return pragueUtcToLabel(utcDateString);
   };
 
   const convertPragueToUtc = (localDateTimeString: string) => {
-    // Parse datetime-local string as Prague time and convert to UTC
-    // datetime-local gives us "2024-12-10T22:21" format
-    const [datePart, timePart] = localDateTimeString.split('T');
-    const [year, month, day] = datePart.split('-').map(Number);
-    const [hour, minute] = timePart.split(':').map(Number);
-    
-    // Create date in Prague timezone
-    const pragueDate = new Date(year, month - 1, day, hour, minute);
-    
-    // Convert from Prague time to UTC
-    return fromZonedTime(pragueDate, PRAGUE_TIMEZONE);
+    return new Date(pragueLocalInputToUtc(localDateTimeString));
   };
 
   const handleDraftEmailSelection = (emailId: string, checked: boolean) => {
@@ -418,9 +404,17 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
       }
 
       // Determine if immediate or scheduled publish
-      const isScheduled = scheduledDate && new Date(scheduledDate) > new Date();
+      const isScheduled = scheduledDate && scheduledDate.trim() !== '' && new Date(scheduledDate) > new Date();
       const publishStatus = isScheduled ? 'scheduled' : 'published';
-      const scheduledAtUtc = isScheduled ? convertPragueToUtc(scheduledDate).toISOString() : null;
+      
+      let scheduledAtUtc = null;
+      if (isScheduled) {
+        try {
+          scheduledAtUtc = pragueLocalInputToUtc(scheduledDate);
+        } catch (error) {
+          throw new Error('Neplatné datum nebo čas pro naplánování');
+        }
+      }
 
       // Update email statuses
       const { error: updateError } = await supabase
@@ -477,8 +471,8 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
       toast({
         title: isScheduled ? "⏰ E-maily naplánovány!" : "🎉 E-maily publikovány!",
         description: isScheduled 
-          ? `${selectedDraftEmails.length} e-mail${selectedDraftEmails.length > 1 ? 'ů' : ''} bylo naplánováno na ${formatPragueDate(scheduledAtUtc!)}`
-          : `${selectedDraftEmails.length} e-mail${selectedDraftEmails.length > 1 ? 'ů' : ''} bylo úspěšně publikováno`,
+          ? `${selectedDraftEmails.length} e-mail${selectedDraftEmails.length > 1 ? 'ů' : ''} bylo naplánováno na ${pragueUtcToLabel(scheduledAtUtc!)}`
+          : `${selectedDraftEmails.length} e-mail${selectedDraftEmails.length > 1 ? 'ů' : ''} bylo úspěšně publikováno v ${nowPragueLabel()}`,
       });
 
       setSelectedDraftEmails([]);
@@ -1036,7 +1030,7 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
                       </>
                     ) : (
                       <>
-                        {scheduledDate && new Date(scheduledDate) > new Date() ? (
+                        {scheduledDate && scheduledDate.trim() !== '' && new Date(scheduledDate) > new Date() ? (
                           <>
                             <Clock className="h-4 w-4 mr-2" />
                             Naplánovat Publikaci ({selectedDraftEmails.length})
