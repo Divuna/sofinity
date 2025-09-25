@@ -13,7 +13,7 @@ import { ExternalLink, Calendar, MessageCircle, Search, Filter, Download, Eye, A
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, subWeeks, subMonths } from "date-fns";
-import { cs } from "date-fns/locale";
+import { cs } from "date-fns/locale/cs";
 import { toast } from "sonner";
 import { useNavigate, Link } from "react-router-dom";
 import Papa from 'papaparse';

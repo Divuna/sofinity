@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell, Send, Clock, FileText, Camera } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fromZonedTime, toZonedTime } from 'date-fns-tz';
-import { cs } from 'date-fns/locale';
+import { cs } from 'date-fns/locale/cs';
 
 interface Campaign {
   id: string;
