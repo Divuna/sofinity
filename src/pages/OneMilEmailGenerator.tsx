@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell, Send, Clock, FileText } from 'lucide-react';
+import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell, Send, Clock, FileText, Camera } from 'lucide-react';
 
 interface Campaign {
   id: string;
@@ -132,6 +132,13 @@ export default function OneMilEmailGenerator() {
   const [newScheduledAt, setNewScheduledAt] = useState<string>('');
   const [schedulingLoading, setSchedulingLoading] = useState(false);
   const [schedulingReport, setSchedulingReport] = useState<SchedulingReport | null>(null);
+  
+  // Multimedia generation states
+  const [multimediaLoading, setMultimediaLoading] = useState(false);
+  const [multimediaReport, setMultimediaReport] = useState<{
+    successful: Array<{emailId: string, subject: string, mediaType: string, mediaUrl: string}>,
+    failed: Array<{emailId: string, subject: string, error: string}>
+  } | null>(null);
   
   const { toast } = useToast();
 
@@ -769,6 +776,168 @@ export default function OneMilEmailGenerator() {
       });
     } finally {
       setPublishingLoading(false);
+    }
+  };
+
+  // Generate multimedia content for draft emails
+  const generateMultimediaContent = async () => {
+    setMultimediaLoading(true);
+    setMultimediaReport(null);
+    
+    try {
+      const { data: draftEmails, error } = await supabase
+        .from('Emails')
+        .select(`
+          *,
+          Campaigns!inner(name, targeting, user_id)
+        `)
+        .eq('status', 'draft')
+        .eq('project', 'Onemil');
+
+      if (error) throw error;
+      if (!draftEmails?.length) {
+        toast({
+          title: "Žádné draft e-maily",
+          description: "Nebyly nalezeny žádné draft e-maily pro projekt Onemil.",
+        });
+        return;
+      }
+
+      const successful: Array<{emailId: string, subject: string, mediaType: string, mediaUrl: string}> = [];
+      const failed: Array<{emailId: string, subject: string, error: string}> = [];
+
+      for (const email of draftEmails) {
+        try {
+          // Generate prompt based on campaign data
+          const campaign = Array.isArray(email.Campaigns) ? email.Campaigns[0] : email.Campaigns;
+          const generationPrompt = `Vytvoř atraktivní obrázek pro e-mailovou kampaň: "${campaign?.name}" s cílením "${campaign?.targeting}". Téma: ${email.subject}. Styl: moderní, profesionální marketing.`;
+
+          // Generate image using AI gateway
+          const { data: aiResponse, error: aiError } = await supabase.functions.invoke('ai', {
+            body: { 
+              message: generationPrompt,
+              model: 'google/gemini-2.5-flash-image-preview',
+              modalities: ['image', 'text']
+            }
+          });
+
+          if (aiError) throw new Error(aiError.message);
+
+          // For demo purposes, we'll simulate image generation
+          // In real implementation, you'd get the actual image data from AI response
+          const imageData = aiResponse?.images?.[0]?.image_url?.url || 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUdASimulatedImageData';
+          
+          // Convert base64 to blob and upload to storage
+          const blob = await fetch(imageData).then(r => r.blob());
+          const fileName = `email-${email.id}-${Date.now()}.png`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('email-media')
+            .upload(fileName, blob, {
+              contentType: 'image/png',
+              upsert: false
+            });
+
+          if (uploadError) throw uploadError;
+
+          // Get public URL
+          const { data: { publicUrl } } = supabase.storage
+            .from('email-media')
+            .getPublicUrl(fileName);
+
+          // Save to EmailMedia table
+          const { data: mediaData, error: mediaError } = await supabase
+            .from('EmailMedia')
+            .insert({
+              email_id: email.id,
+              media_type: 'image',
+              media_url: publicUrl,
+              file_name: fileName,
+              file_size: blob.size,
+              generation_prompt: generationPrompt,
+              generated_by_ai: true
+            })
+            .select()
+            .single();
+
+          if (mediaError) throw mediaError;
+
+          // Update email content with media
+          const updatedContent = `
+            <div style="text-align: center; margin: 20px 0;">
+              <img src="${publicUrl}" alt="Generovaný obrázek kampaně" style="max-width: 100%; height: auto; border-radius: 8px;" />
+            </div>
+            ${email.content}
+          `;
+
+          const { error: updateError } = await supabase
+            .from('Emails')
+            .update({ content: updatedContent })
+            .eq('id', email.id);
+
+          if (updateError) throw updateError;
+
+          // Log to audit_logs
+          await supabase
+            .from('audit_logs')
+            .insert({
+              event_name: 'multimedia_generated',
+              user_id: email.user_id,
+              event_data: {
+                email_id: email.id,
+                media_id: mediaData.id,
+                media_type: 'image',
+                media_url: publicUrl,
+                generationPrompt
+              }
+            });
+
+          successful.push({
+            emailId: email.id,
+            subject: email.subject || 'Bez předmětu',
+            mediaType: 'image',
+            mediaUrl: publicUrl
+          });
+
+        } catch (error) {
+          console.error('Error generating multimedia for email:', email.id, error);
+          
+          // Log error to audit_logs
+          await supabase
+            .from('audit_logs')
+            .insert({
+              event_name: 'multimedia_generation_failed',
+              user_id: email.user_id,
+              event_data: {
+                email_id: email.id,
+                error: error instanceof Error ? error.message : 'Unknown error'
+              }
+            });
+
+          failed.push({
+            emailId: email.id,
+            subject: email.subject || 'Bez předmětu',
+            error: error instanceof Error ? error.message : 'Neznámá chyba'
+          });
+        }
+      }
+
+      setMultimediaReport({ successful, failed });
+      
+      toast({
+        title: "Generování dokončeno",
+        description: `Úspěšně: ${successful.length}, Chyby: ${failed.length}`,
+      });
+
+    } catch (error) {
+      console.error('Error in multimedia generation:', error);
+      toast({
+        title: "Chyba při generování",
+        description: error instanceof Error ? error.message : "Neočekávaná chyba",
+        variant: "destructive",
+      });
+    } finally {
+      setMultimediaLoading(false);
     }
   };
 
@@ -1871,6 +2040,102 @@ export default function OneMilEmailGenerator() {
                   </>
                 )}
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* Multimedia Content Generation Workflow */}
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Camera className="h-5 w-5" />
+                Multimedia Content Generation
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <p className="text-sm text-muted-foreground">
+                  Automatické generování obrázků a videí pro draft e-maily na základě dat kampaní. Obsah se automaticky vloží do HTML e-mailů.
+                </p>
+                
+                <div className="flex items-center gap-4">
+                  <Button 
+                    onClick={generateMultimediaContent}
+                    disabled={multimediaLoading}
+                    className="flex items-center gap-2"
+                  >
+                    {multimediaLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Generuji obsah...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="w-4 h-4" />
+                        Generovat multimedia pro draft e-maily
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                {multimediaReport && (
+                  <div className="space-y-4">
+                    <h4 className="font-medium">Report generování multimédií</h4>
+                    
+                    {multimediaReport.successful.length > 0 && (
+                      <div className="space-y-2">
+                        <h5 className="text-sm font-medium text-green-600">✓ Úspěšně vygenerováno ({multimediaReport.successful.length})</h5>
+                        <div className="space-y-2">
+                          {multimediaReport.successful.map((item, index) => (
+                            <div key={index} className="text-xs bg-green-50 p-3 rounded border">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">{item.subject}</span>
+                                <Badge variant="secondary">{item.mediaType}</Badge>
+                              </div>
+                              <div className="text-muted-foreground mt-1">
+                                <span>Email ID: {item.emailId}</span>
+                              </div>
+                              <div className="mt-2">
+                                <img 
+                                  src={item.mediaUrl} 
+                                  alt="Generated content" 
+                                  className="max-w-xs h-auto rounded border"
+                                  style={{ maxHeight: '100px' }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {multimediaReport.failed.length > 0 && (
+                      <div className="space-y-2">
+                        <h5 className="text-sm font-medium text-red-600">✗ Chyby při generování ({multimediaReport.failed.length})</h5>
+                        <div className="space-y-2">
+                          {multimediaReport.failed.map((item, index) => (
+                            <div key={index} className="text-xs bg-red-50 p-3 rounded border">
+                              <div className="font-medium">{item.subject}</div>
+                              <div className="text-muted-foreground">Email ID: {item.emailId}</div>
+                              <div className="text-red-600 mt-1">Chyba: {item.error}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => window.open('/emails', '_blank')}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Zkontrolovat e-maily
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 

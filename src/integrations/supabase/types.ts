@@ -683,6 +683,45 @@ export type Database = {
           },
         ]
       }
+      EmailMedia: {
+        Row: {
+          created_at: string
+          email_id: string
+          file_name: string
+          file_size: number | null
+          generated_by_ai: boolean
+          generation_prompt: string | null
+          id: string
+          media_type: string
+          media_url: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email_id: string
+          file_name: string
+          file_size?: number | null
+          generated_by_ai?: boolean
+          generation_prompt?: string | null
+          id?: string
+          media_type: string
+          media_url: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email_id?: string
+          file_name?: string
+          file_size?: number | null
+          generated_by_ai?: boolean
+          generation_prompt?: string | null
+          id?: string
+          media_type?: string
+          media_url?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       Emails: {
         Row: {
           content: string
