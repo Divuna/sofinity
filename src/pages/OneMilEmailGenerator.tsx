@@ -74,6 +74,35 @@ interface BatchReportResult {
   duration: number;
 }
 
+interface ScheduledEmail {
+  id: string;
+  subject: string;
+  content: string;
+  scheduled_at: string;
+  status: string;
+  created_at: string;
+  project: string;
+  type: string;
+}
+
+interface ScheduledPublishingResult {
+  emailId: string;
+  emailSubject: string;
+  success: boolean;
+  publishedAt?: string;
+  notificationId?: string;
+  auditLogId?: string;
+  error?: string;
+}
+
+interface SchedulingReport {
+  totalScheduled: number;
+  successfulPublications: number;
+  failedPublications: number;
+  results: ScheduledPublishingResult[];
+  lastCheck: string;
+}
+
 const ONEMIL_PROJECT_ID = 'defababe-004b-4c63-9ff1-311540b0a3c9';
 
 export default function OneMilEmailGenerator() {
@@ -97,11 +126,32 @@ export default function OneMilEmailGenerator() {
   const [batchReport, setBatchReport] = useState<BatchReportResult | null>(null);
   const [batchScheduledAt, setBatchScheduledAt] = useState<string>('');
   
+  // Scheduled publishing state
+  const [scheduledEmails, setScheduledEmails] = useState<ScheduledEmail[]>([]);
+  const [selectedScheduledEmail, setSelectedScheduledEmail] = useState<string>('');
+  const [newScheduledAt, setNewScheduledAt] = useState<string>('');
+  const [schedulingLoading, setSchedulingLoading] = useState(false);
+  const [schedulingReport, setSchedulingReport] = useState<SchedulingReport | null>(null);
+  const [autoCheckInterval, setAutoCheckInterval] = useState<NodeJS.Timeout | null>(null);
+  
   const { toast } = useToast();
 
   useEffect(() => {
     fetchOneMilCampaigns();
     fetchDraftEmails();
+    fetchScheduledEmails();
+    
+    // Start auto-check interval for scheduled emails (check every minute)
+    const interval = setInterval(checkScheduledEmails, 60000);
+    setAutoCheckInterval(interval);
+    
+    // Cleanup interval on unmount
+    return () => {
+      if (autoCheckInterval) {
+        clearInterval(autoCheckInterval);
+      }
+      clearInterval(interval);
+    };
   }, []);
 
   const fetchOneMilCampaigns = async () => {
@@ -431,6 +481,202 @@ export default function OneMilEmailGenerator() {
         description: "Nepodařilo se načíst draft e-maily",
         variant: "destructive"
       });
+    }
+  };
+
+  const fetchScheduledEmails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('Emails')
+        .select('id, subject, content, status, created_at, project, type, scheduled_at')
+        .eq('status', 'draft')
+        .eq('project_id', ONEMIL_PROJECT_ID)
+        .not('scheduled_at', 'is', null)
+        .order('scheduled_at', { ascending: true });
+
+      if (error) throw error;
+      setScheduledEmails(data || []);
+    } catch (error) {
+      console.error('Error fetching scheduled emails:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se načíst plánované e-maily",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const checkScheduledEmails = async () => {
+    try {
+      const now = new Date();
+      const { data: dueEmails, error } = await supabase
+        .from('Emails')
+        .select('*')
+        .eq('status', 'draft')
+        .eq('project_id', ONEMIL_PROJECT_ID)
+        .not('scheduled_at', 'is', null)
+        .lte('scheduled_at', now.toISOString());
+
+      if (error) throw error;
+
+      if (dueEmails && dueEmails.length > 0) {
+        const results: ScheduledPublishingResult[] = [];
+        
+        for (const email of dueEmails) {
+          const result = await publishScheduledEmail(email);
+          results.push(result);
+        }
+
+        // Update scheduling report
+        setSchedulingReport({
+          totalScheduled: dueEmails.length,
+          successfulPublications: results.filter(r => r.success).length,
+          failedPublications: results.filter(r => !r.success).length,
+          results: results,
+          lastCheck: new Date().toISOString()
+        });
+
+        // Refresh scheduled emails list
+        fetchScheduledEmails();
+      }
+    } catch (error) {
+      console.error('Error checking scheduled emails:', error);
+    }
+  };
+
+  const publishScheduledEmail = async (email: any): Promise<ScheduledPublishingResult> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
+      // Step 1: Update email status to 'sent'
+      const { error: emailError } = await supabase
+        .from('Emails')
+        .update({ 
+          status: 'sent', 
+          updated_at: new Date().toISOString(),
+          published_at: new Date().toISOString()
+        })
+        .eq('id', email.id);
+
+      if (emailError) throw new Error(`Email update error: ${emailError.message}`);
+
+      // Step 2: Create push notification
+      const { data: notificationData, error: notificationError } = await supabase
+        .from('Notifications')
+        .insert({
+          user_id: user.id,
+          type: 'info',
+          title: 'E-mail publikován',
+          message: `E-mail "${email.subject}" byl úspěšně publikován podle plánu.`,
+          sent_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+
+      if (notificationError) throw new Error(`Notification error: ${notificationError.message}`);
+
+      // Step 3: Log to audit_logs
+      const { data: auditData, error: auditError } = await supabase
+        .from('audit_logs')
+        .insert({
+          user_id: user.id,
+          event_name: 'scheduled_email_published',
+          event_data: {
+            email_id: email.id,
+            email_subject: email.subject,
+            scheduled_at: email.scheduled_at,
+            published_at: new Date().toISOString(),
+            project_id: ONEMIL_PROJECT_ID,
+            notification_id: notificationData?.id
+          }
+        })
+        .select()
+        .single();
+
+      if (auditError) throw new Error(`Audit log error: ${auditError.message}`);
+
+      return {
+        emailId: email.id,
+        emailSubject: email.subject,
+        success: true,
+        publishedAt: new Date().toISOString(),
+        notificationId: notificationData?.id,
+        auditLogId: auditData?.id
+      };
+
+    } catch (error: any) {
+      console.error('Error publishing scheduled email:', error);
+      
+      // Log failed attempt
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          await supabase
+            .from('audit_logs')
+            .insert({
+              user_id: user.id,
+              event_name: 'scheduled_email_publish_failed',
+              event_data: {
+                email_id: email.id,
+                email_subject: email.subject,
+                scheduled_at: email.scheduled_at,
+                error: error.message,
+                project_id: ONEMIL_PROJECT_ID
+              }
+            });
+        }
+      } catch (auditError) {
+        console.error('Error logging failed publication:', auditError);
+      }
+
+      return {
+        emailId: email.id,
+        emailSubject: email.subject,
+        success: false,
+        error: error.message
+      };
+    }
+  };
+
+  const setEmailSchedule = async () => {
+    if (!selectedScheduledEmail || !newScheduledAt) {
+      toast({
+        title: "Chyba",
+        description: "Vyberte e-mail a nastavte datum publikace",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setSchedulingLoading(true);
+    try {
+      const { error } = await supabase
+        .from('Emails')
+        .update({ scheduled_at: newScheduledAt })
+        .eq('id', selectedScheduledEmail);
+
+      if (error) throw error;
+
+      toast({
+        title: "Úspěch!",
+        description: "Plán publikace byl nastaven",
+      });
+
+      // Refresh data
+      fetchDraftEmails();
+      fetchScheduledEmails();
+      setSelectedScheduledEmail('');
+      setNewScheduledAt('');
+    } catch (error) {
+      console.error('Error setting schedule:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se nastavit plán publikace",
+        variant: "destructive"
+      });
+    } finally {
+      setSchedulingLoading(false);
     }
   };
 
