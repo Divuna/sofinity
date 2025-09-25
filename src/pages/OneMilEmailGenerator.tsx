@@ -367,8 +367,17 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
   };
 
   const convertPragueToUtc = (localDateTimeString: string) => {
-    const localDate = new Date(localDateTimeString);
-    return fromZonedTime(localDate, PRAGUE_TIMEZONE);
+    // Parse datetime-local string as Prague time and convert to UTC
+    // datetime-local gives us "2024-12-10T22:21" format
+    const [datePart, timePart] = localDateTimeString.split('T');
+    const [year, month, day] = datePart.split('-').map(Number);
+    const [hour, minute] = timePart.split(':').map(Number);
+    
+    // Create date in Prague timezone
+    const pragueDate = new Date(year, month - 1, day, hour, minute);
+    
+    // Convert from Prague time to UTC
+    return fromZonedTime(pragueDate, PRAGUE_TIMEZONE);
   };
 
   const handleDraftEmailSelection = (emailId: string, checked: boolean) => {
