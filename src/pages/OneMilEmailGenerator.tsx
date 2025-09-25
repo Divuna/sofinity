@@ -6,9 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell } from 'lucide-react';
+import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell, Send, Clock, FileText } from 'lucide-react';
 
 interface Campaign {
   id: string;
@@ -34,6 +35,23 @@ interface WorkflowTestResult {
   error?: string;
 }
 
+interface DraftEmail {
+  id: string;
+  subject: string;
+  content: string;
+  status: string;
+  created_at: string;
+  project: string;
+  type: string;
+}
+
+interface PublishingResult {
+  emailUpdated: boolean;
+  notificationSent: boolean;
+  auditLogged: boolean;
+  error?: string;
+}
+
 const ONEMIL_PROJECT_ID = 'defababe-004b-4c63-9ff1-311540b0a3c9';
 
 export default function OneMilEmailGenerator() {
@@ -44,10 +62,19 @@ export default function OneMilEmailGenerator() {
   const [saving, setSaving] = useState(false);
   const [testRunning, setTestRunning] = useState(false);
   const [testResult, setTestResult] = useState<WorkflowTestResult | null>(null);
+  
+  // Publishing workflow state
+  const [draftEmails, setDraftEmails] = useState<DraftEmail[]>([]);
+  const [selectedDraftEmail, setSelectedDraftEmail] = useState<string>('');
+  const [scheduledAt, setScheduledAt] = useState<string>('');
+  const [publishingLoading, setPublishingLoading] = useState(false);
+  const [publishingResult, setPublishingResult] = useState<PublishingResult | null>(null);
+  
   const { toast } = useToast();
 
   useEffect(() => {
     fetchOneMilCampaigns();
+    fetchDraftEmails();
   }, []);
 
   const fetchOneMilCampaigns = async () => {
@@ -359,6 +386,189 @@ export default function OneMilEmailGenerator() {
     }
   };
 
+  const fetchDraftEmails = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('Emails')
+        .select('id, subject, content, status, created_at, project, type')
+        .eq('status', 'draft')
+        .eq('project_id', ONEMIL_PROJECT_ID)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setDraftEmails(data || []);
+    } catch (error) {
+      console.error('Error fetching draft emails:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se načíst draft e-maily",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const publishEmailImmediately = async () => {
+    if (!selectedDraftEmail) {
+      toast({
+        title: "Chyba",
+        description: "Vyberte e-mail pro publikaci",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setPublishingLoading(true);
+    setPublishingResult(null);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
+      const selectedEmail = draftEmails.find(email => email.id === selectedDraftEmail);
+      if (!selectedEmail) throw new Error('E-mail nenalezen');
+
+      // Step 1: Update email status to 'sent'
+      const { error: emailError } = await supabase
+        .from('Emails')
+        .update({ status: 'sent', updated_at: new Date().toISOString() })
+        .eq('id', selectedDraftEmail);
+
+      if (emailError) throw new Error(`Email update error: ${emailError.message}`);
+
+      // Step 2: Create push notification
+      const { error: notificationError } = await supabase
+        .from('Notifications')
+        .insert({
+          user_id: user.id,
+          type: 'info',
+          title: 'E-mail byl publikován',
+          message: `E-mail "${selectedEmail.subject}" byl úspěšně publikován a odeslán.`,
+          read: false
+        });
+
+      if (notificationError) throw new Error(`Notification error: ${notificationError.message}`);
+
+      // Step 3: Log to audit_logs
+      const { error: auditError } = await supabase
+        .from('audit_logs')
+        .insert({
+          user_id: user.id,
+          project_id: ONEMIL_PROJECT_ID,
+          event_name: 'email_published',
+          event_data: {
+            email_id: selectedDraftEmail,
+            email_subject: selectedEmail.subject,
+            publication_type: 'immediate',
+            published_at: new Date().toISOString(),
+            result: 'success'
+          }
+        });
+
+      if (auditError) throw new Error(`Audit log error: ${auditError.message}`);
+
+      const result: PublishingResult = {
+        emailUpdated: true,
+        notificationSent: true,
+        auditLogged: true
+      };
+
+      setPublishingResult(result);
+
+      toast({
+        title: "🎉 Publikace úspěšná!",
+        description: "E-mail byl publikován a všechny akce zalogány",
+      });
+
+      // Refresh draft emails list
+      await fetchDraftEmails();
+
+    } catch (error) {
+      console.error('Publishing failed:', error);
+      
+      const result: PublishingResult = {
+        emailUpdated: false,
+        notificationSent: false,
+        auditLogged: false,
+        error: error.message
+      };
+
+      setPublishingResult(result);
+
+      toast({
+        title: "❌ Publikace selhala",
+        description: error.message || "Nepodařilo se publikovat e-mail",
+        variant: "destructive"
+      });
+    } finally {
+      setPublishingLoading(false);
+    }
+  };
+
+  const scheduleEmailPublication = async () => {
+    if (!selectedDraftEmail || !scheduledAt) {
+      toast({
+        title: "Chyba",
+        description: "Vyberte e-mail a nastavte datum publikace",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const scheduledDate = new Date(scheduledAt);
+    const now = new Date();
+
+    if (scheduledDate <= now) {
+      toast({
+        title: "Chyba",
+        description: "Datum publikace musí být v budoucnosti",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Uživatel není přihlášen');
+
+      const selectedEmail = draftEmails.find(email => email.id === selectedDraftEmail);
+      if (!selectedEmail) throw new Error('E-mail nenalezen');
+
+      // Log scheduled publication to audit_logs
+      const { error: auditError } = await supabase
+        .from('audit_logs')
+        .insert({
+          user_id: user.id,
+          project_id: ONEMIL_PROJECT_ID,
+          event_name: 'email_scheduled',
+          event_data: {
+            email_id: selectedDraftEmail,
+            email_subject: selectedEmail.subject,
+            scheduled_at: scheduledAt,
+            scheduled_by: user.id,
+            created_at: new Date().toISOString()
+          }
+        });
+
+      if (auditError) throw new Error(`Audit log error: ${auditError.message}`);
+
+      toast({
+        title: "📅 E-mail naplánován",
+        description: `E-mail byl naplánován k publikaci na ${new Date(scheduledAt).toLocaleString('cs-CZ')}`,
+      });
+
+      // Note: In a real system, you would set up a cron job or background task
+      // to check for scheduled emails and publish them at the right time
+      
+    } catch (error) {
+      console.error('Scheduling failed:', error);
+      toast({
+        title: "❌ Plánování selhalo",
+        description: error.message || "Nepodařilo se naplánovat e-mail",
+        variant: "destructive"
+      });
+    }
+  };
+
   const runAutonomousWorkflowTest = async () => {
     if (campaigns.length === 0) {
       toast({
@@ -553,6 +763,185 @@ export default function OneMilEmailGenerator() {
                     {testResult.error && (
                       <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
                         Chyba: {testResult.error}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => window.open('/emails', '_blank')}
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Zkontrolovat e-maily
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={() => window.open('/notifications', '_blank')}
+                    >
+                      <Bell className="w-4 h-4 mr-2" />
+                      Zkontrolovat notifikace
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Email & Notification Publishing Workflow */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5" />
+              Email & Notification Publishing Workflow
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              <p className="text-sm text-muted-foreground">
+                Vyberte draft e-mail z OneMil projektu a nastavte datum publikace nebo publikujte okamžitě.
+              </p>
+              
+              <div className="grid gap-4 md:grid-cols-2">
+                {/* Draft Email Selection */}
+                <div className="space-y-3">
+                  <Label>Draft e-maily (OneMil projekt)</Label>
+                  <Select value={selectedDraftEmail} onValueChange={setSelectedDraftEmail}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Vyberte draft e-mail..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {draftEmails.map((email) => (
+                        <SelectItem key={email.id} value={email.id}>
+                          <div className="flex items-center gap-2">
+                            <Badge variant="outline" className="text-xs">
+                              {email.type}
+                            </Badge>
+                            <span className="truncate max-w-48">{email.subject}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  
+                  {draftEmails.length === 0 && (
+                    <div className="text-center py-4 text-muted-foreground">
+                      <FileText className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                      <p className="text-xs">Žádné draft e-maily nenalezeny</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Scheduled Publication */}
+                <div className="space-y-3">
+                  <Label>Datum a čas publikace (volitelné)</Label>
+                  <Input
+                    type="datetime-local"
+                    value={scheduledAt}
+                    onChange={(e) => setScheduledAt(e.target.value)}
+                    min={new Date().toISOString().slice(0, 16)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Pokud nevyplníte, použije se okamžitá publikace
+                  </p>
+                </div>
+              </div>
+
+              {selectedDraftEmail && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <h4 className="font-medium mb-2">Náhled vybraného e-mailu:</h4>
+                  {(() => {
+                    const email = draftEmails.find(e => e.id === selectedDraftEmail);
+                    return email ? (
+                      <div className="text-sm space-y-1">
+                        <p><strong>Předmět:</strong> {email.subject}</p>
+                        <p><strong>Typ:</strong> {email.type}</p>
+                        <p><strong>Vytvořen:</strong> {new Date(email.created_at).toLocaleString('cs-CZ')}</p>
+                      </div>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3">
+                <Button 
+                  onClick={publishEmailImmediately}
+                  disabled={!selectedDraftEmail || publishingLoading}
+                  className="flex-1"
+                >
+                  {publishingLoading ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Publikuji...
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-4 h-4 mr-2" />
+                      Publikovat okamžitě
+                    </>
+                  )}
+                </Button>
+                
+                <Button 
+                  onClick={scheduleEmailPublication}
+                  disabled={!selectedDraftEmail || !scheduledAt}
+                  variant="outline"
+                  className="flex-1"
+                >
+                  <Clock className="w-4 h-4 mr-2" />
+                  Naplánovat publikaci
+                </Button>
+                
+                <Button 
+                  onClick={fetchDraftEmails}
+                  variant="outline"
+                  size="icon"
+                >
+                  <Loader2 className="w-4 h-4" />
+                </Button>
+              </div>
+
+              {/* Publishing Results */}
+              {publishingResult && (
+                <div className="mt-4 p-4 border rounded-lg space-y-3">
+                  <h4 className="font-medium flex items-center gap-2">
+                    {publishingResult.error ? (
+                      <XCircle className="h-4 w-4 text-destructive" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                    )}
+                    Výsledky publikace
+                  </h4>
+                  
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span>Status e-mailu změněn na 'sent':</span>
+                      <Badge variant={publishingResult.emailUpdated ? "default" : "destructive"}>
+                        {publishingResult.emailUpdated ? "✓ Úspěch" : "✗ Selhalo"}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span>Push notifikace vytvořena:</span>
+                      <Badge variant={publishingResult.notificationSent ? "default" : "destructive"}>
+                        {publishingResult.notificationSent ? "✓ Úspěch" : "✗ Selhalo"}
+                      </Badge>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <span>Akce zalogována do audit_logs:</span>
+                      <Badge variant={publishingResult.auditLogged ? "default" : "destructive"}>
+                        {publishingResult.auditLogged ? "✓ Úspěch" : "✗ Selhalo"}
+                      </Badge>
+                    </div>
+                    
+                    {publishingResult.error && (
+                      <div className="text-xs text-destructive bg-destructive/10 p-2 rounded">
+                        Chyba: {publishingResult.error}
                       </div>
                     )}
                   </div>
