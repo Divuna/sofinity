@@ -130,6 +130,10 @@ export default function OneMilEmailGenerator() {
   const [multimediaLoading, setMultimediaLoading] = useState(false);
   const [multimediaReport, setMultimediaReport] = useState<MultimediaReport | null>(null);
 
+  // Batch Test State
+  const [batchTestLoading, setBatchTestLoading] = useState(false);
+  const [batchTestReport, setBatchTestReport] = useState<any>(null);
+
   useEffect(() => {
     fetchCampaigns();
     fetchDraftEmails();
@@ -358,6 +362,36 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
       });
     } finally {
       setWorkflowLoading(false);
+    }
+  };
+
+  const runBatchEmailTest = async () => {
+    setBatchTestLoading(true);
+    setBatchTestReport(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('batch-email-test');
+      
+      if (error) throw error;
+      
+      setBatchTestReport(data);
+      
+      toast({
+        title: "🧪 Batch test dokončen",
+        description: `Zpracováno ${data.processedEmails} e-mailů, úspěšných: ${data.successCount}`,
+      });
+      
+      // Refresh draft emails to show updated statuses
+      await fetchDraftEmails();
+      
+    } catch (error: any) {
+      toast({
+        title: "❌ Chyba batch testu",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setBatchTestLoading(false);
     }
   };
 
@@ -1149,6 +1183,90 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
                               {result.emailPublished && <Send className="h-3 w-3 text-blue-500" />}
                               {result.notificationSent && <Bell className="h-3 w-3 text-orange-500" />}
                             </div>
+                          </div>
+                          {result.error && (
+                            <div className="text-red-600 mt-1">{result.error}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Batch Email Test Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Play className="h-5 w-5" />
+                Batch Test E-mailů
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Testuje všechny koncepty e-mailů najednou - změní status na 'production' a simuluje odeslání.
+              </p>
+
+              <Button
+                onClick={runBatchEmailTest}
+                disabled={batchTestLoading}
+                className="w-full"
+                variant="outline"
+              >
+                {batchTestLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Spouštění batch testu...
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-4 w-4 mr-2" />
+                    Spustit Batch Test
+                  </>
+                )}
+              </Button>
+
+              {batchTestReport && (
+                <div className="border rounded-lg p-3 space-y-3">
+                  <h5 className="font-medium">Batch Test Report</h5>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <div className="text-muted-foreground">Celkem e-mailů</div>
+                      <div className="font-medium">{batchTestReport.totalEmails}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Úspěšných</div>
+                      <div className="font-medium text-green-600">{batchTestReport.successCount}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">S chybou</div>
+                      <div className="font-medium text-red-600">{batchTestReport.errorCount}</div>
+                    </div>
+                    <div>
+                      <div className="text-muted-foreground">Doba zpracování</div>
+                      <div className="font-medium">{Math.round(batchTestReport.duration/1000)}s</div>
+                    </div>
+                  </div>
+                  
+                  {batchTestReport.results.length > 0 && (
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      <div className="font-medium text-sm">Detaily:</div>
+                      {batchTestReport.results.map((result, index) => (
+                        <div key={index} className="text-xs border rounded p-2">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">{result.emailId}</span>
+                            <div className="flex gap-1">
+                              {result.success ? (
+                                <CheckCircle className="h-3 w-3 text-green-500" />
+                              ) : (
+                                <XCircle className="h-3 w-3 text-red-500" />
+                              )}
+                            </div>
+                          </div>
+                          <div className="text-muted-foreground mt-1">
+                            {result.recipient} | {result.project} | {result.originalStatus} → {result.newStatus}
                           </div>
                           {result.error && (
                             <div className="text-red-600 mt-1">{result.error}</div>

@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.storage-soft-rollback]
 verify_jwt = false
+
+[functions.batch-email-test]
+verify_jwt = false
