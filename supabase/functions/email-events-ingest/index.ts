@@ -69,7 +69,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Look up the email by message_id
     const { data: emailRecord, error: emailError } = await supabaseClient
       .from('Emails')
-      .select('id, user_id')
+      .select('id')
       .eq('message_id', eventData.message_id)
       .single();
 

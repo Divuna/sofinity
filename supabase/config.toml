@@ -30,6 +30,9 @@ port = 54325
 [analytics]
 enabled = false
 
+[functions.ai-assistant]
+verify_jwt = false
+
 [functions.automated-monitoring]
 verify_jwt = false
 
@@ -37,6 +40,12 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.batch-email-test]
+verify_jwt = false
+
+[functions.generate-media]
+verify_jwt = false
+
+[functions.send-campaign-emails]
 verify_jwt = false
 
 [functions.opravo-integration]

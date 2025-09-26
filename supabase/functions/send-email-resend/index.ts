@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { Resend } from "npm:resend@2.0.0";
 
-// Basic email sending without external dependencies
+const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -45,18 +46,17 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("Sending email (basic implementation):", { to, subject });
+    console.log("Sending email via Resend:", { to, subject });
 
-    // Basic email response (placeholder implementation)
-    const emailResponse = {
-      id: `email_${Date.now()}`,
+    // Send email through Resend
+    const emailResponse = await resend.emails.send({
+      from: "Sofinity <noreply@sofinity.cz>",
       to: Array.isArray(to) ? to : [to],
       subject: subject,
-      status: 'sent',
-      message: 'Email queued successfully (basic implementation)'
-    };
+      html: html,
+    });
 
-    console.log("Email processed:", emailResponse);
+    console.log("Email sent successfully:", emailResponse);
 
     return new Response(JSON.stringify(emailResponse), {
       status: 200,

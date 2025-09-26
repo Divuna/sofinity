@@ -170,7 +170,7 @@ Deno.serve(async (req) => {
           return { success: true, file: file.name }
         } catch (error) {
           console.error(`Unexpected error backing up ${file.name}:`, error)
-          return { success: false, file: file.name, error: (error as Error).message }
+          return { success: false, file: file.name, error: error.message }
         }
       })
 
@@ -224,7 +224,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: `Unexpected error: ${(error as Error).message}` 
+        error: `Unexpected error: ${error.message}` 
       }),
       { 
         status: 500,

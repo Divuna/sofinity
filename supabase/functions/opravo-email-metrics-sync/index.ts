@@ -163,7 +163,7 @@ serve(async (req) => {
           prompt: `Email metrics sync failed at ${new Date().toISOString()}`,
           response: JSON.stringify({
             success: false,
-            error: (error as Error).message,
+            error: error.message,
             sync_timestamp: new Date().toISOString(),
           }),
           status: 'failed',
@@ -175,7 +175,7 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: false,
-      error: (error as Error).message,
+      error: error.message,
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,14 +1,13 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// Basic email sending without external dependencies
+import { Resend } from 'npm:resend@2.0.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-
+const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
 
 interface SendEmailRequest {
   email_id: string;
@@ -163,40 +162,118 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Send email using basic implementation
+    // Send email using Resend with improved error handling
     let emailResponse;
     let finalRecipient = sanitizedRecipient;
     
     try {
       console.log('📮 Attempting to send email to:', finalRecipient);
       
-      // Basic email response (placeholder implementation)
-      emailResponse = {
-        data: {
-          id: `email_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-        },
-        error: null
-      };
+      emailResponse = await resend.emails.send({
+        from: 'Sofinity <noreply@opravo.cz>',
+        to: [finalRecipient],
+        subject: subject || `Email od ${email.project || 'Sofinity'}`,
+        html: content
+      });
 
-      console.log('✅ Email processed (basic implementation):', emailResponse.data?.id);
+      if (emailResponse.error) {
+        throw new Error(emailResponse.error.message || 'Chyba poskytovatele e-mailu');
+      }
+      
+      console.log('✅ Email sent successfully:', emailResponse.data?.id);
 
     } catch (providerError: any) {
       console.error('❌ Email provider error:', providerError);
       
-      // Basic error handling for placeholder implementation
-      const errorMessage = providerError.message || 'Unknown error';
+      // Handle specific Resend errors
+      const errorMessage = providerError.message || '';
       
-      return new Response(
-        JSON.stringify({ 
-          ok: false,
-          error: { 
-            code: 'PROVIDER_ERROR', 
-            message: `Chyba při odesílání e-mailu: ${errorMessage}`,
-            provider: 'basic'
+      if (errorMessage.includes('Invalid `to` field')) {
+        if (errorMessage.includes('non-ASCII characters')) {
+          // Try fallback with punycode (placeholder for now)
+          console.log('🔄 Attempting punycode fallback...');
+          try {
+            const punycodeRecipient = convertToPunycode(sanitizedRecipient);
+            console.log('🔄 Trying punycode version:', punycodeRecipient);
+            
+            emailResponse = await resend.emails.send({
+              from: 'Sofinity <noreply@opravo.cz>',
+              to: [punycodeRecipient],
+              subject: subject || `Email od ${email.project || 'Sofinity'}`,
+              html: content
+            });
+            
+            if (emailResponse.error) {
+              throw new Error(emailResponse.error.message || 'Chyba poskytovatele e-mailu');
+            }
+            
+            finalRecipient = punycodeRecipient;
+            console.log('✅ Email sent with punycode fallback:', emailResponse.data?.id);
+            
+          } catch (fallbackError) {
+            console.error('❌ Punycode fallback failed:', fallbackError);
+            return new Response(
+              JSON.stringify({ 
+                ok: false,
+                error: { 
+                  code: 'INVALID_CHARACTERS', 
+                  message: `Neplatná e-mailová adresa příjemce. Adresa obsahuje nepodporované znaky: ${sanitizedRecipient}`,
+                  provider: 'resend'
+                }
+              }),
+              { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+            );
           }
-        }),
-        { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
-      );
+        } else {
+          return new Response(
+            JSON.stringify({ 
+              ok: false,
+              error: { 
+                code: 'INVALID_RECIPIENT', 
+                message: `Neplatná e-mailová adresa příjemce: ${sanitizedRecipient}`,
+                provider: 'resend'
+              }
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+          );
+        }
+      } else if (errorMessage.includes('rate limit') || errorMessage.includes('quota')) {
+        return new Response(
+          JSON.stringify({ 
+            ok: false,
+            error: { 
+              code: 'RATE_LIMIT', 
+              message: 'Překročen limit odesílání e-mailů. Zkuste to později.',
+              provider: 'resend'
+            }
+          }),
+          { status: 429, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      } else if (errorMessage.includes('authentication') || errorMessage.includes('API key')) {
+        return new Response(
+          JSON.stringify({ 
+            ok: false,
+            error: { 
+              code: 'AUTH_ERROR', 
+              message: 'Chyba autentizace e-mailového servisu. Kontaktujte podporu.',
+              provider: 'resend'
+            }
+          }),
+          { status: 401, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      } else {
+        return new Response(
+          JSON.stringify({ 
+            ok: false,
+            error: { 
+              code: 'PROVIDER_ERROR', 
+              message: `Chyba při odesílání e-mailu: ${errorMessage}`,
+              provider: 'resend'
+            }
+          }),
+          { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
     }
 
     // Update email status to 'sent' and set email_mode
@@ -281,18 +358,15 @@ const handler = async (req: Request): Promise<Response> => {
           
           // Update email status to 'error' in database
           if (requestBody.email_id) {
-            const { error: updateError } = await supabaseClient
+            await supabaseClient
               .from('Emails')
               .update({
                 status: 'error',
                 updated_at: new Date().toISOString()
               })
               .eq('id', requestBody.email_id)
-              .eq('user_id', user.id);
-              
-            if (updateError) {
-              console.error('Failed to update email status to error:', updateError);
-            }
+              .eq('user_id', user.id)
+              .catch(updateError => console.error('Failed to update email status to error:', updateError));
           }
           
           // Log failed attempt
@@ -306,20 +380,17 @@ const handler = async (req: Request): Promise<Response> => {
             message_id: `failed_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
             payload: {
               email_id: requestBody.email_id,
-              error_message: (error as Error).message,
+              error_message: error.message,
               error_type: 'send_failure',
               original_recipient: requestBody.recipient,
               timestamp: new Date().toISOString()
             }
           };
           
-          const { error: logError } = await supabaseClient
+          await supabaseClient
             .from('EmailLogs')
-            .insert(failedEmailLog);
-            
-          if (logError) {
-            console.error('Failed to log error:', logError);
-          }
+            .insert(failedEmailLog)
+            .catch(logError => console.error('Failed to log error:', logError));
         }
       }
     } catch (logError) {
@@ -331,7 +402,7 @@ const handler = async (req: Request): Promise<Response> => {
         ok: false,
         error: {
           code: 'UNKNOWN_ERROR',
-          message: (error as Error).message || 'Došlo k neočekávané chybě při odesílání e-mailu'
+          message: error.message || 'Došlo k neočekávané chybě při odesílání e-mailu'
         }
       }),
       {

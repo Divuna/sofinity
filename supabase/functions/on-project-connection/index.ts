@@ -108,7 +108,7 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         error: 'Failed to process project connection webhook',
-        details: (error as Error).message 
+        details: error.message 
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
