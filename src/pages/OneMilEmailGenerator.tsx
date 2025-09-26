@@ -100,7 +100,7 @@ interface AIRequest {
   user_id: string;
 }
 
-const ONEMIL_PROJECT_ID = '1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p';
+const ONEMIL_PROJECT_ID = 'defababe-004b-4c63-9ff1-311540b0a3c9';
 const PRAGUE_TIMEZONE = 'Europe/Prague';
 
 export default function OneMilEmailGenerator() {
