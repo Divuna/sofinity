@@ -15,6 +15,7 @@ import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, 
 import { format, parseISO } from 'date-fns';
 import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { cs } from 'date-fns/locale/cs';
+import { AutomationStatus } from '@/components/AutomationStatus';
 
 interface Campaign {
   id: string;
