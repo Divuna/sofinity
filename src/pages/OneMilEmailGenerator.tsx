@@ -49,6 +49,16 @@ interface DraftEmail {
   scheduled_at?: string;
   project: string;
   type: string;
+  user_id: string;
+  EmailMedia?: EmailMediaItem[];
+}
+
+interface EmailMediaItem {
+  id: string;
+  media_type: string;
+  media_url: string;
+  file_name: string;
+  generated_by_ai: boolean;
 }
 
 interface PublishingResult {
@@ -191,11 +201,31 @@ export default function OneMilEmailGenerator() {
         .from('Emails')
         .select('*')
         .eq('status', 'draft')
-        .eq('project', 'onemil')
+        .eq('project', 'OneMil')
+        .eq('project_id', ONEMIL_PROJECT_ID)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setDraftEmails(data || []);
+      
+      // Fetch EmailMedia separately for each email
+      if (data && data.length > 0) {
+        const emailsWithMedia = await Promise.all(
+          data.map(async (email) => {
+            const { data: mediaData } = await supabase
+              .from('EmailMedia')
+              .select('*')
+              .eq('email_id', email.id);
+            
+            return {
+              ...email,
+              EmailMedia: mediaData || []
+            };
+          })
+        );
+        setDraftEmails(emailsWithMedia);
+      } else {
+        setDraftEmails(data || []);
+      }
     } catch (error: any) {
       toast({
         title: "❌ Chyba při načítání konceptů",
@@ -359,8 +389,8 @@ export default function OneMilEmailGenerator() {
         description: "E-mail byl úspěšně uložen do konceptů",
       });
 
-      // Refresh draft emails
-      await fetchDraftEmails();
+      // Refresh draft emails after saving
+      await autoRefresh();
 
     } catch (error: any) {
       toast({
@@ -899,86 +929,26 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
     }
   };
 
-  const generateMultimediaContent = async () => {
-    setMultimediaLoading(true);
-    setMultimediaReport(null);
+  // State for multimedia generation by individual email
+  const [generatingMediaForEmail, setGeneratingMediaForEmail] = useState<string | null>(null);
+
+  const generateMediaForEmail = async (emailId: string) => {
+    setGeneratingMediaForEmail(emailId);
     
     try {
-      const startTime = performance.now();
-      
-      const { data: draftEmails, error } = await supabase
-        .from('Emails')
-        .select(`
-          id,
-          subject,
-          content,
-          type,
-          status
-        `)
-        .eq('status', 'draft')
-        .eq('project', 'onemil')
-        .limit(10);
+      const { data, error } = await supabase.functions.invoke('generate-media', {
+        body: { email_id: emailId }
+      });
 
       if (error) throw error;
 
-      const processedEmails = [];
-      const errorDetails: string[] = [];
-      let totalMediaGenerated = 0;
-
-      for (const email of draftEmails || []) {
-        try {
-          // Simulate multimedia generation based on email type
-          const mediaTypes = getMediaTypesForEmail(email.type);
-          
-          for (const mediaType of mediaTypes) {
-            // Generate media entry
-            const { data: mediaData, error: mediaError } = await supabase
-              .from('EmailMedia')
-              .insert({
-                email_id: email.id,
-                media_type: mediaType,
-                file_name: `${email.type}_${mediaType}_${Date.now()}.${getFileExtension(mediaType)}`,
-                media_url: `https://example.com/generated/${email.id}/${mediaType}`,
-                generation_prompt: `Generate ${mediaType} content for: ${email.subject}`,
-                generated_by_ai: true,
-                file_size: Math.floor(Math.random() * 1000000) + 100000
-              })
-              .select()
-              .single();
-
-            if (mediaError) {
-              errorDetails.push(`Media generation failed for ${email.subject}: ${mediaError.message}`);
-            } else {
-              totalMediaGenerated++;
-            }
-          }
-          
-          processedEmails.push(email);
-          
-        } catch (emailError: any) {
-          errorDetails.push(`Email processing failed for ${email.subject}: ${emailError.message}`);
-        }
-      }
-
-      const endTime = performance.now();
-      const processingDuration = Math.round(endTime - startTime);
-      
-      const report: MultimediaReport = {
-        totalEmails: draftEmails?.length || 0,
-        processedEmails: processedEmails.length,
-        successfulGenerations: processedEmails.length,
-        failedGenerations: (draftEmails?.length || 0) - processedEmails.length,
-        totalMediaGenerated,
-        processingDuration,
-        errorDetails
-      };
-
-      setMultimediaReport(report);
-
       toast({
-        title: "🎬 Multimedia generování dokončeno",
-        description: `Vygenerováno ${totalMediaGenerated} médií pro ${processedEmails.length} e-mailů`,
+        title: "✅ Multimédia vytvořena",
+        description: `Úspěšně vygenerovány ${data?.media_count || 0} multimediálních souborů`,
       });
+
+      // Refresh draft emails to show updated multimedia status
+      await fetchDraftEmails();
 
     } catch (error: any) {
       toast({
@@ -987,8 +957,47 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
         variant: "destructive"
       });
     } finally {
-      setMultimediaLoading(false);
+      setGeneratingMediaForEmail(null);
     }
+  };
+
+  const viewEmailDetail = (emailId: string) => {
+    // Find the email in draftEmails
+    const email = draftEmails.find(e => e.id === emailId);
+    if (!email) return;
+
+    // Create a temporary AI request object for the dialog
+    const tempAiRequest: AIRequest = {
+      id: email.id,
+      type: email.type,
+      prompt: `Draft email: ${email.subject}`,
+      response: JSON.stringify({
+        type: email.type,
+        content: email.content,
+        subject: email.subject,
+        project: email.project
+      }),
+      status: 'completed',
+      created_at: email.created_at,
+      user_id: email.user_id || ''
+    };
+
+    setSelectedAiRequest(tempAiRequest);
+    setAiDetailDialogOpen(true);
+  };
+
+  const getMultimediaStatus = (email: DraftEmail): { hasMedia: boolean; mediaCount: number; mediaTypes: string[] } => {
+    const mediaItems = email.EmailMedia || [];
+    return {
+      hasMedia: mediaItems.length > 0,
+      mediaCount: mediaItems.length,
+      mediaTypes: [...new Set(mediaItems.map(m => m.media_type))]
+    };
+  };
+
+  const truncateContent = (content: string, maxLength: number = 120): string => {
+    if (content.length <= maxLength) return content;
+    return content.substring(0, maxLength) + '...';
   };
 
   const getMediaTypesForEmail = (emailType: string): string[] => {
@@ -1002,14 +1011,75 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
     return mediaMap[emailType as keyof typeof mediaMap] || mediaMap.default;
   };
 
-  const getFileExtension = (mediaType: string): string => {
-    const extensionMap = {
-      image: 'jpg',
-      banner: 'png', 
-      video: 'mp4',
-      document: 'pdf'
-    };
-    return extensionMap[mediaType as keyof typeof extensionMap] || 'jpg';
+  // Batch multimedia generation for all drafts
+  const generateBatchMultimedia = async () => {
+    setMultimediaLoading(true);
+    setMultimediaReport(null);
+    
+    try {
+      const startTime = performance.now();
+      const processedEmails = [];
+      const errorDetails: string[] = [];
+      let totalMediaGenerated = 0;
+
+      for (const email of draftEmails) {
+        try {
+          const { data, error } = await supabase.functions.invoke('generate-media', {
+            body: { email_id: email.id }
+          });
+
+          if (error) {
+            errorDetails.push(`Email ${email.subject}: ${error.message}`);
+          } else {
+            processedEmails.push(email);
+            totalMediaGenerated += data?.media_count || 0;
+          }
+        } catch (emailError: any) {
+          errorDetails.push(`Email ${email.subject}: ${emailError.message}`);
+        }
+      }
+
+      const endTime = performance.now();
+      const processingDuration = Math.round(endTime - startTime);
+      
+      const report: MultimediaReport = {
+        totalEmails: draftEmails.length,
+        processedEmails: processedEmails.length,
+        successfulGenerations: processedEmails.length,
+        failedGenerations: draftEmails.length - processedEmails.length,
+        totalMediaGenerated,
+        processingDuration,
+        errorDetails
+      };
+
+      setMultimediaReport(report);
+
+      toast({
+        title: "🎬 Batch multimedia generování dokončeno",
+        description: `Vygenerováno ${totalMediaGenerated} médií pro ${processedEmails.length} e-mailů`,
+      });
+
+      // Refresh draft emails to show updated multimedia status
+      await fetchDraftEmails();
+
+    } catch (error: any) {
+      toast({
+        title: "❌ Chyba při batch generování multimédií",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setMultimediaLoading(false);
+    }
+  };
+
+  // Auto-refresh functionality - called after draft save or multimedia generation
+  const autoRefresh = async () => {
+    await Promise.all([
+      fetchDraftEmails(),
+      fetchCampaigns(),
+      fetchAiRequests()
+    ]);
   };
 
   return (
@@ -1405,29 +1475,93 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
               </div>
 
               {draftEmails.length > 0 ? (
-                <div className="space-y-2 max-h-60 overflow-y-auto">
-                  {draftEmails.map((email) => (
-                    <div key={email.id} className="flex items-start gap-3 border rounded-lg p-3">
-                      <Checkbox
-                        checked={selectedDraftEmails.includes(email.id)}
-                        onCheckedChange={(checked) => 
-                          handleDraftEmailSelection(email.id, checked as boolean)
-                        }
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm truncate">{email.subject}</div>
-                        <div className="text-xs text-muted-foreground">
-                          Typ: {email.type} • Vytvořeno: {formatPragueDate(email.created_at)}
-                        </div>
-                        {email.scheduled_at && (
-                          <div className="text-xs text-orange-600 flex items-center gap-1 mt-1">
-                            <Clock className="h-3 w-3" />
-                            Naplánováno: {formatPragueDate(email.scheduled_at)}
+                <div className="space-y-3 max-h-60 overflow-y-auto">
+                  {draftEmails.map((email) => {
+                    const mediaStatus = getMultimediaStatus(email);
+                    const isGenerating = generatingMediaForEmail === email.id;
+                    
+                    return (
+                      <div key={email.id} className="border rounded-lg p-3 space-y-3">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3 flex-1">
+                            <Checkbox
+                              checked={selectedDraftEmails.includes(email.id)}
+                              onCheckedChange={(checked) => 
+                                handleDraftEmailSelection(email.id, checked as boolean)
+                              }
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="font-medium text-sm truncate">{email.subject || 'Bez předmětu'}</div>
+                              <div className="text-xs text-muted-foreground mt-1">
+                                {truncateContent(email.content)}
+                              </div>
+                              <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
+                                <span>Typ: {email.type}</span>
+                                <span>•</span>
+                                <span>Vytvořeno: {formatPragueDate(email.created_at)}</span>
+                              </div>
+                              {email.scheduled_at && (
+                                <div className="text-xs text-orange-600 flex items-center gap-1 mt-1">
+                                  <Clock className="h-3 w-3" />
+                                  Naplánováno: {formatPragueDate(email.scheduled_at)}
+                                </div>
+                              )}
+                            </div>
                           </div>
-                        )}
+                          
+                          {/* Multimedia Status */}
+                          <div className="flex items-center gap-2 text-xs">
+                            {mediaStatus.hasMedia ? (
+                              <div className="flex items-center gap-1 text-green-600">
+                                <Camera className="h-3 w-3" />
+                                {mediaStatus.mediaCount} médií
+                                <Badge variant="outline" className="text-xs">
+                                  {mediaStatus.mediaTypes.join(', ')}
+                                </Badge>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1 text-muted-foreground">
+                                <Camera className="h-3 w-3" />
+                                Žádná média
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 pt-2 border-t">
+                          <Button
+                            onClick={() => viewEmailDetail(email.id)}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            <Eye className="h-4 w-4 mr-1" />
+                            Detail
+                          </Button>
+                          <Button
+                            onClick={() => generateMediaForEmail(email.id)}
+                            disabled={isGenerating}
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                          >
+                            {isGenerating ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Generování...
+                              </>
+                            ) : (
+                              <>
+                                <Camera className="h-4 w-4 mr-1" />
+                                Generovat Multimédia
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">
@@ -1697,7 +1831,7 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
               </p>
 
               <Button
-                onClick={generateMultimediaContent}
+                onClick={generateBatchMultimedia}
                 disabled={multimediaLoading || draftEmails.length === 0}
                 className="w-full"
                 variant="outline"
