@@ -8,9 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell, Send, Clock, FileText, Camera } from 'lucide-react';
+import { Mail, Trophy, Gift, ExternalLink, Loader2, Play, CheckCircle, XCircle, Bell, Send, Clock, FileText, Camera, Bot, Eye, Save } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { fromZonedTime, toZonedTime } from 'date-fns-tz';
 import { cs } from 'date-fns/locale/cs';
@@ -89,6 +90,16 @@ interface MultimediaReport {
   errorDetails: string[];
 }
 
+interface AIRequest {
+  id: string;
+  type: string;
+  prompt: string;
+  response: string;
+  status: string;
+  created_at: string;
+  user_id: string;
+}
+
 const ONEMIL_PROJECT_ID = '1a2b3c4d-5e6f-7g8h-9i0j-1k2l3m4n5o6p';
 const PRAGUE_TIMEZONE = 'Europe/Prague';
 
@@ -134,9 +145,21 @@ export default function OneMilEmailGenerator() {
   const [batchTestLoading, setBatchTestLoading] = useState(false);
   const [batchTestReport, setBatchTestReport] = useState<any>(null);
 
+  // AI Assistant Hub State
+  const [promptText, setPromptText] = useState('');
+  const [requestType, setRequestType] = useState<'email_assistant' | 'campaign_generator' | 'autoresponder'>('email_assistant');
+  const [selectedCampaignId, setSelectedCampaignId] = useState('');
+  const [project, setProject] = useState('OneMil');
+  const [purpose, setPurpose] = useState('');
+  const [aiGenerationLoading, setAiGenerationLoading] = useState(false);
+  const [aiRequests, setAiRequests] = useState<AIRequest[]>([]);
+  const [selectedAiRequest, setSelectedAiRequest] = useState<AIRequest | null>(null);
+  const [aiDetailDialogOpen, setAiDetailDialogOpen] = useState(false);
+
   useEffect(() => {
     fetchCampaigns();
     fetchDraftEmails();
+    fetchAiRequests();
   }, []);
 
   const fetchCampaigns = async () => {
@@ -181,6 +204,216 @@ export default function OneMilEmailGenerator() {
       });
     } finally {
       setDraftsLoading(false);
+    }
+  };
+
+  const fetchAiRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('AIRequests')
+        .select('*')
+        .eq('status', 'completed')
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+      setAiRequests(data || []);
+    } catch (error: any) {
+      toast({
+        title: "❌ Chyba při načítání AI požadavků",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const validateUUID = (uuid: string): boolean => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    return uuidRegex.test(uuid);
+  };
+
+  const generateAIEmails = async () => {
+    // Validation
+    if (!promptText.trim()) {
+      toast({
+        title: "⚠️ Chybí prompt",
+        description: "Prosím zadejte text promptu",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!selectedCampaignId) {
+      toast({
+        title: "⚠️ Chybí kampaň",
+        description: "Prosím vyberte kampaň",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!validateUUID(selectedCampaignId)) {
+      toast({
+        title: "⚠️ Neplatné ID kampaně",
+        description: "ID vybrané kampaně není validní UUID",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!project.trim()) {
+      toast({
+        title: "⚠️ Chybí projekt",
+        description: "Prosím zadejte název projektu",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!purpose.trim()) {
+      toast({
+        title: "⚠️ Chybí účel",
+        description: "Prosím zadejte účel e-mailu",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setAiGenerationLoading(true);
+
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error('Uživatel není přihlášen');
+
+      const requestData = {
+        type: requestType,
+        data: {
+          emailType: requestType,
+          project: project,
+          campaign_id: selectedCampaignId,
+          purpose: purpose,
+          prompt: promptText
+        },
+        user_id: user.user.id
+      };
+
+      const { data, error } = await supabase.functions.invoke('ai-assistant', {
+        body: requestData
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "✅ AI generování dokončeno",
+        description: "E-mail byl úspěšně vygenerován pomocí AI",
+      });
+
+      // Refresh AI requests list
+      await fetchAiRequests();
+
+      // Clear form
+      setPromptText('');
+      setPurpose('');
+
+    } catch (error: any) {
+      toast({
+        title: "❌ Chyba při AI generování",
+        description: error.message,
+        variant: "destructive"
+      });
+    } finally {
+      setAiGenerationLoading(false);
+    }
+  };
+
+  const saveAsDraft = async (aiRequest: AIRequest) => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error('Uživatel není přihlášen');
+
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(aiRequest.response);
+      } catch (parseError) {
+        throw new Error('Nepodařilo se zpracovat AI odpověď');
+      }
+
+      const { data, error } = await supabase
+        .from('Emails')
+        .insert({
+          subject: `AI Generated: ${parsedResponse.type || 'Email'}`,
+          content: parsedResponse.content || aiRequest.response,
+          status: 'draft',
+          project: 'OneMil',
+          type: parsedResponse.type || 'campaign',
+          email_mode: 'test',
+          user_id: user.user.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "✅ Uloženo jako draft",
+        description: "E-mail byl úspěšně uložen do konceptů",
+      });
+
+      // Refresh draft emails
+      await fetchDraftEmails();
+
+    } catch (error: any) {
+      toast({
+        title: "❌ Chyba při ukládání",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  };
+
+  const saveAsCampaign = async (aiRequest: AIRequest) => {
+    try {
+      const { data: user } = await supabase.auth.getUser();
+      if (!user.user) throw new Error('Uživatel není přihlášen');
+
+      let parsedResponse;
+      try {
+        parsedResponse = JSON.parse(aiRequest.response);
+      } catch (parseError) {
+        throw new Error('Nepodařilo se zpracovat AI odpověď');
+      }
+
+      const { data, error } = await supabase
+        .from('Campaigns')
+        .insert({
+          name: parsedResponse.name || `AI Campaign ${new Date().toLocaleDateString('cs-CZ')}`,
+          targeting: parsedResponse.targeting || 'AI generated targeting',
+          email: parsedResponse.email || parsedResponse.content,
+          post: parsedResponse.post || '',
+          video: parsedResponse.video || '',
+          status: 'draft',
+          project: 'OneMil',
+          user_id: user.user.id
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast({
+        title: "✅ Uloženo jako kampaň",
+        description: "Kampaň byla úspěšně vytvořena",
+      });
+
+      // Refresh campaigns
+      await fetchCampaigns();
+
+    } catch (error: any) {
+      toast({
+        title: "❌ Chyba při ukládání kampaně",
+        description: error.message,
+        variant: "destructive"
+      });
     }
   };
 
@@ -791,6 +1024,176 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* AI Assistant Hub Section */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Bot className="h-5 w-5" />
+                AI Assistant Hub
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="prompt-text">Prompt Text</Label>
+                    <Textarea
+                      id="prompt-text"
+                      placeholder="Zadejte váš prompt pro AI generování..."
+                      value={promptText}
+                      onChange={(e) => setPromptText(e.target.value)}
+                      rows={4}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Typ požadavku</Label>
+                      <Select value={requestType} onValueChange={(value: any) => setRequestType(value)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="email_assistant">Email Assistant</SelectItem>
+                          <SelectItem value="campaign_generator">Campaign Generator</SelectItem>
+                          <SelectItem value="autoresponder">Autoresponder</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label>Vyber kampaně</Label>
+                      <Select value={selectedCampaignId} onValueChange={setSelectedCampaignId} disabled={campaignsLoading}>
+                        <SelectTrigger>
+                          <SelectValue placeholder={campaignsLoading ? "Načítání..." : "Vyberte kampaň"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {campaigns.map((campaign) => (
+                            <SelectItem key={campaign.id} value={campaign.id}>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={campaign.status === 'active' ? 'default' : 'secondary'}>
+                                  {campaign.status}
+                                </Badge>
+                                {campaign.name}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="project">Project</Label>
+                      <Input
+                        id="project"
+                        value={project}
+                        onChange={(e) => setProject(e.target.value)}
+                        placeholder="OneMil"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="purpose">Purpose</Label>
+                      <Input
+                        id="purpose"
+                        value={purpose}
+                        onChange={(e) => setPurpose(e.target.value)}
+                        placeholder="Účel e-mailu"
+                      />
+                    </div>
+                  </div>
+
+                  <Button 
+                    onClick={generateAIEmails}
+                    disabled={aiGenerationLoading || !promptText.trim() || !selectedCampaignId || !project.trim() || !purpose.trim()}
+                    className="w-full"
+                  >
+                    {aiGenerationLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generování...
+                      </>
+                    ) : (
+                      <>
+                        <Bot className="h-4 w-4 mr-2" />
+                        Generovat E-maily
+                      </>
+                    )}
+                  </Button>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-medium">AI Požadavky ({aiRequests.length})</h4>
+                    <Button
+                      onClick={fetchAiRequests}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Obnovit
+                    </Button>
+                  </div>
+
+                  {aiRequests.length > 0 ? (
+                    <div className="space-y-2 max-h-80 overflow-y-auto">
+                      {aiRequests.map((request) => (
+                        <div key={request.id} className="border rounded-lg p-3 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Badge variant="outline">{request.type}</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {formatPragueDate(request.created_at)}
+                            </span>
+                          </div>
+                          <div className="text-sm text-muted-foreground max-h-12 overflow-hidden">
+                            {request.prompt.length > 100 ? `${request.prompt.substring(0, 100)}...` : request.prompt}
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => {
+                                setSelectedAiRequest(request);
+                                setAiDetailDialogOpen(true);
+                              }}
+                              variant="outline"
+                              size="sm"
+                            >
+                              <Eye className="h-4 w-4 mr-1" />
+                              Detail
+                            </Button>
+                            <Button
+                              onClick={() => saveAsDraft(request)}
+                              variant="outline" 
+                              size="sm"
+                            >
+                              <Save className="h-4 w-4 mr-1" />
+                              Uložit jako E-mail
+                            </Button>
+                            {request.type === 'campaign_generator' && (
+                              <Button
+                                onClick={() => saveAsCampaign(request)}
+                                variant="outline"
+                                size="sm"
+                              >
+                                <Save className="h-4 w-4 mr-1" />
+                                Uložit jako kampaň
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Bot className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>Žádné AI požadavky k dispozici</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Email Generation Section */}
           <Card>
             <CardHeader>
@@ -1351,6 +1754,61 @@ Vygenerováno: ${new Date().toLocaleString('cs-CZ', { timeZone: PRAGUE_TIMEZONE 
             </CardContent>
           </Card>
         </div>
+
+        {/* AI Detail Dialog */}
+        <Dialog open={aiDetailDialogOpen} onOpenChange={setAiDetailDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Bot className="h-5 w-5" />
+                Detail AI výstupu
+              </DialogTitle>
+            </DialogHeader>
+            {selectedAiRequest && (
+              <div className="space-y-6">
+                <div>
+                  <h4 className="font-medium mb-2">Prompt</h4>
+                  <div className="bg-muted p-3 rounded-lg text-sm">
+                    {selectedAiRequest.prompt}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium mb-2">AI Odpověď</h4>
+                  <div className="bg-muted p-3 rounded-lg text-sm max-h-96 overflow-y-auto">
+                    <pre className="whitespace-pre-wrap">{selectedAiRequest.response}</pre>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-4 border-t">
+                  <Button
+                    onClick={() => {
+                      saveAsDraft(selectedAiRequest);
+                      setAiDetailDialogOpen(false);
+                    }}
+                    className="flex-1"
+                  >
+                    <Save className="h-4 w-4 mr-2" />
+                    Uložit jako e-mail
+                  </Button>
+                  {selectedAiRequest.type === 'campaign_generator' && (
+                    <Button
+                      onClick={() => {
+                        saveAsCampaign(selectedAiRequest);
+                        setAiDetailDialogOpen(false);
+                      }}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      Uložit jako kampaň
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     </MainLayout>
   );
