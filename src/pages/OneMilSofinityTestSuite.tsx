@@ -97,6 +97,8 @@ export default function OneMilSofinityTestSuite() {
   const [progress, setProgress] = useState(0);
   const [results, setResults] = useState<TestSuiteResults | null>(null);
   const [currentTest, setCurrentTest] = useState('');
+  const [isRepairingEvents, setIsRepairingEvents] = useState(false);
+  const [repairResults, setRepairResults] = useState<any>(null);
 
   const runDatabaseSchemaCheck = async (): Promise<DatabaseSchemaResult> => {
     setCurrentTest('Kontrola databázového schématu...');
@@ -573,6 +575,55 @@ export default function OneMilSofinityTestSuite() {
     }
   };
 
+  const runMissingEventsRepair = async () => {
+    if (isRepairingEvents) return;
+    
+    setIsRepairingEvents(true);
+    setRepairResults(null);
+    
+    try {
+      toast({
+        title: "🔧 Spouštění opravy chybějících eventů",
+        description: "Generování chybějících OneMil eventů a validace JSON metadata",
+      });
+
+      // Call the fix-missing-events edge function
+      const { data: functionData, error: functionError } = await supabase.functions.invoke('fix-missing-events', {
+        body: {}
+      });
+
+      if (functionError) {
+        throw new Error(functionError.message || "Chyba při volání fix-missing-events funkce");
+      }
+
+      setRepairResults(functionData.results);
+
+      toast({
+        title: functionData.success ? "✅ Oprava dokončena úspěšně" : "❌ Oprava se nezdařila",
+        description: functionData.success 
+          ? `Vygenerováno ${functionData.results.total_events_generated} eventů s ${functionData.results.total_validation_errors} chybami`
+          : functionData.details || "Neznámá chyba",
+        variant: functionData.success ? "default" : "destructive"
+      });
+
+      // Refresh audit data after repair
+      if (functionData.success) {
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for data to propagate
+        await runFullTestSuite();
+      }
+
+    } catch (error) {
+      console.error('Missing events repair error:', error);
+      toast({
+        title: "❌ Chyba při opravě eventů",
+        description: `${error}`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsRepairingEvents(false);
+    }
+  };
+
   const exportResults = () => {
     if (!results) return;
     
@@ -602,11 +653,20 @@ export default function OneMilSofinityTestSuite() {
         <div className="flex gap-2">
           <Button 
             onClick={runFullTestSuite} 
-            disabled={isRunning}
+            disabled={isRunning || isRepairingEvents}
             className="gap-2"
           >
             <Play className="w-4 h-4" />
             {isRunning ? 'Auditování...' : 'Spustit audit'}
+          </Button>
+          <Button 
+            onClick={runMissingEventsRepair} 
+            disabled={isRunning || isRepairingEvents}
+            variant="secondary"
+            className="gap-2"
+          >
+            <Zap className="w-4 h-4" />
+            {isRepairingEvents ? 'Opravování...' : 'Opravit chybějící eventy'}
           </Button>
           {results && (
             <Button onClick={exportResults} variant="outline" className="gap-2">
@@ -626,6 +686,83 @@ export default function OneMilSofinityTestSuite() {
                 <span>{progress}%</span>
               </div>
               <Progress value={progress} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {isRepairingEvents && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>🔧 Generování chybějících eventů a validace JSON metadata...</span>
+                <span>⏳</span>
+              </div>
+              <Progress value={75} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {repairResults && (
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-green-800">
+              <CheckCircle className="w-5 h-5" />
+              Výsledky opravy chybějících eventů
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="text-center p-4 bg-white rounded">
+                  <p className="text-2xl font-bold text-green-600">{repairResults.total_events_generated}</p>
+                  <p className="text-sm text-muted-foreground">Vygenerované eventy</p>
+                </div>
+                <div className="text-center p-4 bg-white rounded">
+                  <p className="text-2xl font-bold text-blue-600">{Object.keys(repairResults.events_by_type).length}</p>
+                  <p className="text-sm text-muted-foreground">Typy eventů</p>
+                </div>
+                <div className="text-center p-4 bg-white rounded">
+                  <p className="text-2xl font-bold text-purple-600">{repairResults.validation_results.length}</p>
+                  <p className="text-sm text-muted-foreground">Validované eventy</p>
+                </div>
+                <div className="text-center p-4 bg-white rounded">
+                  <p className="text-2xl font-bold text-orange-600">{repairResults.execution_time_ms}ms</p>
+                  <p className="text-sm text-muted-foreground">Doba zpracování</p>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-medium mb-2 text-green-800">Rozdělení eventů podle typu:</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                  {Object.entries(repairResults.events_by_type).map(([type, count]) => (
+                    <div key={type} className="flex justify-between p-2 bg-white rounded">
+                      <span className="text-sm font-mono">{type}</span>
+                      <Badge variant="default">{count as number}</Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {repairResults.total_validation_errors > 0 && (
+                <Alert className="border-orange-300 bg-orange-50">
+                  <AlertTriangle className="h-4 w-4 text-orange-600" />
+                  <AlertDescription>
+                    <div className="font-medium text-orange-800 mb-2">
+                      Nalezeno {repairResults.total_validation_errors} validačních chyb v metadata
+                    </div>
+                    <p className="text-orange-700 text-sm">
+                      Zkontrolujte detaily v audit_logs tabulce pro více informací.
+                    </p>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              <div className="text-center text-sm text-green-700">
+                ✅ Audit byl automaticky spuštěn po dokončení opravy pro aktualizaci výsledků
+              </div>
             </div>
           </CardContent>
         </Card>
