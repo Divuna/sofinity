@@ -47,8 +47,6 @@ import Prispevky from "./pages/Prispevky";
 import EmailFeedback from "./pages/EmailFeedback";
 import Settings from "./pages/Settings";
 
-// Lazy load the heavy OneMilEmailGenerator
-const OneMilEmailGenerator = React.lazy(() => import("./pages/OneMilEmailGenerator"));
 
 const queryClient = new QueryClient();
 
@@ -127,15 +125,6 @@ const App = () => {
                 <Route path="/onemil-test-suite" element={<AuthGuard><MainLayout><OneMilSofinityTestSuite /></MainLayout></AuthGuard>} />
                 <Route path="/onemil-audit-autofix" element={<AuthGuard><MainLayout><OneMilSofinityAuditAutoFix /></MainLayout></AuthGuard>} />
                 <Route path="/onemil-audit" element={<AuthGuard><MainLayout><OneMilAudit /></MainLayout></AuthGuard>} />
-                <Route path="/onemil-email-generator" element={
-                  <AuthGuard>
-                    <MainLayout>
-                      <Suspense fallback={<div className="flex items-center justify-center h-64">Načítání...</div>}>
-                        <OneMilEmailGenerator />
-                      </Suspense>
-                    </MainLayout>
-                  </AuthGuard>
-                } />
                 <Route path="/knowledge-base" element={<AuthGuard><MainLayout><KnowledgeBase /></MainLayout></AuthGuard>} />
                 <Route path="/setup-wizard" element={<AuthGuard><MainLayout><SetupWizard /></MainLayout></AuthGuard>} />
                 {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
