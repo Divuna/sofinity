@@ -30,6 +30,9 @@ port = 54325
 [analytics]
 enabled = false
 
+[functions.ai-assistant]
+verify_jwt = false
+
 [functions.automated-monitoring]
 verify_jwt = false
 
@@ -39,37 +42,52 @@ verify_jwt = false
 [functions.batch-email-test]
 verify_jwt = false
 
-[functions.opravo-integration]
-verify_jwt = false
-
-[functions.on-project-connection]
-verify_jwt = false
-
-[functions.sofinity-api]
-verify_jwt = false
-
-[functions.opravo-status]
-verify_jwt = false
-
-[functions.sofinity-opravo-status]
-verify_jwt = false
-
-[functions.opravo-email-metrics-sync]
+[functions.connect-opravo-sofinity]
 verify_jwt = false
 
 [functions.email-events-ingest]
 verify_jwt = false
 
-[functions.send-email-resend]
+[functions.generate-media]
 verify_jwt = false
 
 [functions.insert_opravo_job]
 verify_jwt = false
 
-[functions.sofinity-event]
+[functions.on-project-connection]
+verify_jwt = false
+
+[functions.opravo-email-metrics-sync]
+verify_jwt = false
+
+[functions.opravo-integration]
+verify_jwt = false
+
+[functions.opravo-offers-integration]
+verify_jwt = false
+
+[functions.opravo-status]
 verify_jwt = false
 
 [functions.register-onemill-project]
+verify_jwt = false
+
+[functions.send-campaign-emails]
+verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.send-email-resend]
+verify_jwt = false
+
+[functions.sofinity-api]
+verify_jwt = false
+
+[functions.sofinity-event]
+verify_jwt = false
+
+[functions.sofinity-opravo-status]
 verify_jwt = false
 
 [functions.storage-soft-rollback]
