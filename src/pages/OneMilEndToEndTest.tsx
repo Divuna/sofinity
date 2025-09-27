@@ -281,10 +281,12 @@ export default function OneMilEndToEndTest() {
       throw new Error(`Media record not found: ${error?.message}`);
     }
 
-    // Verify file exists in storage
+    // Verify file exists in storage - files are stored in email-media/ folder
+    const filePath = `email-media/${mediaRecord.file_name}`;
+    console.log(`Checking storage for file: ${filePath}`);
     const { data: fileData, error: fileError } = await supabase.storage
       .from('email-media')
-      .download(mediaRecord.file_name);
+      .download(filePath);
 
     if (fileError) {
       throw new Error(`Media file not found in storage: ${fileError.message}`);
