@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { Resend } from "npm:resend@2.0.0";
 
-const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,13 +47,27 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Sending email via Resend:", { to, subject });
 
-    // Send email through Resend
-    const emailResponse = await resend.emails.send({
-      from: "Sofinity <noreply@sofinity.cz>",
-      to: Array.isArray(to) ? to : [to],
-      subject: subject,
-      html: html,
+    // Send email through Resend API
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: "OneMil <noreply@opravo.cz>",
+        to: Array.isArray(to) ? to : [to],
+        subject: subject,
+        html: html,
+      }),
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Resend API error: ${response.status} - ${errorText}`);
+    }
+
+    const emailResponse = await response.json();
 
     console.log("Email sent successfully:", emailResponse);
 

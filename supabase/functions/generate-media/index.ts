@@ -6,6 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -24,7 +26,7 @@ serve(async (req) => {
     // Initialize Supabase client
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
     // Get email details
@@ -55,41 +57,61 @@ serve(async (req) => {
         const prompt = generatePromptForMedia(mediaType, email)
         console.log(`Generated prompt for ${mediaType}:`, prompt)
 
-        // Use Lovable AI to generate the media
-        const { data: aiResponse, error: aiError } = await supabase.functions.invoke('ai-assistant', {
-          body: {
-            type: 'media_generator',
-            data: {
-              mediaType: mediaType,
-              prompt: prompt,
-              emailSubject: email.subject,
-              emailContent: email.content,
-              project: email.project
-            }
-          }
-        })
+        // Use Lovable AI to generate images
+        const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${lovableApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-2.5-flash-image-preview',
+            messages: [
+              { role: 'user', content: prompt }
+            ],
+            modalities: ['image', 'text']
+          }),
+        });
 
-        if (aiError) {
-          console.error(`AI generation error for ${mediaType}:`, aiError)
-          errors.push(`AI generation failed for ${mediaType}: ${aiError.message}`)
-          continue
+        if (!aiResponse.ok) {
+          console.error(`AI generation error for ${mediaType}:`, aiResponse.status);
+          errors.push(`AI generation failed for ${mediaType}: ${aiResponse.status}`);
+          continue;
         }
 
-        // Parse AI response to get media URL or base64 data
-        let mediaUrl = `https://placeholder.com/generated/${email_id}/${mediaType}`
-        let fileSize = Math.floor(Math.random() * 1000000) + 100000
+        const aiData = await aiResponse.json();
+        let mediaUrl = `https://placeholder.com/generated/${email_id}/${mediaType}`;
+        let fileSize = Math.floor(Math.random() * 1000000) + 100000;
 
-        if (aiResponse?.response) {
-          try {
-            const parsedResponse = JSON.parse(aiResponse.response)
-            if (parsedResponse.mediaUrl) {
-              mediaUrl = parsedResponse.mediaUrl
+        // Check if AI returned an image
+        if (aiData.choices && aiData.choices[0] && aiData.choices[0].message.images) {
+          const image = aiData.choices[0].message.images[0];
+          if (image && image.image_url && image.image_url.url) {
+            // Save the base64 image to Supabase Storage
+            try {
+              const base64Data = image.image_url.url.split(',')[1];
+              const imageBuffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+              
+              const fileName = `${email.type}_${mediaType}_${Date.now()}.${getFileExtension(mediaType)}`;
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('email-media')
+                .upload(fileName, imageBuffer, {
+                  contentType: `image/${getFileExtension(mediaType)}`,
+                  upsert: true
+                });
+
+              if (uploadError) {
+                console.error('Storage upload error:', uploadError);
+              } else {
+                const { data: { publicUrl } } = supabase.storage
+                  .from('email-media')
+                  .getPublicUrl(fileName);
+                mediaUrl = publicUrl;
+                fileSize = imageBuffer.length;
+              }
+            } catch (storageError) {
+              console.error('Error processing AI image:', storageError);
             }
-            if (parsedResponse.fileSize) {
-              fileSize = parsedResponse.fileSize
-            }
-          } catch (parseError) {
-            console.log('Could not parse AI response, using default values')
           }
         }
 
@@ -123,9 +145,9 @@ serve(async (req) => {
 
         console.log(`Successfully generated and saved ${mediaType}`)
 
-      } catch (mediaError) {
+      } catch (mediaError: any) {
         console.error(`Error generating ${mediaType}:`, mediaError)
-        errors.push(`Error generating ${mediaType}: ${mediaError.message}`)
+        errors.push(`Error generating ${mediaType}: ${mediaError?.message || 'Unknown error'}`)
       }
     }
 
@@ -169,13 +191,13 @@ serve(async (req) => {
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Generate media error:', error)
     return new Response(
       JSON.stringify({ 
         success: false,
-        error: error.message,
-        details: error.toString()
+        error: error?.message || 'Unknown error',
+        details: error?.toString() || 'Unknown error'
       }),
       { 
         status: 500,
@@ -186,7 +208,6 @@ serve(async (req) => {
 })
 
 function getMediaTypesForEmail(emailType: string, content: string): string[] {
-  // Default media types based on email type
   const mediaMap: Record<string, string[]> = {
     'launch': ['image', 'banner'],
     'contest': ['image', 'banner', 'video'],
@@ -214,7 +235,6 @@ function getMediaTypesForEmail(emailType: string, content: string): string[] {
 }
 
 function generatePromptForMedia(mediaType: string, email: any): string {
-  const basePrompt = `Generate a ${mediaType} for email campaign`
   const subject = email.subject || 'Email Campaign'
   const content = email.content || 'Campaign content'
   const project = email.project || 'OneMil'
@@ -226,7 +246,7 @@ function generatePromptForMedia(mediaType: string, email: any): string {
     'logo': `Design a logo variation for "${project}" campaign "${subject}". Style: modern, clean, professional.`
   }
 
-  return prompts[mediaType] || `${basePrompt} for "${subject}". Project: ${project}. Make it professional and engaging.`
+  return prompts[mediaType] || `Generate a ${mediaType} for "${subject}". Project: ${project}. Make it professional and engaging.`
 }
 
 function getFileExtension(mediaType: string): string {

@@ -1,4 +1,3 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1';
 
@@ -7,61 +6,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
+const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-// Helper function to parse raw prompt text into structured data
-function parsePromptToData(prompt: string, type: string): any {
-  console.log('Parsing prompt for type:', type, 'prompt:', prompt);
-  
-  const data: any = {};
-  
-  // Extract project name (look for patterns like "projekt: X" or "pro projekt X")
-  const projectMatch = prompt.match(/(?:projekt|project)[:\s]*([^\n,.]+)/i);
-  data.project = projectMatch ? projectMatch[1].trim() : 'Nespecifikovaný projekt';
-  
-  if (type === 'campaign_generator' || type === 'campaign') {
-    // Extract goal/objective
-    const goalMatch = prompt.match(/(?:cíl|účel|goal|objective)[:\s]*([^\n,.]+)/i);
-    data.goal = goalMatch ? goalMatch[1].trim() : 'Zvýšení povědomí o značce';
-    
-    // If no specific parts found, use the whole prompt as goal
-    if (!goalMatch && !projectMatch) {
-      data.goal = prompt.trim();
-      data.project = 'AI Generovaná kampaň';
-    }
-  } else if (type === 'email_assistant' || type === 'email') {
-    // Extract email type
-    const typeMatch = prompt.match(/(?:typ|type)[:\s]*([^\n,.]+)/i);
-    data.emailType = typeMatch ? typeMatch[1].trim() : 'propagační';
-    
-    // Extract purpose
-    const purposeMatch = prompt.match(/(?:účel|purpose|cíl)[:\s]*([^\n,.]+)/i);
-    data.purpose = purposeMatch ? purposeMatch[1].trim() : prompt.trim();
-    
-    // If no specific parts found, use the whole prompt as purpose
-    if (!purposeMatch && !typeMatch && !projectMatch) {
-      data.purpose = prompt.trim();
-      data.emailType = 'obecný';
-      data.project = 'Email kampaň';
-    }
-  } else if (type === 'autoresponder') {
-    // Extract question/trigger
-    const questionMatch = prompt.match(/(?:otázka|question|trigger)[:\s]*([^\n]+)/i);
-    data.question = questionMatch ? questionMatch[1].trim() : prompt.split('\n')[0] || prompt.trim();
-    
-    // Extract desired response style
-    const styleMatch = prompt.match(/(?:styl|style|tón|tone)[:\s]*([^\n,.]+)/i);
-    data.responseStyle = styleMatch ? styleMatch[1].trim() : 'přátelský a profesionální';
-    
-    // Use remaining text or full prompt as context
-    data.context = prompt.trim();
-  }
-  
-  console.log('Parsed data:', data);
-  return data;
-}
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -73,8 +20,8 @@ serve(async (req) => {
     const requestBody = await req.json();
     console.log('AI Assistant request body:', requestBody);
 
-    if (!openAIApiKey) {
-      throw new Error('OpenAI API klíč není nastaven');
+    if (!lovableApiKey) {
+      throw new Error('Lovable API klíč není nastaven');
     }
 
     // Initialize Supabase client
@@ -100,44 +47,24 @@ serve(async (req) => {
       throw new Error('User ID není k dispozici. Přihlaste se znovu.');
     }
 
-    // Support both old format {type, prompt} and new format {type, data, user_id}
-    // Also extract project_id from request body
-    let type, data, rawPrompt, project_id;
-    
-    project_id = requestBody.project_id; // Extract project_id from request
-    
-    if (requestBody.data && typeof requestBody.data === 'object') {
-      // New format: {type, data, user_id, project_id}
-      type = requestBody.type;
-      data = requestBody.data;
-      rawPrompt = data.prompt || '';
-    } else if (requestBody.prompt && typeof requestBody.prompt === 'string') {
-      // Old format: {type, prompt, project_id}
-      type = requestBody.type;
-      rawPrompt = requestBody.prompt;
-      
-      // Parse the prompt to extract structured data
-      data = parsePromptToData(rawPrompt, type);
-    } else {
-      throw new Error('Neplatný formát požadavku. Očekává se {type, data} nebo {type, prompt}.');
-    }
-
-    console.log('Request details:', { type, project_id, user_id });
-
-    // Map frontend types to internal types
-    const typeMapping = {
-      'email_assistant': 'email',
-      'campaign_generator': 'campaign',
-      'autoresponder': 'autoresponder'
-    };
-    
-    const internalType = typeMapping[type] || type;
-    console.log('Mapped type:', type, '->', internalType);
-
+    const { type, data } = requestBody;
     let prompt = '';
     let systemMessage = '';
 
-    if (internalType === 'campaign') {
+    if (type === 'email_assistant' || type === 'email') {
+      systemMessage = `Jsi AI asistent pro email marketing. Vytváříš emaily v češtině.
+      Odpovídej pouze ve formátu JSON s následujícími poli:
+      {
+        "type": "typ emailu",
+        "content": "obsah emailu",
+        "recipient": "cílová skupina",
+        "project": "název projektu"
+      }`;
+      
+      prompt = `Vytvoř ${data.emailType || 'propagační'} email pro projekt "${data.project}" 
+      s účelem "${data.purpose}". Email musí být v češtině a profesionální.`;
+
+    } else if (type === 'campaign_generator' || type === 'campaign') {
       systemMessage = `Jsi AI asistent pro marketing. Vytváříš marketingové kampaně v češtině. 
       Odpovídej pouze ve formátu JSON s následujícími poli:
       {
@@ -148,23 +75,10 @@ serve(async (req) => {
         "video": "návrh videa nebo popis"
       }`;
       
-      prompt = `Vytvoř marketingovou kampaň pro projekt "${data.project}" s cílem "${data.goal}". 
+      prompt = `Vytvoř marketingovou kampaň pro projekt "${data.project}" s cílem "${data.goal || data.purpose}". 
       Kampaň musí být v češtině a přizpůsobená českému trhu.`;
-      
-    } else if (internalType === 'email') {
-      systemMessage = `Jsi AI asistent pro email marketing. Vytváříš emaily v češtině.
-      Odpovídej pouze ve formátu JSON s následujícími poli:
-      {
-        "type": "typ emailu",
-        "content": "obsah emailu",
-        "recipient": "cílová skupina",
-        "project": "název projektu"
-      }`;
-      
-      prompt = `Vytvoř ${data.emailType} email pro projekt "${data.project}" 
-      s účelem "${data.purpose}". Email musí být v češtině a profesionální.`;
 
-    } else if (internalType === 'autoresponder') {
+    } else if (type === 'autoresponder') {
       systemMessage = `Jsi AI asistent pro automatické odpovědi. Vytváříš autoresponder v češtině.
       Odpovídej pouze ve formátu JSON s následujícími poli:
       {
@@ -174,41 +88,40 @@ serve(async (req) => {
         "generated_by_ai": true
       }`;
       
-      prompt = `Vytvoř automatickou odpověď pro otázku/trigger "${data.question}" 
-      v ${data.responseStyle} stylu. Odpověď musí být v češtině a užitečná pro zákazníky.
-      Kontext: ${data.context}`;
+      prompt = `Vytvoř automatickou odpověď pro otázku/trigger "${data.question || data.prompt}" 
+      v přátelském a profesionálním stylu. Odpověď musí být v češtině a užitečná pro zákazníky.`;
     }
 
-    console.log('Calling OpenAI with prompt:', prompt);
+    console.log('Calling Lovable AI with prompt:', prompt);
 
-    // Call OpenAI API with updated model and parameters
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Call Lovable AI Gateway
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4.1-2025-04-14',  // Updated to stable GPT-4.1 model
+        model: 'google/gemini-2.5-flash',
         messages: [
           { role: 'system', content: systemMessage },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
-        max_completion_tokens: 1000,  // Updated parameter name
+        max_tokens: 1000,
       }),
     });
 
     if (!response.ok) {
       const errorData = await response.text();
-      console.error('OpenAI API error:', errorData);
-      throw new Error(`OpenAI API chyba: ${response.status} - ${errorData}`);
+      console.error('Lovable AI API error:', errorData);
+      throw new Error(`Lovable AI API chyba: ${response.status} - ${errorData}`);
     }
 
     const aiResponse = await response.json();
     const generatedContent = aiResponse.choices[0].message.content;
     
-    console.log('OpenAI response:', generatedContent);
+    console.log('Lovable AI response:', generatedContent);
 
     // Parse JSON response
     let parsedContent;
@@ -222,7 +135,7 @@ serve(async (req) => {
 
     // Save to database based on type
     let savedData;
-    if (internalType === 'campaign') {
+    if (type === 'campaign_generator' || type === 'campaign') {
       const { data: campaignData, error: campaignError } = await supabase
         .from('Campaigns')
         .insert({
@@ -232,6 +145,7 @@ serve(async (req) => {
           post: parsedContent.post,
           video: parsedContent.video,
           project: data.project,
+          project_id: 'defababe-004b-4c63-9ff1-311540b0a3c9', // OneMil project ID
           user_id: user_id,
           status: 'draft'
         })
@@ -243,47 +157,8 @@ serve(async (req) => {
         throw new Error('Chyba při ukládání kampaně: ' + campaignError.message);
       }
       savedData = campaignData;
-
-      // Send webhook to Make.com for campaign automation
-      try {
-        const webhookPayload = {
-          name: campaignData.name,
-          targeting: campaignData.targeting,
-          email: campaignData.email,
-          post: campaignData.post,
-          video: campaignData.video,
-          project: data.project,
-          user_id: campaignData.user_id,
-          campaign_id: campaignData.id,
-          created_at: campaignData.created_at
-        };
-
-        const makeWebhookUrl = Deno.env.get('MAKE_WEBHOOK_URL');
-        if (makeWebhookUrl) {
-          console.log('Sending webhook to Make.com:', webhookPayload);
-          
-          const webhookResponse = await fetch(makeWebhookUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(webhookPayload),
-          });
-
-          if (webhookResponse.ok) {
-            console.log('Webhook sent successfully to Make.com');
-          } else {
-            console.error('Failed to send webhook to Make.com:', webhookResponse.status);
-          }
-        } else {
-          console.log('Make webhook URL not configured, skipping webhook');
-        }
-      } catch (webhookError) {
-        console.error('Error sending webhook to Make.com:', webhookError);
-        // Don't fail the main request if webhook fails
-      }
       
-    } else if (internalType === 'email') {
+    } else if (type === 'email_assistant' || type === 'email') {
       const { data: emailData, error: emailError } = await supabase
         .from('Emails')
         .insert({
@@ -291,6 +166,10 @@ serve(async (req) => {
           content: parsedContent.content,
           recipient: parsedContent.recipient,
           project: parsedContent.project,
+          project_id: 'defababe-004b-4c63-9ff1-311540b0a3c9', // OneMil project ID
+          subject: `AI Generated: ${parsedContent.type}`,
+          status: 'draft',
+          email_mode: 'test',
           user_id: user_id
         })
         .select()
@@ -302,7 +181,7 @@ serve(async (req) => {
       }
       savedData = emailData;
 
-    } else if (internalType === 'autoresponder') {
+    } else if (type === 'autoresponder') {
       const { data: autoresponderData, error: autoresponderError } = await supabase
         .from('Autoresponses')
         .insert({
@@ -322,20 +201,17 @@ serve(async (req) => {
       savedData = autoresponderData;
     }
 
-    // Log AI request with original prompt for history
-    const promptForHistory = rawPrompt || prompt;
+    // Log AI request
     await supabase
       .from('AIRequests')
       .insert({
-        type: type, // Use original frontend type for consistency
-        prompt: promptForHistory,
+        type: type,
+        prompt: data.prompt || prompt,
         response: generatedContent,
         status: 'completed',
         user_id: user_id,
-        project_id: project_id // Save project_id to AIRequests table
+        project_id: 'defababe-004b-4c63-9ff1-311540b0a3c9' // OneMil project ID
       });
-
-    console.log('AIRequest logged with project_id:', project_id);
 
     console.log('Successfully saved:', savedData);
 
@@ -347,10 +223,10 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in AI assistant:', error);
     return new Response(JSON.stringify({ 
-      error: error.message || 'Došlo k neočekávané chybě' 
+      error: error?.message || 'Došlo k neočekávané chybě' 
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

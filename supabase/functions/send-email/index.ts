@@ -1,13 +1,12 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { Resend } from 'npm:resend@2.0.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY') as string);
+const resendApiKey = Deno.env.get('RESEND_API_KEY');
 
 interface SendEmailRequest {
   email_id: string;
@@ -169,16 +168,28 @@ const handler = async (req: Request): Promise<Response> => {
     try {
       console.log('📮 Attempting to send email to:', finalRecipient);
       
-      emailResponse = await resend.emails.send({
-        from: 'Sofinity <noreply@opravo.cz>',
-        to: [finalRecipient],
-        subject: subject || `Email od ${email.project || 'Sofinity'}`,
-        html: content
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'OneMil <noreply@opravo.cz>',
+          to: [finalRecipient],
+          subject: subject || `Email od ${email.project || 'OneMil'}`,
+          html: content
+        }),
       });
 
-      if (emailResponse.error) {
-        throw new Error(emailResponse.error.message || 'Chyba poskytovatele e-mailu');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Resend API error: ${response.status} - ${errorText}`);
       }
+
+      emailResponse = {
+        data: await response.json()
+      };
       
       console.log('✅ Email sent successfully:', emailResponse.data?.id);
 
@@ -196,16 +207,28 @@ const handler = async (req: Request): Promise<Response> => {
             const punycodeRecipient = convertToPunycode(sanitizedRecipient);
             console.log('🔄 Trying punycode version:', punycodeRecipient);
             
-            emailResponse = await resend.emails.send({
-              from: 'Sofinity <noreply@opravo.cz>',
-              to: [punycodeRecipient],
-              subject: subject || `Email od ${email.project || 'Sofinity'}`,
-              html: content
+            const fallbackResponse = await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${resendApiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                from: 'OneMil <noreply@opravo.cz>',
+                to: [punycodeRecipient],
+                subject: subject || `Email od ${email.project || 'OneMil'}`,
+                html: content
+              }),
             });
             
-            if (emailResponse.error) {
-              throw new Error(emailResponse.error.message || 'Chyba poskytovatele e-mailu');
+            if (!fallbackResponse.ok) {
+              const errorText = await fallbackResponse.text();
+              throw new Error(`Resend API error: ${fallbackResponse.status} - ${errorText}`);
             }
+
+            emailResponse = {
+              data: await fallbackResponse.json()
+            };
             
             finalRecipient = punycodeRecipient;
             console.log('✅ Email sent with punycode fallback:', emailResponse.data?.id);
@@ -358,15 +381,18 @@ const handler = async (req: Request): Promise<Response> => {
           
           // Update email status to 'error' in database
           if (requestBody.email_id) {
-            await supabaseClient
+            const { error: updateError } = await supabaseClient
               .from('Emails')
               .update({
                 status: 'error',
                 updated_at: new Date().toISOString()
               })
               .eq('id', requestBody.email_id)
-              .eq('user_id', user.id)
-              .catch(updateError => console.error('Failed to update email status to error:', updateError));
+              .eq('user_id', user.id);
+            
+            if (updateError) {
+              console.error('Failed to update email status to error:', updateError);
+            }
           }
           
           // Log failed attempt
@@ -387,10 +413,13 @@ const handler = async (req: Request): Promise<Response> => {
             }
           };
           
-          await supabaseClient
+          const { error: logError } = await supabaseClient
             .from('EmailLogs')
-            .insert(failedEmailLog)
-            .catch(logError => console.error('Failed to log error:', logError));
+            .insert(failedEmailLog);
+          
+          if (logError) {
+            console.error('Failed to log error:', logError);
+          }
         }
       }
     } catch (logError) {
