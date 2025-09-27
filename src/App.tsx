@@ -21,6 +21,7 @@ import AIRequestDetail from "./pages/AIRequestDetail";
 import OneMilSofinityTestSuite from "./pages/OneMilSofinityTestSuite";
 import OneMilSofinityAuditAutoFix from "./pages/OneMilSofinityAuditAutoFix";
 import OneMilAudit from "./pages/OneMilAudit";
+import SofinityAuditRepair from "./pages/SofinityAuditRepair";
 import OneMilEmailGenerator from "./pages/OneMilEmailGenerator";
 import OneMilEndToEndTest from "./pages/OneMilEndToEndTest";
 import KnowledgeBase from "./pages/KnowledgeBase";
@@ -127,6 +128,7 @@ const App = () => {
                 <Route path="/onemil-test-suite" element={<AuthGuard><MainLayout><OneMilSofinityTestSuite /></MainLayout></AuthGuard>} />
                 <Route path="/onemil-audit-autofix" element={<AuthGuard><MainLayout><OneMilSofinityAuditAutoFix /></MainLayout></AuthGuard>} />
                 <Route path="/onemil-audit" element={<AuthGuard><MainLayout><OneMilAudit /></MainLayout></AuthGuard>} />
+                <Route path="/sofinity-audit-repair" element={<AuthGuard><MainLayout><SofinityAuditRepair /></MainLayout></AuthGuard>} />
                 <Route path="/onemill-email-generator" element={<AuthGuard><MainLayout><OneMilEmailGenerator /></MainLayout></AuthGuard>} />
                 <Route path="/onemill-end-to-end-test" element={<AuthGuard><MainLayout><OneMilEndToEndTest /></MainLayout></AuthGuard>} />
                 <Route path="/knowledge-base" element={<AuthGuard><MainLayout><KnowledgeBase /></MainLayout></AuthGuard>} />
