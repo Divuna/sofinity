@@ -99,6 +99,7 @@ export default function OneMilSofinityTestSuite() {
   const [currentTest, setCurrentTest] = useState('');
   const [isRepairingEvents, setIsRepairingEvents] = useState(false);
   const [repairResults, setRepairResults] = useState<any>(null);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
 
   const runDatabaseSchemaCheck = async (): Promise<DatabaseSchemaResult> => {
     setCurrentTest('Kontrola databázového schématu...');
@@ -386,6 +387,46 @@ export default function OneMilSofinityTestSuite() {
     };
   };
 
+  const runSupabaseConnectionTest = async () => {
+    setIsTestingConnection(true);
+    
+    try {
+      // Test connection by querying EventLogs for events from last 24 hours
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+      
+      const { data, error, count } = await supabase
+        .from('EventLogs')
+        .select('*', { count: 'exact' })
+        .gte('timestamp', oneDayAgo)
+        .limit(1);
+
+      if (error) {
+        toast({
+          title: "❌ Connection Failed",
+          description: `Supabase connection error: ${error.message}`,
+          variant: "destructive"
+        });
+        return;
+      }
+
+      // Success - show event count from last 24 hours
+      toast({
+        title: "✅ Connection Successful", 
+        description: `Successfully connected to Supabase. Found ${count || 0} events from the last 24 hours.`,
+        variant: "default"
+      });
+
+    } catch (error: any) {
+      toast({
+        title: "❌ Connection Failed",
+        description: `Connection test failed: ${error.message || 'Unknown error'}`,
+        variant: "destructive"
+      });
+    } finally {
+      setIsTestingConnection(false);
+    }
+  };
+
   const runRealtimeMonitoring = async () => {
     setCurrentTest('Monitoring posledních eventů...');
     
@@ -653,15 +694,24 @@ export default function OneMilSofinityTestSuite() {
         <div className="flex gap-2">
           <Button 
             onClick={runFullTestSuite} 
-            disabled={isRunning || isRepairingEvents}
+            disabled={isRunning || isRepairingEvents || isTestingConnection}
             className="gap-2"
           >
             <Play className="w-4 h-4" />
             {isRunning ? 'Auditování...' : 'Spustit audit'}
           </Button>
           <Button 
+            onClick={runSupabaseConnectionTest} 
+            disabled={isRunning || isRepairingEvents || isTestingConnection}
+            variant="outline"
+            className="gap-2"
+          >
+            <Database className="w-4 h-4" />
+            {isTestingConnection ? 'Testování...' : 'Test spojení'}
+          </Button>
+          <Button 
             onClick={runMissingEventsRepair} 
-            disabled={isRunning || isRepairingEvents}
+            disabled={isRunning || isRepairingEvents || isTestingConnection}
             variant="secondary"
             className="gap-2"
           >
