@@ -369,21 +369,40 @@ export default function OneMilEndToEndTest() {
       throw new Error(`Failed to fetch draft emails: ${draftsError.message}`);
     }
 
-    // Process batch campaign sending
-    const { data: batchResult, error: batchError } = await supabase.functions.invoke('send-campaign-emails', {
-      body: {
-        campaign_id: ONEMILL_PROJECT_ID,
-        batch_size: 10
-      }
-    });
+    if (!draftEmails || draftEmails.length === 0) {
+      return { draftsFound: 0, totalSent: 0, totalFailed: 0, processed: 0, batchResults: [] };
+    }
 
-    if (batchError) {
-      throw new Error(`Batch processing failed: ${batchError.message}`);
+    let totalSent = 0;
+    let totalFailed = 0;
+    let processed = 0;
+    const batchResults: any[] = [];
+
+    // Invoke the function per email_id to avoid 404 from unsupported campaign_id
+    for (const email of draftEmails) {
+      const { data, error } = await supabase.functions.invoke('send-campaign-emails', {
+        body: {
+          email_id: email.id,
+          batch_size: 10
+        }
+      });
+
+      if (error) {
+        throw new Error(`Batch processing failed for email ${email.id}: ${error.message}`);
+      }
+
+      batchResults.push({ email_id: email.id, ...data });
+      totalSent += data?.total_sent || 0;
+      totalFailed += data?.total_failed || 0;
+      processed += data?.emails_processed || 0;
     }
 
     return {
-      draftsFound: draftEmails?.length || 0,
-      batchResult: batchResult
+      draftsFound: draftEmails.length,
+      totalSent,
+      totalFailed,
+      processed,
+      batchResults
     };
   };
 
