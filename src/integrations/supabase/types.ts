@@ -1447,17 +1447,23 @@ export type Database = {
         Row: {
           created_at: string | null
           email: string
+          full_name: string | null
           id: string
+          role: string | null
         }
         Insert: {
           created_at?: string | null
           email: string
+          full_name?: string | null
           id?: string
+          role?: string | null
         }
         Update: {
           created_at?: string | null
           email?: string
+          full_name?: string | null
           id?: string
+          role?: string | null
         }
         Relationships: []
       }

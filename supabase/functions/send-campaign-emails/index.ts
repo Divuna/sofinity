@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
+import { Resend } from "https://esm.sh/resend@4.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -14,259 +15,253 @@ interface SendCampaignRequest {
 }
 
 interface EmailLog {
-  campaign_id?: string;
-  user_id: string;
   recipient_email: string;
   subject: string;
   status: string;
   sent_at: string;
-  message_id?: string;
+  campaign_id?: string;
+  user_id: string;
   payload: any;
+  message_id?: string;
 }
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { 
+      status: 405, 
+      headers: corsHeaders 
+    });
+  }
+
   try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
-
-    const { email_id, campaign_id, batch_size = 10, user_id }: SendCampaignRequest = await req.json();
-
-    console.log(`Sending campaign emails - Email ID: ${email_id}, Campaign ID: ${campaign_id}`);
-
-    let emailsToSend: any[] = [];
-
-    if (email_id) {
-      // Send specific email
-      const { data: emailRecord, error: emailError } = await supabaseClient
-        .from('Emails')
-        .select('*')
-        .eq('id', email_id)
-        .single();
-
-      if (emailError || !emailRecord) {
-        throw new Error('Email not found');
-      }
-
-      emailsToSend = [emailRecord];
-    } else if (campaign_id) {
-      // Send all emails for campaign
-      const { data: campaignEmails, error: campaignError } = await supabaseClient
-        .from('Emails')
-        .select('*')
-        .eq('project_id', campaign_id)
-        .eq('status', 'draft');
-
-      if (campaignError) {
-        throw new Error(`Failed to fetch campaign emails: ${campaignError.message}`);
-      }
-
-      emailsToSend = campaignEmails || [];
-    } else {
-      throw new Error('Either email_id or campaign_id must be provided');
+    // Initialize Supabase client with service role key
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase configuration');
     }
 
-    if (emailsToSend.length === 0) {
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Initialize Resend client
+    const resendApiKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendApiKey) {
+      throw new Error('RESEND_API_KEY not configured');
+    }
+
+    const resend = new Resend(resendApiKey);
+
+    // Parse the request body
+    const { email_id, campaign_id, batch_size = 10, user_id }: SendCampaignRequest = await req.json();
+
+    if (!email_id && !campaign_id) {
       return new Response(
-        JSON.stringify({
-          success: true,
-          message: 'No emails to send',
-          sent_count: 0
-        }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        }
+        JSON.stringify({ error: 'Either email_id or campaign_id is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Get contacts for sending
-    const { data: contacts, error: contactsError } = await supabaseClient
+    console.log('Processing campaign send request:', { email_id, campaign_id, batch_size });
+
+    // Fetch emails to send
+    let emailsQuery = supabase
+      .from('Emails')
+      .select('*');
+
+    if (email_id) {
+      emailsQuery = emailsQuery.eq('id', email_id);
+    } else if (campaign_id) {
+      emailsQuery = emailsQuery.eq('campaign_id', campaign_id);
+    }
+
+    const { data: emails, error: emailsError } = await emailsQuery;
+
+    if (emailsError || !emails || emails.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'No emails found to send' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`Found ${emails.length} emails to send`);
+
+    // Fetch subscribed contacts for OneMil project
+    const { data: contactsData, error: contactsError } = await supabase
       .from('Contacts')
-      .select('email, name')
-      .eq('subscribed', true)
-      .limit(batch_size);
+      .select('email, name, subscribed')
+      .eq('project_id', 'defababe-004b-4c63-9ff1-311540b0a3c9')
+      .eq('subscribed', true);
 
-    if (contactsError) {
-      throw new Error(`Failed to fetch contacts: ${contactsError.message}`);
+    let contacts = contactsData;
+    if (contactsError || !contacts || contacts.length === 0) {
+      console.log('No subscribed contacts found, using test recipient');
+      // Use test recipient if no contacts found
+      contacts = [{ email: 'divispavel2@gmail.com', name: 'Test User', subscribed: true }];
     }
 
-    if (!contacts || contacts.length === 0) {
-      throw new Error('No subscribed contacts found');
-    }
+    console.log(`Sending to ${contacts.length} contacts`);
 
-    const results = [];
+    let totalSent = 0;
+    let totalFailed = 0;
     const emailLogs: EmailLog[] = [];
 
-    for (const email of emailsToSend) {
-      for (const contact of contacts) {
-        try {
-          // Send via Resend
-          const resendResponse = await fetch('https://api.resend.com/emails', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              from: 'OneMil <no-reply@onemill.cz>',
-              to: contact.email,
+    // Process each email
+    for (const email of emails) {
+      console.log(`Processing email: ${email.subject}`);
+
+      // Process contacts in batches
+      for (let i = 0; i < contacts.length; i += batch_size) {
+        const batch = contacts.slice(i, i + batch_size);
+        
+        for (const contact of batch) {
+          try {
+            // Send email via Resend
+            const { data: sendData, error: sendError } = await resend.emails.send({
+              from: 'OneMil <noreply@onefocusedmillion.com>',
+              to: [contact.email],
               subject: email.subject,
               html: email.content,
-              tags: [
-                { name: 'campaign', value: campaign_id || 'single' },
-                { name: 'email_id', value: email.id }
-              ]
-            }),
-          });
+              text: email.content.replace(/<[^>]*>/g, ''), // Strip HTML for text version
+            });
 
-          const resendData = await resendResponse.json();
+            if (sendError) {
+              throw sendError;
+            }
 
-          if (resendResponse.ok) {
-            emailLogs.push({
-              campaign_id,
-              user_id: email.user_id,
+            // Log successful send
+            const emailLog: EmailLog = {
               recipient_email: contact.email,
               subject: email.subject,
               status: 'sent',
               sent_at: new Date().toISOString(),
-              message_id: resendData.id,
+              campaign_id: email.campaign_id || null,
+              user_id: user_id || email.user_id,
               payload: {
                 email_id: email.id,
-                resend_id: resendData.id,
-                contact_name: contact.name
-              }
-            });
+                contact_name: contact.name,
+                resend_id: sendData?.id
+              },
+              message_id: sendData?.id || undefined
+            };
 
-            results.push({
-              success: true,
-              email_id: email.id,
-              recipient: contact.email,
-              message_id: resendData.id
-            });
-          } else {
-            emailLogs.push({
-              campaign_id,
-              user_id: email.user_id,
+            emailLogs.push(emailLog);
+            totalSent++;
+
+            console.log(`Email sent successfully to ${contact.email}`);
+
+          } catch (error) {
+            console.error(`Failed to send email to ${contact.email}:`, error);
+
+            // Log failed send
+            const emailLog: EmailLog = {
               recipient_email: contact.email,
               subject: email.subject,
               status: 'failed',
               sent_at: new Date().toISOString(),
+              campaign_id: email.campaign_id || null,
+              user_id: user_id || email.user_id,
               payload: {
                 email_id: email.id,
-                error: resendData.message || 'Unknown error',
-                contact_name: contact.name
+                contact_name: contact.name,
+                error: error instanceof Error ? error.message : 'Unknown error'
               }
-            });
+            };
 
-            results.push({
-              success: false,
-              email_id: email.id,
-              recipient: contact.email,
-              error: resendData.message
-            });
+            emailLogs.push(emailLog);
+            totalFailed++;
           }
-        } catch (sendError: any) {
-          console.error(`Error sending to ${contact.email}:`, sendError);
-          
-          emailLogs.push({
-            campaign_id,
-            user_id: email.user_id,
-            recipient_email: contact.email,
-            subject: email.subject,
-            status: 'failed',
-            sent_at: new Date().toISOString(),
-            payload: {
-              email_id: email.id,
-              error: sendError.message,
-              contact_name: contact.name
-            }
-          });
 
-          results.push({
-            success: false,
-            email_id: email.id,
-            recipient: contact.email,
-            error: sendError.message
-          });
+          // Small delay between emails to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // Delay between batches
+        if (i + batch_size < contacts.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
       // Update email status to sent
-      await supabaseClient
+      const { error: updateError } = await supabase
         .from('Emails')
         .update({ status: 'sent' })
         .eq('id', email.id);
-    }
 
-    // Batch insert email logs
-    if (emailLogs.length > 0) {
-      const { error: logError } = await supabaseClient
-        .from('EmailLogs')
-        .insert(emailLogs);
-
-      if (logError) {
-        console.error('Error saving email logs:', logError);
+      if (updateError) {
+        console.error('Failed to update email status:', updateError);
       }
     }
 
-    // Log to audit_logs
-    const { error: auditError } = await supabaseClient
+    // Bulk insert email logs
+    if (emailLogs.length > 0) {
+      const { error: logsError } = await supabase
+        .from('EmailLogs')
+        .insert(emailLogs);
+
+      if (logsError) {
+        console.error('Failed to insert email logs:', logsError);
+      }
+    }
+
+    // Log the campaign send event to audit_logs
+    const { error: auditError } = await supabase
       .from('audit_logs')
       .insert({
         event_name: 'campaign_emails_sent',
-        user_id: user_id,
-        project_id: campaign_id,
+        user_id: user_id || emails[0].user_id,
         event_data: {
-          emails_processed: emailsToSend.length,
-          contacts_reached: contacts.length,
-          total_sent: results.filter(r => r.success).length,
-          total_failed: results.filter(r => !r.success).length,
-          batch_size
+          total_emails: emails.length,
+          total_contacts: contacts.length,
+          total_sent: totalSent,
+          total_failed: totalFailed,
+          batch_size: batch_size,
+          campaign_id: campaign_id,
+          email_ids: emails.map(e => e.id),
+          sent_at: new Date().toISOString()
         }
       });
 
     if (auditError) {
-      console.error('Audit log error:', auditError);
+      console.error('Failed to log audit event:', auditError);
+      // Don't fail the request for audit log errors
     }
 
-    const successCount = results.filter(r => r.success).length;
-    const failCount = results.filter(r => !r.success).length;
-
-    console.log(`Campaign sending completed: ${successCount} sent, ${failCount} failed`);
+    console.log(`Campaign send completed: ${totalSent} sent, ${totalFailed} failed`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        sent_count: successCount,
-        failed_count: failCount,
-        total_processed: results.length,
-        results,
-        message: `Campaign emails processed: ${successCount} sent, ${failCount} failed`
+        total_sent: totalSent,
+        total_failed: totalFailed,
+        emails_processed: emails.length,
+        contacts_count: contacts.length,
+        logs_created: emailLogs.length
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
 
-  } catch (error: any) {
-    console.error('Send Campaign Emails error:', error);
-    
+  } catch (error) {
+    console.error('Error in send-campaign-emails function:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error?.message || 'Unknown error occurred'
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
-});
+};
+
+serve(handler);

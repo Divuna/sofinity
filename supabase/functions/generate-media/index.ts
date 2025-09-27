@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,39 +13,86 @@ interface MediaRequest {
   user_id?: string;
 }
 
-serve(async (req) => {
+const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const supabaseClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+  if (req.method !== 'POST') {
+    return new Response('Method not allowed', { 
+      status: 405, 
+      headers: corsHeaders 
+    });
+  }
 
+  try {
+    // Initialize Supabase client with service role key
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      throw new Error('Missing Supabase configuration');
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Parse the request body
     const { email_id, media_type, prompt, user_id }: MediaRequest = await req.json();
 
-    console.log(`Generating ${media_type} for email ${email_id}`);
+    if (!email_id || !media_type || !prompt) {
+      return new Response(
+        JSON.stringify({ error: 'email_id, media_type, and prompt are required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    // Verify email exists and get its details
-    const { data: emailRecord, error: emailError } = await supabaseClient
+    console.log('Processing media generation request:', { email_id, media_type, prompt: prompt.substring(0, 100) });
+
+    // Fetch email details to enrich the prompt
+    const { data: emailData, error: emailError } = await supabase
       .from('Emails')
-      .select('id, subject, user_id')
+      .select('subject, content, user_id')
       .eq('id', email_id)
       .single();
 
-    if (emailError || !emailRecord) {
-      throw new Error('Email not found');
+    if (emailError || !emailData) {
+      return new Response(
+        JSON.stringify({ error: 'Email not found' }),
+        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Generate media using Lovable AI
-    const enhancedPrompt = `Create a professional ${media_type} for email campaign: "${emailRecord.subject}". ${prompt}. Style: modern, professional, Czech business context.`;
+    // Get the Lovable AI API key
+    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    if (!lovableApiKey) {
+      throw new Error('LOVABLE_API_KEY not configured');
+    }
 
+    // Create enriched prompt based on email content and media type
+    const enrichedPrompt = `Create a ${media_type} for OneMil email campaign.
+    
+    Email Subject: ${emailData.subject}
+    Email Content Context: ${emailData.content.substring(0, 500)}
+    
+    Specific Request: ${prompt}
+    
+    Style Guidelines:
+    - Professional and modern design
+    - OneMil brand colors (blue and white theme)
+    - High quality and engaging
+    - ${media_type === 'banner' ? 'Suitable for email header/banner placement' : ''}
+    - ${media_type === 'image' ? 'Suitable for email content illustration' : ''}
+    - ${media_type === 'video' ? 'Suitable for video thumbnail or preview' : ''}
+    `;
+
+    console.log('Calling Lovable AI for media generation...');
+
+    // Call Lovable AI Gateway for media generation using Nano banana model
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${Deno.env.get('LOVABLE_API_KEY')}`,
+        'Authorization': `Bearer ${lovableApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -53,7 +100,7 @@ serve(async (req) => {
         messages: [
           {
             role: 'user',
-            content: enhancedPrompt
+            content: enrichedPrompt
           }
         ],
         modalities: ['image', 'text']
@@ -61,97 +108,124 @@ serve(async (req) => {
     });
 
     if (!aiResponse.ok) {
-      throw new Error(`AI Gateway error: ${aiResponse.status}`);
+      console.error('AI API error:', aiResponse.status, await aiResponse.text());
+      throw new Error(`AI API error: ${aiResponse.status}`);
     }
 
     const aiData = await aiResponse.json();
-    
-    // Extract image from AI response
-    let mediaUrl = '';
-    let fileName = '';
-    
-    if (aiData.choices?.[0]?.message?.images?.[0]?.image_url?.url) {
-      const base64Data = aiData.choices[0].message.images[0].image_url.url;
-      
-      // Generate filename
-      fileName = `${media_type}-${email_id}-${Date.now()}.png`;
-      
-      // Convert base64 to blob
-      const base64Response = await fetch(base64Data);
-      const blob = await base64Response.blob();
-      
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabaseClient.storage
-        .from('email-media')
-        .upload(fileName, blob, {
-          contentType: 'image/png',
-          upsert: false
-        });
+    const images = aiData.choices[0]?.message?.images;
 
-      if (uploadError) {
-        console.error('Storage upload error:', uploadError);
-        throw new Error(`Failed to upload ${media_type}: ${uploadError.message}`);
-      }
-
-      // Get public URL
-      const { data: urlData } = supabaseClient.storage
-        .from('email-media')
-        .getPublicUrl(fileName);
-      
-      mediaUrl = urlData.publicUrl;
-    } else {
-      throw new Error('No media generated by AI');
+    if (!images || images.length === 0) {
+      throw new Error('No image generated by AI');
     }
 
+    const imageData = images[0].image_url.url; // Base64 data URL
+    console.log('Image generated by AI, size:', imageData.length);
+
+    // Extract base64 data and convert to blob
+    const base64Data = imageData.split(',')[1];
+    const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+
+    // Generate unique filename
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const fileName = `${media_type}-${email_id}-${timestamp}.png`;
+    const filePath = `email-media/${fileName}`;
+
+    console.log('Uploading to Supabase Storage:', filePath);
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('email-media')
+      .upload(filePath, binaryData, {
+        contentType: 'image/png',
+        upsert: false
+      });
+
+    if (uploadError) {
+      console.error('Storage upload error:', uploadError);
+      throw new Error(`Failed to upload media: ${uploadError.message}`);
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('email-media')
+      .getPublicUrl(filePath);
+
+    const mediaUrl = urlData.publicUrl;
+    console.log('Media uploaded successfully:', mediaUrl);
+
     // Save media record to EmailMedia table
-    const { data: mediaRecord, error: mediaError } = await supabaseClient
+    const { data: mediaRecord, error: mediaError } = await supabase
       .from('EmailMedia')
       .insert({
-        email_id,
-        media_type,
+        email_id: email_id,
+        media_type: media_type,
         media_url: mediaUrl,
         file_name: fileName,
         generation_prompt: prompt,
         generated_by_ai: true,
-        file_size: null // Will be updated if needed
+        file_size: binaryData.length
       })
       .select()
       .single();
 
     if (mediaError) {
-      console.error('Error saving media record:', mediaError);
+      console.error('Database error saving media record:', mediaError);
+      // Try to cleanup uploaded file
+      await supabase.storage.from('email-media').remove([filePath]);
       throw new Error(`Failed to save media record: ${mediaError.message}`);
     }
 
-    console.log(`${media_type} generated and saved: ${fileName}`);
+    console.log('Media record created:', mediaRecord.id);
+
+    // Log the media generation event to audit_logs
+    const { error: auditError } = await supabase
+      .from('audit_logs')
+      .insert({
+        event_name: 'ai_media_generated',
+        user_id: user_id || emailData.user_id,
+        event_data: {
+          email_id: email_id,
+          media_id: mediaRecord.id,
+          media_type: media_type,
+          prompt: prompt.substring(0, 500),
+          file_name: fileName,
+          file_size: binaryData.length,
+          ai_model: 'google/gemini-2.5-flash-image-preview',
+          generated_at: new Date().toISOString()
+        }
+      });
+
+    if (auditError) {
+      console.error('Failed to log audit event:', auditError);
+      // Don't fail the request for audit log errors
+    }
 
     return new Response(
       JSON.stringify({
         success: true,
-        media_id: mediaRecord.id,
-        media_url: mediaUrl,
-        file_name: fileName,
-        media_type,
-        message: `${media_type} generated successfully`
+        media: mediaRecord,
+        media_url: mediaUrl
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
 
-  } catch (error: any) {
-    console.error('Generate Media error:', error);
-    
+  } catch (error) {
+    console.error('Error in generate-media function:', error);
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: error?.message || 'Unknown error occurred'
+      JSON.stringify({ 
+        error: 'Internal server error', 
+        details: error instanceof Error ? error.message : 'Unknown error'
       }),
       {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
-});
+};
+
+serve(handler);
