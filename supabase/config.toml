@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.storage-soft-rollback]
 verify_jwt = false
+
+[functions.fix-missing-events]
+verify_jwt = false
