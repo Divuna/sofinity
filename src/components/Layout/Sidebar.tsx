@@ -30,7 +30,8 @@ import {
   Bell,
   CheckCircle,
   BookOpen,
-  Bug
+  Bug,
+  TestTube
 } from 'lucide-react';
 
 const navigation = [
@@ -51,6 +52,7 @@ const advancedNavigation = [
   { name: 'OneMil Test Suite', href: '/onemil-test-suite', icon: BrainCircuit },
   { name: 'OneMil Audit', href: '/onemil-audit', icon: Database },
   { name: 'OneMil E-mail Generátor', href: '/onemill-email-generator', icon: Mail },
+  { name: 'OneMil E2E Test', href: '/onemill-end-to-end-test', icon: TestTube },
   
   { name: 'Notifikace', href: '/notifications', icon: Bell },
   { name: 'Týmová zpětná vazba', href: '/team-feedback', icon: MessageSquare },
