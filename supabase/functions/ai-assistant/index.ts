@@ -78,11 +78,11 @@ const handler = async (req: Request): Promise<Response> => {
             role: 'system',
             content: `You are an expert email marketing assistant for OneMil. Create professional, engaging email content.
             
-            Format your response as JSON with this exact structure:
-            {
-              "subject": "Email subject line",
-              "content": "Full email content in HTML format with proper styling"
-            }
+            CRITICAL: Return ONLY a valid JSON object with this exact structure:
+            {"subject": "Email subject line", "content": "Full email content in HTML format"}
+            
+            Do NOT wrap your response in code blocks, markdown, or any other formatting.
+            Do NOT include any text before or after the JSON object.
             
             Guidelines:
             - Subject should be catchy and relevant to OneMil brand
@@ -116,9 +116,23 @@ const handler = async (req: Request): Promise<Response> => {
     // Parse the AI response to extract subject and content
     let emailData: { subject: string; content: string };
     try {
+      // Strip JSON code fences if present
+      let cleanedContent = aiContent.trim();
+      if (cleanedContent.startsWith('```json')) {
+        cleanedContent = cleanedContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+      } else if (cleanedContent.startsWith('```')) {
+        cleanedContent = cleanedContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+      }
+      
       // Try to parse as JSON first
-      emailData = JSON.parse(aiContent);
-    } catch {
+      emailData = JSON.parse(cleanedContent);
+      
+      // Validate required fields
+      if (!emailData.subject || !emailData.content) {
+        throw new Error('Missing required fields in AI response');
+      }
+    } catch (parseError) {
+      console.log('JSON parsing failed, attempting fallback extraction:', parseError);
       // Fallback: extract from text format
       const subjectMatch = aiContent.match(/(?:Subject|Předmět):\s*(.+)/i);
       const contentMatch = aiContent.match(/(?:Content|Obsah):\s*([\s\S]+)/i);
@@ -181,6 +195,9 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         success: true,
+        email_id: emailRecord.id,
+        subject: emailData.subject,
+        content: emailData.content,
         email: emailRecord,
         ai_response: {
           subject: emailData.subject,

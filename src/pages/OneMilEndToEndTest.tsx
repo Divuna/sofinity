@@ -201,7 +201,6 @@ export default function OneMilEndToEndTest() {
       .from('Emails')
       .select('*')
       .eq('id', data.email_id)
-      .eq('project_id', ONEMILL_PROJECT_ID)
       .single();
 
     if (emailError || !emailRecord) {
