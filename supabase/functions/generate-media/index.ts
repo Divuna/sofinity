@@ -8,7 +8,7 @@ const corsHeaders = {
 
 interface MediaRequest {
   email_id: string;
-  media_type: 'image' | 'video';
+  media_type: 'image' | 'video' | 'banner';
   prompt: string;
   user_id?: string;
 }

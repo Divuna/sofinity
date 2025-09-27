@@ -250,7 +250,7 @@ export default function OneMilEndToEndTest() {
     const { data, error } = await supabase.functions.invoke('generate-media', {
       body: {
         email_id: emailId,
-        media_type: 'banner',
+        media_type: 'image',
         prompt: mediaPrompt
       }
     });
@@ -259,14 +259,14 @@ export default function OneMilEndToEndTest() {
       throw new Error(`Media generation failed: ${error.message}`);
     }
 
-    if (!data?.success || !data?.media_id) {
+    if (!data?.success || !data?.media?.id) {
       throw new Error(`Media generation returned invalid response: ${JSON.stringify(data)}`);
     }
 
     return {
-      media_id: data.media_id,
+      media_id: data.media.id,
       media_url: data.media_url,
-      file_name: data.file_name
+      file_name: data.media.file_name
     };
   };
 
