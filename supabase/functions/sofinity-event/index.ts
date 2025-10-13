@@ -40,15 +40,38 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Check if request is explicitly marked as external
+    const isExternalRequest = req.headers.get("x-external-request") === "true";
+    
     // Validate API key for external calls
     const apiKey = req.headers.get("x-api-key") || req.headers.get("authorization")?.replace("Bearer ", "");
     const expectedApiKey = Deno.env.get("SOFINITY_API_KEY");
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
     
-    // Allow test requests when API key is missing/invalid
+    // Determine if this is a test/internal request
     let isTestRequest = false;
-    if (!apiKey || apiKey !== expectedApiKey) {
-      console.log("🧪 Test request detected - allowing as manual_test");
-      isTestRequest = true;
+    
+    // If explicitly external, require valid API key
+    if (isExternalRequest) {
+      if (!apiKey || apiKey !== expectedApiKey) {
+        console.error("❌ External request missing valid API key");
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Unauthorized: External requests require valid API key" 
+          }),
+          {
+            status: 401,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
+      }
+    } else {
+      // Internal/test requests: allow if no auth or anon key
+      if (!apiKey || apiKey === anonKey || apiKey !== expectedApiKey) {
+        console.log("🧪 Internal/test request detected - allowing as manual_test");
+        isTestRequest = true;
+      }
     }
 
     const eventData: SofinityEventRequest = await req.json();
