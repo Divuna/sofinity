@@ -75,8 +75,31 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Determine source system (from request or default to generic 'sofinity')
-    const sourceSystem = eventData.source_system || 'sofinity';
+    // Known OneMil events for auto-detection
+    const oneMilEvents = [
+      'prize_won', 
+      'coin_redeemed', 
+      'voucher_purchased', 
+      'user_registered', 
+      'notification_sent', 
+      'contest_closed'
+    ];
+
+    // Determine source system with automatic OneMil detection
+    let sourceSystem = eventData.source_system;
+    
+    if (!sourceSystem) {
+      // Auto-detect OneMil based on event name
+      if (oneMilEvents.includes(eventData.event_name)) {
+        sourceSystem = 'onemill';
+        console.log("🔍 Auto-detected OneMil event:", {
+          event_name: eventData.event_name,
+          inferred_source: 'onemill'
+        });
+      } else {
+        sourceSystem = 'sofinity';
+      }
+    }
     
     console.log("📥 Incoming Sofinity event:", { 
       source_system: sourceSystem,
@@ -199,18 +222,28 @@ const handler = async (req: Request): Promise<Response> => {
       // Continue even if AIRequests fails - EventLog is primary
     }
 
-    // Insert into audit_logs table with standardized event name
+    // Insert into audit_logs table with standardized event name and source detection
     const auditData = {
       user_id: eventData.user_id || null,
       project_id: eventData.project_id,
       event_name: standardizedEventName,
       event_data: {
         ...eventData.metadata || {},
-        original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined
+        source_system: sourceSystem,
+        original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined,
+        was_mapped: wasMapped,
+        standardization_timestamp: new Date().toISOString()
       },
       ip_address: clientIP,
       user_agent: userAgent
     };
+
+    console.log("📋 Audit log data:", {
+      event_name: standardizedEventName,
+      source_system: sourceSystem,
+      was_mapped: wasMapped,
+      has_original_name: eventData.event_name !== standardizedEventName
+    });
 
     const { data: auditResult, error: auditError } = await supabase
       .from("audit_logs")
