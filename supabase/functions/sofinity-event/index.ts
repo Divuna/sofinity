@@ -280,6 +280,10 @@ const handler = async (req: Request): Promise<Response> => {
     const rawType = 'sofinity_integration';
     const normalizedType = validTypes.includes(rawType) ? rawType : 'integration';
     
+    // Sanitize source_system: must be in ['sofinity', 'onemil', 'system'], otherwise default to 'sofinity'
+    const validSources = ['sofinity', 'onemil', 'system'];
+    const sanitizedSource = validSources.includes(sourceSystem) ? sourceSystem : 'sofinity';
+    
     const aiRequestData = {
       type: normalizedType,
       prompt: `Sofinity event: ${standardizedEventName}`,
@@ -287,6 +291,7 @@ const handler = async (req: Request): Promise<Response> => {
       event_name: standardizedEventName,
       metadata: {
         ...eventData.metadata || {},
+        source_system: sanitizedSource,
         original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined,
         client_ip: sanitizedIP
       },
