@@ -275,14 +275,14 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Insert into AIRequests table for campaign analysis with standardized event name
-    // Set type to 'analysis' to comply with AIRequests_type_check constraint
+    // Set type to 'evaluator' to comply with AIRequests_type_check constraint
     
     // Sanitize source_system: must be in ['sofinity', 'onemil', 'system'], otherwise default to 'sofinity'
     const validSources = ['sofinity', 'onemil', 'system'];
     const sanitizedSource = validSources.includes(sourceSystem) ? sourceSystem : 'sofinity';
     
     const aiRequestData = {
-      type: 'analysis',
+      type: 'evaluator',
       prompt: `Sofinity event: ${standardizedEventName}`,
       project_id: eventData.project_id,
       event_name: standardizedEventName,
