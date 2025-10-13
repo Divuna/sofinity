@@ -275,8 +275,13 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     // Insert into AIRequests table for campaign analysis with standardized event name
+    // Normalize type: must be in ['manual', 'integration', 'system'], otherwise default to 'integration'
+    const validTypes = ['manual', 'integration', 'system'];
+    const rawType = 'sofinity_integration';
+    const normalizedType = validTypes.includes(rawType) ? rawType : 'integration';
+    
     const aiRequestData = {
-      type: 'sofinity_integration',
+      type: normalizedType,
       prompt: `Sofinity event: ${standardizedEventName}`,
       project_id: eventData.project_id,
       event_name: standardizedEventName,
@@ -316,7 +321,7 @@ const handler = async (req: Request): Promise<Response> => {
           user_id_note: "Missing user_id replaced with safe placeholder UUID"
         })
       },
-      ip_address: clientIP,
+      ip_address: sanitizedIP,
       user_agent: userAgent
     };
 
