@@ -176,6 +176,9 @@ const handler = async (req: Request): Promise<Response> => {
     const clientIP = req.headers.get("x-forwarded-for") || 
                      req.headers.get("x-real-ip") || 
                      null;
+    
+    // Sanitize IP: if multiple IPs (comma-separated), use only the first
+    const sanitizedIP = clientIP ? clientIP.split(',')[0].trim() : null;
 
     // Insert into EventLogs table (primary event storage) with standardized event name
     const eventLogData = {
@@ -279,7 +282,8 @@ const handler = async (req: Request): Promise<Response> => {
       event_name: standardizedEventName,
       metadata: {
         ...eventData.metadata || {},
-        original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined
+        original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined,
+        client_ip: sanitizedIP
       },
       user_id: safeUserId,
       status: 'completed'
