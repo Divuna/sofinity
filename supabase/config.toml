@@ -95,3 +95,6 @@ verify_jwt = false
 
 [functions.fix-missing-events]
 verify_jwt = false
+
+[functions.ai-evaluator]
+verify_jwt = false

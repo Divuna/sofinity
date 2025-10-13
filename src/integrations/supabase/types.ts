@@ -694,6 +694,7 @@ export type Database = {
           id: string
           media_type: string
           media_url: string
+          status: string | null
           updated_at: string
         }
         Insert: {
@@ -706,6 +707,7 @@ export type Database = {
           id?: string
           media_type: string
           media_url: string
+          status?: string | null
           updated_at?: string
         }
         Update: {
@@ -718,6 +720,7 @@ export type Database = {
           id?: string
           media_type?: string
           media_url?: string
+          status?: string | null
           updated_at?: string
         }
         Relationships: []
@@ -1295,6 +1298,44 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      Reactions: {
+        Row: {
+          ai_confidence: number | null
+          created_at: string
+          event_id: string
+          id: string
+          recommendation: string
+          summary: string
+          user_id: string
+        }
+        Insert: {
+          ai_confidence?: number | null
+          created_at?: string
+          event_id: string
+          id?: string
+          recommendation: string
+          summary: string
+          user_id: string
+        }
+        Update: {
+          ai_confidence?: number | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          recommendation?: string
+          summary?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Reactions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "EventLogs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       Stats: {
         Row: {
