@@ -88,11 +88,21 @@ interface Post {
   project_id: string | null;
 }
 
+interface OneMilEvent {
+  id: string;
+  event_name: string;
+  metadata: any;
+  timestamp: string;
+  project_id: string | null;
+  user_id: string | null;
+}
+
 export default function Dashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [aiRequests, setAiRequests] = useState<AIRequest[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [oneMilEvents, setOneMilEvents] = useState<OneMilEvent[]>([]);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     activeCampaigns: 0,
@@ -196,6 +206,33 @@ export default function Dashboard() {
         status: post.status,
         project_id: post.project_id
       })));
+
+      // Fetch recent OneMil events from EventLogs
+      let oneMilEventsQuery = supabase
+        .from('EventLogs')
+        .select('*')
+        .in('event_name', ['contest_created', 'contest_updated', 'ticket_created', 'winner_selected', 'voucher_generated'])
+        .order('timestamp', { ascending: false })
+        .limit(10);
+      
+      if (selectedProject?.id) {
+        oneMilEventsQuery = oneMilEventsQuery.eq('project_id', selectedProject.id);
+      }
+      
+      const { data: oneMilEventsData, error: oneMilEventsError } = await oneMilEventsQuery;
+      
+      if (oneMilEventsError) {
+        console.error('Error fetching OneMil events:', oneMilEventsError);
+      } else {
+        setOneMilEvents((oneMilEventsData || []).map(event => ({
+          id: event.id,
+          event_name: event.event_name,
+          metadata: event.metadata,
+          timestamp: event.timestamp,
+          project_id: event.project_id,
+          user_id: event.user_id
+        })));
+      }
 
       // Fetch projects with counts
       const { data: projectsData, error: projectsError } = await supabase
@@ -561,6 +598,71 @@ export default function Dashboard() {
                   Začít s AI asistentem
                 </RouterLink>
               </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* OneMil Events Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg flex items-center">
+            <Target className="w-5 h-5 mr-2" />
+            OneMil události
+          </CardTitle>
+          <Button variant="ghost" size="sm" asChild>
+            <RouterLink to="/onemill-audit">
+              <Eye className="w-4 h-4 mr-2" />
+              Zobrazit vše
+            </RouterLink>
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {oneMilEvents.length > 0 ? (
+            oneMilEvents.map((event) => (
+              <div
+                key={event.id}
+                className="p-4 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <Badge variant="outline" className="text-xs">
+                      {event.event_name.replace(/_/g, ' ').toUpperCase()}
+                    </Badge>
+                    <Badge variant="default" className="text-xs">
+                      OneMil
+                    </Badge>
+                  </div>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {new Date(event.timestamp).toLocaleDateString('cs-CZ', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  {event.metadata && Object.keys(event.metadata).length > 0 && (
+                    <div className="text-sm">
+                      <span className="font-medium text-foreground">Metadata: </span>
+                      <span className="text-muted-foreground">
+                        {JSON.stringify(event.metadata, null, 2).substring(0, 100)}
+                        {JSON.stringify(event.metadata).length > 100 ? '...' : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8">
+              <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                {selectedProject ? 'Žádné OneMil události pro tento projekt' : 'Zatím nebyly zaznamenány žádné OneMil události'}
+              </p>
             </div>
           )}
         </CardContent>

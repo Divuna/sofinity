@@ -85,7 +85,37 @@ const handler = async (req: Request): Promise<Response> => {
                      req.headers.get("x-real-ip") || 
                      null;
 
-    // Insert into AIRequests table first
+    // Insert into EventLogs table (primary event storage)
+    const eventLogData = {
+      project_id: eventData.project_id,
+      user_id: eventData.user_id || null,
+      event_name: eventData.event_name,
+      metadata: eventData.metadata || {},
+      contest_id: eventData.metadata?.contest_id || null
+    };
+
+    const { data: eventLogResult, error: eventLogError } = await supabase
+      .from("EventLogs")
+      .insert(eventLogData)
+      .select()
+      .single();
+
+    if (eventLogError) {
+      console.error("EventLogs insertion error:", eventLogError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Failed to insert event log",
+          details: eventLogError.message
+        }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    // Insert into AIRequests table for campaign analysis
     const aiRequestData = {
       type: 'sofinity_integration',
       prompt: `Sofinity event: ${eventData.event_name}`,
@@ -104,17 +134,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (aiRequestError) {
       console.error("AIRequests insertion error:", aiRequestError);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Failed to insert AI request",
-          details: aiRequestError.message
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
+      // Continue even if AIRequests fails - EventLog is primary
     }
 
     // Insert into audit_logs table
@@ -139,7 +159,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     console.log("Event processed successfully:", {
-      ai_request_id: aiRequestResult.id,
+      event_log_id: eventLogResult.id,
+      ai_request_id: aiRequestResult?.id,
       audit_log_id: auditResult?.id
     });
 
@@ -147,7 +168,8 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         success: true, 
         message: "Event processed successfully",
-        ai_request_id: aiRequestResult.id,
+        event_log_id: eventLogResult.id,
+        ai_request_id: aiRequestResult?.id,
         audit_log_id: auditResult?.id
       }),
       {
