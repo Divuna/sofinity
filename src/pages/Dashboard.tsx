@@ -97,12 +97,23 @@ interface OneMilEvent {
   user_id: string | null;
 }
 
+interface Reaction {
+  id: string;
+  event_id: string;
+  summary: string;
+  recommendation: string;
+  ai_confidence: number;
+  created_at: string;
+  user_id: string;
+}
+
 export default function Dashboard() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [aiRequests, setAiRequests] = useState<AIRequest[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [oneMilEvents, setOneMilEvents] = useState<OneMilEvent[]>([]);
+  const [reactions, setReactions] = useState<Reaction[]>([]);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     activeCampaigns: 0,
@@ -243,6 +254,42 @@ export default function Dashboard() {
           timestamp: event.timestamp,
           project_id: event.project_id,
           user_id: event.user_id
+        })));
+      }
+
+      // Fetch recent AI reactions
+      let reactionsQuery = supabase
+        .from('Reactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      
+      if (selectedProject?.id) {
+        // Filter by events from the selected project
+        const { data: projectEvents } = await supabase
+          .from('EventLogs')
+          .select('id')
+          .eq('project_id', selectedProject.id);
+        
+        const eventIds = projectEvents?.map(e => e.id) || [];
+        if (eventIds.length > 0) {
+          reactionsQuery = reactionsQuery.in('event_id', eventIds);
+        }
+      }
+      
+      const { data: reactionsData, error: reactionsError } = await reactionsQuery;
+      
+      if (reactionsError) {
+        console.error('Error fetching reactions:', reactionsError);
+      } else {
+        setReactions((reactionsData || []).map(reaction => ({
+          id: reaction.id,
+          event_id: reaction.event_id,
+          summary: reaction.summary,
+          recommendation: reaction.recommendation,
+          ai_confidence: reaction.ai_confidence,
+          created_at: reaction.created_at,
+          user_id: reaction.user_id
         })));
       }
 
@@ -674,6 +721,73 @@ export default function Dashboard() {
               <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">
                 {selectedProject ? 'Žádné OneMil události pro tento projekt' : 'Zatím nebyly zaznamenány žádné OneMil události'}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* AI Evaluation Section */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-lg flex items-center">
+            <Sparkles className="w-5 h-5 mr-2" />
+            AI hodnocení kampaní
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {reactions.length > 0 ? (
+            reactions.map((reaction) => (
+              <div
+                key={reaction.id}
+                className="p-4 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    <Badge variant="default" className="text-xs">
+                      AI Analýza
+                    </Badge>
+                    <Badge variant="outline" className="text-xs flex items-center gap-1">
+                      <TrendingUp className="w-3 h-3" />
+                      Důvěra: {(reaction.ai_confidence * 100).toFixed(0)}%
+                    </Badge>
+                  </div>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {new Date(reaction.created_at).toLocaleDateString('cs-CZ', {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })}
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">Shrnutí: </span>
+                    <span className="text-sm text-muted-foreground">
+                      {reaction.summary}
+                    </span>
+                  </div>
+                  
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">Doporučení: </span>
+                    <span className="text-sm text-muted-foreground">
+                      {reaction.recommendation}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-8">
+              <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                {selectedProject ? 'Žádná AI hodnocení pro tento projekt' : 'Zatím nebyla vygenerována žádná AI hodnocení'}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                AI automaticky vyhodnocuje OneMil události a poskytuje doporučení
               </p>
             </div>
           )}
