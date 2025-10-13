@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.ai-evaluator]
 verify_jwt = false
+
+[functions.standardize-event]
+verify_jwt = false

@@ -79,18 +79,43 @@ const handler = async (req: Request): Promise<Response> => {
       event_name: eventData.event_name 
     });
 
+    // Standardize the event name before processing
+    const standardizeResponse = await supabase.functions.invoke('standardize-event', {
+      body: {
+        source_system: 'sofinity',
+        original_event: eventData.event_name,
+        project_id: eventData.project_id
+      }
+    });
+
+    let standardizedEventName = eventData.event_name;
+    if (standardizeResponse.data?.success) {
+      standardizedEventName = standardizeResponse.data.standardized_event;
+      console.log("Event standardized:", {
+        original: eventData.event_name,
+        standardized: standardizedEventName,
+        was_mapped: standardizeResponse.data.was_mapped
+      });
+    } else {
+      console.warn("Event standardization failed, using original name:", 
+        standardizeResponse.error || "Unknown error");
+    }
+
     // Get user agent and IP for audit trail
     const userAgent = req.headers.get("user-agent") || null;
     const clientIP = req.headers.get("x-forwarded-for") || 
                      req.headers.get("x-real-ip") || 
                      null;
 
-    // Insert into EventLogs table (primary event storage)
+    // Insert into EventLogs table (primary event storage) with standardized event name
     const eventLogData = {
       project_id: eventData.project_id,
       user_id: eventData.user_id || null,
-      event_name: eventData.event_name,
-      metadata: eventData.metadata || {},
+      event_name: standardizedEventName,
+      metadata: {
+        ...eventData.metadata || {},
+        original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined
+      },
       contest_id: eventData.metadata?.contest_id || null
     };
 
@@ -115,13 +140,16 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Insert into AIRequests table for campaign analysis
+    // Insert into AIRequests table for campaign analysis with standardized event name
     const aiRequestData = {
       type: 'sofinity_integration',
-      prompt: `Sofinity event: ${eventData.event_name}`,
+      prompt: `Sofinity event: ${standardizedEventName}`,
       project_id: eventData.project_id,
-      event_name: eventData.event_name,
-      metadata: eventData.metadata || {},
+      event_name: standardizedEventName,
+      metadata: {
+        ...eventData.metadata || {},
+        original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined
+      },
       user_id: eventData.user_id || null,
       status: 'completed'
     };
@@ -137,12 +165,15 @@ const handler = async (req: Request): Promise<Response> => {
       // Continue even if AIRequests fails - EventLog is primary
     }
 
-    // Insert into audit_logs table
+    // Insert into audit_logs table with standardized event name
     const auditData = {
       user_id: eventData.user_id || null,
       project_id: eventData.project_id,
-      event_name: eventData.event_name,
-      event_data: eventData.metadata || {},
+      event_name: standardizedEventName,
+      event_data: {
+        ...eventData.metadata || {},
+        original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined
+      },
       ip_address: clientIP,
       user_agent: userAgent
     };
