@@ -211,7 +211,19 @@ export default function Dashboard() {
       let oneMilEventsQuery = supabase
         .from('EventLogs')
         .select('*')
-        .in('event_name', ['contest_created', 'contest_updated', 'ticket_created', 'winner_selected', 'voucher_generated'])
+        .in('event_name', [
+          'contest_created', 
+          'contest_updated', 
+          'ticket_created', 
+          'winner_selected', 
+          'voucher_generated',
+          'prize_won',
+          'coin_redeemed',
+          'voucher_purchased',
+          'user_registered',
+          'notification_sent',
+          'contest_closed'
+        ])
         .order('timestamp', { ascending: false })
         .limit(10);
       
