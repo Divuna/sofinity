@@ -201,25 +201,68 @@ const handler = async (req: Request): Promise<Response> => {
       project_id: eventData.project_id
     });
 
-    const { data: eventLogResult, error: eventLogError } = await supabase
+    let { data: eventLogResult, error: eventLogError } = await supabase
       .from("EventLogs")
       .insert(eventLogData)
       .select()
       .single();
 
+    // Self-healing: If EventLogs insert fails due to missing user FK, create system profile
     if (eventLogError) {
-      console.error("❌ EventLogs insertion error:", eventLogError);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Failed to insert event log",
-          details: eventLogError.message
-        }),
-        {
-          status: 500,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
+      if (eventLogError.code === '23503' && eventLogError.message.includes('eventlogs_user_id_fkey')) {
+        console.log("🔧 Self-healing: Creating missing system profile for placeholder user");
+        
+        // Check if system profile exists
+        const { data: existingProfile } = await supabase
+          .from("profiles")
+          .select("user_id")
+          .eq("user_id", "00000000-0000-0000-0000-000000000000")
+          .single();
+
+        if (!existingProfile) {
+          // Create system profile
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .insert({
+              user_id: "00000000-0000-0000-0000-000000000000",
+              email: "system@sofinity.local",
+              role: "admin",
+              name: "System User"
+            });
+
+          if (profileError) {
+            console.error("❌ Failed to create system profile:", profileError);
+          } else {
+            console.log("✅ System profile created successfully");
+            
+            // Retry EventLogs insert
+            const retryResult = await supabase
+              .from("EventLogs")
+              .insert(eventLogData)
+              .select()
+              .single();
+            
+            eventLogResult = retryResult.data;
+            eventLogError = retryResult.error;
+          }
         }
-      );
+      }
+
+      // If still erroring after self-heal attempt
+      if (eventLogError) {
+        console.error("❌ EventLogs insertion error:", eventLogError);
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: "Failed to insert event log",
+            details: eventLogError.message
+          }),
+          {
+            status: 500,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
+      }
     }
 
     console.log("✅ EventLog created:", {
