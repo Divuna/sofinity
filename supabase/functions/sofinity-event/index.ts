@@ -68,6 +68,14 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // Handle missing user_id with safe placeholder
+    const safeUserId = eventData.user_id || '00000000-0000-0000-0000-000000000000';
+    const userIdWasPlaceholder = !eventData.user_id;
+
+    if (userIdWasPlaceholder) {
+      console.log("⚠️ Missing user_id - using safe placeholder UUID for event logging");
+    }
+
     // Known OneMil events for auto-detection
     const oneMilEvents = [
       'prize_won', 
@@ -149,7 +157,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Insert into EventLogs table (primary event storage) with standardized event name
     const eventLogData = {
       project_id: eventData.project_id,
-      user_id: eventData.user_id || null,
+      user_id: safeUserId,
       event_name: standardizedEventName,
       metadata: {
         ...eventData.metadata || {},
@@ -207,7 +215,7 @@ const handler = async (req: Request): Promise<Response> => {
         ...eventData.metadata || {},
         original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined
       },
-      user_id: eventData.user_id || null,
+      user_id: safeUserId,
       status: 'completed'
     };
 
@@ -224,7 +232,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Insert into audit_logs table with standardized event name and source detection
     const auditData = {
-      user_id: eventData.user_id || null,
+      user_id: safeUserId,
       project_id: eventData.project_id,
       event_name: standardizedEventName,
       event_data: {
@@ -232,7 +240,11 @@ const handler = async (req: Request): Promise<Response> => {
         source_system: sourceSystem,
         original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined,
         was_mapped: wasMapped,
-        standardization_timestamp: new Date().toISOString()
+        standardization_timestamp: new Date().toISOString(),
+        ...(userIdWasPlaceholder && {
+          user_id_placeholder: true,
+          user_id_note: "Missing user_id replaced with safe placeholder UUID"
+        })
       },
       ip_address: clientIP,
       user_agent: userAgent
