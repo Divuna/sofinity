@@ -14,6 +14,7 @@ const corsHeaders = {
 interface SofinityEventRequest {
   project_id: string;
   event_name: string;
+  source_system?: string; // e.g., 'onemill', 'opravo', 'bikeshare24', 'codneska'
   metadata?: Record<string, any>;
   user_id?: string;
 }
@@ -74,31 +75,50 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log("Processing Sofinity event:", { 
+    // Determine source system (from request or default to generic 'sofinity')
+    const sourceSystem = eventData.source_system || 'sofinity';
+    
+    console.log("📥 Incoming Sofinity event:", { 
+      source_system: sourceSystem,
       project_id: eventData.project_id, 
-      event_name: eventData.event_name 
+      original_event: eventData.event_name,
+      timestamp: new Date().toISOString()
     });
 
     // Standardize the event name before processing
+    console.log("🔄 Calling standardize-event function...", {
+      source_system: sourceSystem,
+      original_event: eventData.event_name
+    });
+
     const standardizeResponse = await supabase.functions.invoke('standardize-event', {
       body: {
-        source_system: 'sofinity',
+        source_system: sourceSystem,
         original_event: eventData.event_name,
         project_id: eventData.project_id
       }
     });
 
     let standardizedEventName = eventData.event_name;
+    let wasMapped = false;
+
     if (standardizeResponse.data?.success) {
       standardizedEventName = standardizeResponse.data.standardized_event;
-      console.log("Event standardized:", {
-        original: eventData.event_name,
-        standardized: standardizedEventName,
-        was_mapped: standardizeResponse.data.was_mapped
+      wasMapped = standardizeResponse.data.was_mapped;
+      
+      console.log("✅ Event standardized successfully:", {
+        source_system: sourceSystem,
+        original_event: eventData.event_name,
+        standardized_event: standardizedEventName,
+        was_mapped: wasMapped,
+        mapping_status: wasMapped ? "MAPPED" : "UNMAPPED (using original)"
       });
     } else {
-      console.warn("Event standardization failed, using original name:", 
-        standardizeResponse.error || "Unknown error");
+      console.warn("⚠️ Event standardization failed, using original name:", {
+        source_system: sourceSystem,
+        original_event: eventData.event_name,
+        error: standardizeResponse.error || "Unknown error"
+      });
     }
 
     // Get user agent and IP for audit trail
@@ -114,10 +134,18 @@ const handler = async (req: Request): Promise<Response> => {
       event_name: standardizedEventName,
       metadata: {
         ...eventData.metadata || {},
-        original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined
+        source_system: sourceSystem,
+        original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined,
+        was_mapped: wasMapped
       },
       contest_id: eventData.metadata?.contest_id || null
     };
+
+    console.log("💾 Inserting into EventLogs:", {
+      event_name: standardizedEventName,
+      source_system: sourceSystem,
+      project_id: eventData.project_id
+    });
 
     const { data: eventLogResult, error: eventLogError } = await supabase
       .from("EventLogs")
@@ -126,7 +154,7 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (eventLogError) {
-      console.error("EventLogs insertion error:", eventLogError);
+      console.error("❌ EventLogs insertion error:", eventLogError);
       return new Response(
         JSON.stringify({ 
           success: false, 
@@ -139,6 +167,12 @@ const handler = async (req: Request): Promise<Response> => {
         }
       );
     }
+
+    console.log("✅ EventLog created:", {
+      event_log_id: eventLogResult.id,
+      standardized_event: standardizedEventName,
+      source_system: sourceSystem
+    });
 
     // Insert into AIRequests table for campaign analysis with standardized event name
     const aiRequestData = {
@@ -189,16 +223,25 @@ const handler = async (req: Request): Promise<Response> => {
       // Continue execution even if audit log fails
     }
 
-    console.log("Event processed successfully:", {
+    console.log("🎉 Event processed successfully:", {
+      source_system: sourceSystem,
+      original_event: eventData.event_name,
+      standardized_event: standardizedEventName,
+      was_mapped: wasMapped,
       event_log_id: eventLogResult.id,
       ai_request_id: aiRequestResult?.id,
-      audit_log_id: auditResult?.id
+      audit_log_id: auditResult?.id,
+      timestamp: new Date().toISOString()
     });
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: "Event processed successfully",
+        source_system: sourceSystem,
+        original_event: eventData.event_name,
+        standardized_event: standardizedEventName,
+        was_mapped: wasMapped,
         event_log_id: eventLogResult.id,
         ai_request_id: aiRequestResult?.id,
         audit_log_id: auditResult?.id
