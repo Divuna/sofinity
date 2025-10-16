@@ -840,6 +840,7 @@ export type Database = {
           id: string
           metadata: Json | null
           project_id: string
+          source_system: string | null
           timestamp: string | null
           user_id: string
         }
@@ -849,6 +850,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           project_id: string
+          source_system?: string | null
           timestamp?: string | null
           user_id: string
         }
@@ -858,6 +860,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           project_id?: string
+          source_system?: string | null
           timestamp?: string | null
           user_id?: string
         }
@@ -1455,6 +1458,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "visible_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_preferences: {
@@ -1562,6 +1572,13 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "vouchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "visible_profiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
@@ -1574,6 +1591,42 @@ export type Database = {
           id: string | null
           project_id: string | null
           project_name: string | null
+        }
+        Relationships: []
+      }
+      visible_profiles: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          favorite_project: string | null
+          id: string | null
+          name: string | null
+          onboarding_complete: boolean | null
+          role: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          favorite_project?: string | null
+          id?: string | null
+          name?: string | null
+          onboarding_complete?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          favorite_project?: string | null
+          id?: string | null
+          name?: string | null
+          onboarding_complete?: boolean | null
+          role?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
