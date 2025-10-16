@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useSelectedProject } from '@/providers/ProjectProvider';
 import { getCurrentUser, isAdmin } from '@/lib/auth';
+import { getSofinityStatus, type SofinityStatus } from '@/lib/integrations';
 import { 
   TrendingUp, 
   Users, 
@@ -56,6 +57,7 @@ interface Project {
   campaignCount?: number;
   emailCount?: number;
   aiRequestCount?: number;
+  sofinityStatus?: SofinityStatus;
 }
 
 interface DashboardStats {
@@ -115,6 +117,7 @@ export default function Dashboard() {
   const [oneMilEvents, setOneMilEvents] = useState<OneMilEvent[]>([]);
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+  const [projectStatuses, setProjectStatuses] = useState<Record<string, SofinityStatus>>({});
   const [stats, setStats] = useState<DashboardStats>({
     activeCampaigns: 0,
     totalEmails: 0,
@@ -302,7 +305,7 @@ export default function Dashboard() {
 
       if (projectsError) throw projectsError;
 
-      // For each project, get counts of related data
+      // For each project, get counts of related data and check Sofinity status
       const projectsWithCounts = await Promise.all(
         (projectsData || []).map(async (project) => {
           const [
@@ -315,11 +318,21 @@ export default function Dashboard() {
             supabase.from('AIRequests').select('*', { count: 'exact', head: true }).eq('project_id', project.id)
           ]);
 
+          // Check Sofinity status dynamically
+          let sofinityStatus: SofinityStatus | undefined;
+          try {
+            sofinityStatus = await getSofinityStatus(project.id);
+            console.log(`✅ [Dashboard] Sofinity status for ${project.name}:`, sofinityStatus);
+          } catch (error) {
+            console.error(`❌ [Dashboard] Failed to get Sofinity status for ${project.name}:`, error);
+          }
+
           return {
             ...project,
             campaignCount: campaignCount || 0,
             emailCount: emailCount || 0,
-            aiRequestCount: aiRequestCount || 0
+            aiRequestCount: aiRequestCount || 0,
+            sofinityStatus
           };
         })
       );
@@ -995,10 +1008,21 @@ export default function Dashboard() {
                      <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold text-sm">{project.name}</h4>
                         <div className="flex items-center gap-2">
-                          {project.external_connection && (
-                            <div className="text-xs text-success font-medium">
-                              Propojeno se Sofinity ({project.external_connection})
-                            </div>
+                          {project.sofinityStatus?.isConnected ? (
+                            <Badge variant="default" className="text-xs">
+                              <Link2 className="w-3 h-3 mr-1" />
+                              Propojeno se Sofinity
+                            </Badge>
+                          ) : project.sofinityStatus?.error ? (
+                            <Badge variant="destructive" className="text-xs">
+                              <Link2Off className="w-3 h-3 mr-1" />
+                              Chyba: {project.sofinityStatus.error.substring(0, 30)}
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">
+                              <Link2Off className="w-3 h-3 mr-1" />
+                              Nepřipojeno
+                            </Badge>
                           )}
                           <TooltipProvider>
                             <Tooltip>
@@ -1027,7 +1051,7 @@ export default function Dashboard() {
                                     }
                                   }}
                                 >
-                                  {project.external_connection ? (
+                                  {project.sofinityStatus?.isConnected ? (
                                     <Link2 className="w-4 h-4 text-success" />
                                   ) : (
                                     <Link2Off className="w-4 h-4 text-muted-foreground" />
@@ -1035,7 +1059,7 @@ export default function Dashboard() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                {project.external_connection 
+                                {project.sofinityStatus?.isConnected 
                                   ? 'Klikněte pro odpojení' 
                                   : 'Klikněte pro připojení'
                                 }

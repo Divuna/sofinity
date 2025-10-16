@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useSelectedProject } from '@/providers/ProjectProvider';
 import { useToast } from '@/hooks/use-toast';
 import { Building2, Wifi, WifiOff, Bug } from 'lucide-react';
-import { getOpravoStatus, isOpravoProject, saveOpravoStatusToStorage, loadOpravoStatusFromStorage, type OpravoStatus } from '@/lib/integrations';
+import { getSofinityStatus, isSofinityProject, saveSofinityStatusToStorage, loadSofinityStatusFromStorage, type SofinityStatus } from '@/lib/integrations';
 
 interface Project {
   id: string;
@@ -14,13 +14,14 @@ interface Project {
   description: string | null;
   is_active: boolean;
   campaigns_count: number;
-  isOpravoProject?: boolean;
+  isSofinityProject?: boolean;
+  sofinityStatus?: SofinityStatus;
 }
 
 export function ProjectSelector() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [opravoStatus, setOpravoStatus] = useState<OpravoStatus | null>(null);
+  const [projectStatuses, setProjectStatuses] = useState<Record<string, SofinityStatus>>({});
   const [statusPolling, setStatusPolling] = useState<NodeJS.Timeout | null>(null);
   const { selectedProject, setSelectedProject } = useSelectedProject();
   const { toast } = useToast();
@@ -36,43 +37,49 @@ export function ProjectSelector() {
   }, []);
 
   useEffect(() => {
-    // Start monitoring when Opravo project is selected
-    if (selectedProject && isOpravoProject(selectedProject.name)) {
-      console.log('🎯 [ProjectSelector] Starting Opravo monitoring for selected project');
+    // Start monitoring all projects
+    if (projects.length > 0) {
+      console.log('🎯 [ProjectSelector] Starting Sofinity monitoring for all projects');
       
-      // Load from localStorage first to avoid flicker
-      const cachedStatus = loadOpravoStatusFromStorage();
-      if (cachedStatus) {
-        console.log('💾 [ProjectSelector] Using cached status:', cachedStatus);
-        setOpravoStatus(cachedStatus);
-      }
-      
-      // Start polling
-      const checkStatus = async () => {
-        try {
-          const status = await getOpravoStatus(selectedProject.id);
-          console.log('🔄 [ProjectSelector] Received status update:', status);
-          setOpravoStatus(status);
-          saveOpravoStatusToStorage(status);
-        } catch (error) {
-          console.error('Error checking Opravo status:', error);
+      // Check all projects
+      const checkAllStatuses = async () => {
+        const statuses: Record<string, SofinityStatus> = {};
+        
+        for (const project of projects) {
+          try {
+            // Load from localStorage first
+            const cachedStatus = loadSofinityStatusFromStorage(project.id);
+            if (cachedStatus) {
+              statuses[project.id] = cachedStatus;
+            }
+            
+            // Then fetch fresh status
+            const status = await getSofinityStatus(project.id);
+            console.log(`🔄 [ProjectSelector] Status for ${project.name}:`, status);
+            statuses[project.id] = status;
+            saveSofinityStatusToStorage(status, project.id);
+          } catch (error) {
+            console.error(`Error checking Sofinity status for ${project.name}:`, error);
+          }
         }
+        
+        setProjectStatuses(statuses);
       };
 
       // Initial check
-      checkStatus();
+      checkAllStatuses();
 
       // Poll every 60 seconds
-      const interval = setInterval(checkStatus, 60000);
+      const interval = setInterval(checkAllStatuses, 60000);
       setStatusPolling(interval);
-    } else {
-      if (statusPolling) {
-        clearInterval(statusPolling);
-        setStatusPolling(null);
-      }
-      setOpravoStatus(null);
+
+      return () => {
+        if (interval) {
+          clearInterval(interval);
+        }
+      };
     }
-  }, [selectedProject]);
+  }, [projects]);
 
   const fetchProjects = async () => {
     try {
@@ -98,7 +105,7 @@ export function ProjectSelector() {
             description: project.description,
             is_active: project.is_active,
             campaigns_count: campaignsCount || 0,
-            isOpravoProject: isOpravoProject(project.name)
+            isSofinityProject: isSofinityProject(project.name)
           };
         })
       );
@@ -175,30 +182,35 @@ export function ProjectSelector() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Všechny projekty</SelectItem>
-                  {projects.filter(project => project.id && project.id.trim() !== '').map((project) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      <div className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2">
-                          <span>{project.name}</span>
-                          {project.isOpravoProject && opravoStatus && (
-                            <Badge 
-                              variant={opravoStatus.isConnected ? 'default' : 'destructive'}
-                              className="text-xs flex items-center gap-1"
-                            >
-                              {opravoStatus.isConnected ? (
-                                <><Wifi className="w-3 h-3" /> Připojeno</>
-                              ) : (
-                                <><WifiOff className="w-3 h-3" /> Odpojeno</>
-                              )}
-                            </Badge>
-                          )}
+                  {projects.filter(project => project.id && project.id.trim() !== '').map((project) => {
+                    const status = projectStatuses[project.id];
+                    return (
+                      <SelectItem key={project.id} value={project.id}>
+                        <div className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                            <span>{project.name}</span>
+                            {status && (
+                              <Badge 
+                                variant={status.isConnected ? 'default' : status.error ? 'destructive' : 'secondary'}
+                                className="text-xs flex items-center gap-1"
+                              >
+                                {status.isConnected ? (
+                                  <><Wifi className="w-3 h-3" /> Připojeno</>
+                                ) : status.error ? (
+                                  <><WifiOff className="w-3 h-3" /> Chyba</>
+                                ) : (
+                                  <><WifiOff className="w-3 h-3" /> Nepřipojeno</>
+                                )}
+                              </Badge>
+                            )}
+                          </div>
+                          <Badge variant="secondary" className="ml-2">
+                            {project.campaigns_count}
+                          </Badge>
                         </div>
-                        <Badge variant="secondary" className="ml-2">
-                          {project.campaigns_count}
-                        </Badge>
-                      </div>
-                    </SelectItem>
-                  ))}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
@@ -207,19 +219,22 @@ export function ProjectSelector() {
               <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
                 {(() => {
                   const selected = projects.find(p => p.id === selectedProject.id);
+                  const status = selected ? projectStatuses[selected.id] : null;
                   return selected ? (
                     <div>
                       <div className="flex items-center gap-2">
                         <div className="font-medium text-foreground">{selected.name}</div>
-                        {selected.isOpravoProject && opravoStatus && (
+                        {status && (
                           <Badge 
-                            variant={opravoStatus.isConnected ? 'default' : 'destructive'}
+                            variant={status.isConnected ? 'default' : status.error ? 'destructive' : 'secondary'}
                             className="text-xs flex items-center gap-1"
                           >
-                            {opravoStatus.isConnected ? (
+                            {status.isConnected ? (
                               <><Wifi className="w-3 h-3" /> Připojeno</>
+                            ) : status.error ? (
+                              <><WifiOff className="w-3 h-3" /> Chyba</>
                             ) : (
-                              <><WifiOff className="w-3 h-3" /> Odpojeno</>
+                              <><WifiOff className="w-3 h-3" /> Nepřipojeno</>
                             )}
                           </Badge>
                         )}
@@ -230,18 +245,21 @@ export function ProjectSelector() {
                          </div>
                        )}
                        
-                       {/* Debug Info for Opravo projects - TEMPORARY */}
-                       {selected.isOpravoProject && opravoStatus && (
+                       {/* Debug Info */}
+                       {status && (
                          <div className="p-2 bg-muted/50 rounded-lg border text-xs space-y-1 mt-2">
                            <div className="flex items-center gap-1 font-medium text-muted-foreground">
                              <Bug className="w-3 h-3" />
-                             Debug Info (dočasné)
+                             Stav propojení
                            </div>
                            <div>
-                             Poslední kontrola: {new Date(opravoStatus.lastChecked).toLocaleString('cs-CZ')}
+                             Poslední kontrola: {new Date(status.lastChecked).toLocaleString('cs-CZ')}
                            </div>
-                           {opravoStatus.error && (
-                             <div className="text-destructive">Chyba: {opravoStatus.error}</div>
+                           {status.error && (
+                             <div className="text-destructive">Chyba: {status.error}</div>
+                           )}
+                           {status.latency && (
+                             <div className="text-muted-foreground">Latence: {status.latency}ms</div>
                            )}
                          </div>
                        )}

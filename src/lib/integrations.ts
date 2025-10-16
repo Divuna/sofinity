@@ -1,6 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export interface OpravoStatus {
+export interface SofinityStatus {
   isConnected: boolean;
   lastChecked: string;
   error?: string;
@@ -8,7 +8,7 @@ export interface OpravoStatus {
   latency?: number;
 }
 
-export interface OpravoStatusResponse {
+export interface SofinityStatusResponse {
   isConnected: boolean;
   lastChecked: string;
   error?: string;
@@ -22,24 +22,24 @@ export interface OpravoStatusResponse {
 }
 
 // Enhanced status check with project context and error handling
-export const getOpravoStatus = async (projectId?: string): Promise<OpravoStatus> => {
+export const getSofinityStatus = async (projectId?: string): Promise<SofinityStatus> => {
   const startTime = Date.now();
   
   try {
-    console.log('🔄 [getOpravoStatus] Starting status check', { projectId });
+    console.log('🔄 [getSofinityStatus] Starting status check', { projectId });
     
-    const { data, error } = await supabase.functions.invoke('sofinity-opravo-status', {
+    const { data, error } = await supabase.functions.invoke('sofinity-status', {
       body: { 
-        projectId,
+        project_id: projectId,
         timestamp: new Date().toISOString(),
-        clientId: 'opravo-status-ui'
+        clientId: 'sofinity-status-ui'
       }
     });
 
     const latency = Date.now() - startTime;
 
     if (error) {
-      console.error('❌ [getOpravoStatus] Supabase function error:', error);
+      console.error('❌ [getSofinityStatus] Supabase function error:', error);
       
       // Enhanced error handling with specific error types
       let errorMessage = 'Chyba volání edge function';
@@ -62,9 +62,9 @@ export const getOpravoStatus = async (projectId?: string): Promise<OpravoStatus>
     }
 
     // Enhanced response normalization
-    const rawResponse = data as OpravoStatusResponse;
+    const rawResponse = data as SofinityStatusResponse;
     
-    const result: OpravoStatus = {
+    const result: SofinityStatus = {
       isConnected: !!rawResponse.isConnected,
       lastChecked: rawResponse.lastChecked || new Date().toISOString(),
       error: rawResponse.error,
@@ -72,7 +72,7 @@ export const getOpravoStatus = async (projectId?: string): Promise<OpravoStatus>
       latency: rawResponse.latency || latency
     };
 
-    console.log('✅ [getOpravoStatus] Status check completed', { 
+    console.log('✅ [getSofinityStatus] Status check completed', { 
       ...result, 
       totalLatency: latency,
       projectId 
@@ -82,7 +82,7 @@ export const getOpravoStatus = async (projectId?: string): Promise<OpravoStatus>
 
   } catch (error) {
     const latency = Date.now() - startTime;
-    console.error('❌ [getOpravoStatus] Unexpected error:', error);
+    console.error('❌ [getSofinityStatus] Unexpected error:', error);
     
     // Categorize network errors for better UX
     let errorMessage = 'Neznámá chyba';
@@ -109,21 +109,19 @@ export const getOpravoStatus = async (projectId?: string): Promise<OpravoStatus>
 };
 
 // Enhanced project detection with multiple criteria
-export const isOpravoProject = (projectName?: string, projectId?: string): boolean => {
+export const isSofinityProject = (projectName?: string, projectId?: string): boolean => {
   if (!projectName && !projectId) return false;
   
-  const nameMatch = (projectName || '').trim().toLowerCase() === 'opravo';
-  const idMatch = projectId ? projectId.includes('opravo') : false;
-  
-  return nameMatch || idMatch;
+  // All projects are Sofinity projects now
+  return true;
 };
 
 // Enhanced localStorage with project-specific storage
 const getStorageKey = (projectId?: string): string => {
-  return projectId ? `opravo-status-${projectId}` : 'opravo-status-global';
+  return projectId ? `sofinity-status-${projectId}` : 'sofinity-status-global';
 };
 
-export const saveOpravoStatusToStorage = (status: OpravoStatus, projectId?: string): void => {
+export const saveSofinityStatusToStorage = (status: SofinityStatus, projectId?: string): void => {
   try {
     const key = getStorageKey(projectId);
     const storageData = {
@@ -134,20 +132,20 @@ export const saveOpravoStatusToStorage = (status: OpravoStatus, projectId?: stri
     localStorage.setItem(key, JSON.stringify(storageData));
     
     // Also save to global key for fallback
-    localStorage.setItem('opravo-status-latest', JSON.stringify(storageData));
+    localStorage.setItem('sofinity-status-latest', JSON.stringify(storageData));
   } catch (error) {
-    console.warn('[saveOpravoStatusToStorage] Failed to save to localStorage:', error);
+    console.warn('[saveSofinityStatusToStorage] Failed to save to localStorage:', error);
   }
 };
 
-export const loadOpravoStatusFromStorage = (projectId?: string): OpravoStatus | null => {
+export const loadSofinityStatusFromStorage = (projectId?: string): SofinityStatus | null => {
   try {
     const key = getStorageKey(projectId);
     let stored = localStorage.getItem(key);
     
     // Fallback to global key if project-specific not found
     if (!stored) {
-      stored = localStorage.getItem('opravo-status-latest');
+      stored = localStorage.getItem('sofinity-status-latest');
     }
     
     if (!stored) return null;
@@ -160,7 +158,7 @@ export const loadOpravoStatusFromStorage = (projectId?: string): OpravoStatus | 
     const maxAge = 10 * 60 * 1000; // 10 minutes
     
     if (now.getTime() - savedAt.getTime() > maxAge) {
-      console.log('[loadOpravoStatusFromStorage] Stored data too old, ignoring');
+      console.log('[loadSofinityStatusFromStorage] Stored data too old, ignoring');
       return null;
     }
     
@@ -172,18 +170,18 @@ export const loadOpravoStatusFromStorage = (projectId?: string): OpravoStatus | 
       latency: parsed.latency
     };
   } catch (error) {
-    console.warn('[loadOpravoStatusFromStorage] Failed to load from localStorage:', error);
+    console.warn('[loadSofinityStatusFromStorage] Failed to load from localStorage:', error);
     return null;
   }
 };
 
 // Cleanup old storage entries
-export const cleanupOpravoStorage = (): void => {
+export const cleanupSofinityStorage = (): void => {
   try {
     const keys = Object.keys(localStorage);
-    const opravoKeys = keys.filter(key => key.startsWith('opravo-status-'));
+    const sofinityKeys = keys.filter(key => key.startsWith('sofinity-status-'));
     
-    opravoKeys.forEach(key => {
+    sofinityKeys.forEach(key => {
       try {
         const stored = localStorage.getItem(key);
         if (stored) {
@@ -194,16 +192,25 @@ export const cleanupOpravoStorage = (): void => {
           
           if (now.getTime() - savedAt.getTime() > maxAge) {
             localStorage.removeItem(key);
-            console.log(`[cleanupOpravoStorage] Removed old entry: ${key}`);
+            console.log(`[cleanupSofinityStorage] Removed old entry: ${key}`);
           }
         }
       } catch (error) {
         // Remove invalid entries
         localStorage.removeItem(key);
-        console.log(`[cleanupOpravoStorage] Removed invalid entry: ${key}`);
+        console.log(`[cleanupSofinityStorage] Removed invalid entry: ${key}`);
       }
     });
   } catch (error) {
-    console.warn('[cleanupOpravoStorage] Failed to cleanup storage:', error);
+    console.warn('[cleanupSofinityStorage] Failed to cleanup storage:', error);
   }
 };
+
+// Legacy Opravo aliases for backward compatibility
+export type OpravoStatus = SofinityStatus;
+export type OpravoStatusResponse = SofinityStatusResponse;
+export const getOpravoStatus = getSofinityStatus;
+export const isOpravoProject = isSofinityProject;
+export const saveOpravoStatusToStorage = saveSofinityStatusToStorage;
+export const loadOpravoStatusFromStorage = loadSofinityStatusFromStorage;
+export const cleanupOpravoStorage = cleanupSofinityStorage;

@@ -25,6 +25,19 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Handle test ping requests
+  if (req.headers.get('x-test-ping') === 'true') {
+    console.log('🏓 Test ping received');
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: 'Sofinity event function is operational',
+        timestamp: new Date().toISOString()
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+
   try {
     if (req.method !== "POST") {
       console.error("Method not allowed:", req.method);

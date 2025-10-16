@@ -107,3 +107,9 @@ verify_jwt = false
 
 [functions.campaign-automation]
 verify_jwt = false
+
+[functions.sofinity-status]
+verify_jwt = false
+
+[functions.connect-sofinity]
+verify_jwt = false
