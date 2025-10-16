@@ -113,3 +113,6 @@ verify_jwt = false
 
 [functions.connect-sofinity]
 verify_jwt = false
+
+[functions.disconnect-sofinity]
+verify_jwt = false

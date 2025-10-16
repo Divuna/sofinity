@@ -456,17 +456,29 @@ export default function Dashboard() {
         const confirmed = confirm("Opravdu chcete odpojit projekt od Sofinity?");
         if (!confirmed) return;
 
-        const { error } = await supabase
-          .from("Projects")
-          .update({ external_connection: null })
-          .eq("id", project.id);
+        // Use disconnect-sofinity edge function
+        const { data, error } = await supabase.functions.invoke("disconnect-sofinity", {
+          body: { project_id: project.id },
+          headers: {
+            Authorization: `Bearer ${session.data.session?.access_token}`,
+          },
+        });
 
-        if (error) throw error;
+        if (error) {
+          toast({ 
+            title: "Chyba při odpojení", 
+            description: error.message, 
+            variant: "destructive" 
+          });
+          return;
+        }
 
         toast({ title: "Projekt byl odpojen od Sofinity." });
         await fetchDashboardData();
       } else {
-        const { data, error } = await supabase.functions.invoke("connect-opravo-sofinity", {
+        // Use connect-sofinity edge function
+        const { data, error } = await supabase.functions.invoke("connect-sofinity", {
+          body: { project_id: project.id },
           headers: {
             Authorization: `Bearer ${session.data.session?.access_token}`,
           },
@@ -1031,25 +1043,7 @@ export default function Dashboard() {
                                   size="sm"
                                   variant="ghost"
                                   className="h-8 w-8 p-0"
-                                  onClick={async () => {
-                                    if (project.external_connection) {
-                                      if (confirm('Opravdu chcete odpojit tento projekt od Sofinity?')) {
-                                        const { error } = await supabase
-                                          .from('Projects')
-                                          .update({ external_connection: null })
-                                          .eq('id', project.id);
-                                        
-                                        if (!error) {
-                                          toast({ title: 'Projekt byl úspěšně odpojen.' });
-                                          await fetchDashboardData();
-                                        } else {
-                                          toast({ title: 'Chyba při odpojování projektu.', variant: 'destructive' });
-                                        }
-                                      }
-                                    } else {
-                                      await handleProjectConnection(project);
-                                    }
-                                  }}
+                                  onClick={() => handleProjectConnection(project)}
                                 >
                                   {project.sofinityStatus?.isConnected ? (
                                     <Link2 className="w-4 h-4 text-success" />
