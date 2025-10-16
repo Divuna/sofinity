@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { 
   ArrowLeft,
   Mail,
@@ -34,6 +35,7 @@ interface EmailItem {
   user_id: string;
   recipient: string | null;
   project: string | null;
+  project_id: string | null;
   type: string;
   status: string | null;
   subject: string | null;
@@ -57,6 +59,7 @@ export default function EmailDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { selectedProject } = useSelectedProject();
   
   const [email, setEmail] = useState<EmailItem | null>(null);
   const [userEmailMode, setUserEmailMode] = useState<'test' | 'production'>('production');
@@ -74,7 +77,7 @@ export default function EmailDetail() {
       fetchUserEmailMode();
       fetchEmailData();
     }
-  }, [id]);
+  }, [id, selectedProject]);
 
   const fetchUserEmailMode = async () => {
     try {
@@ -109,6 +112,24 @@ export default function EmailDetail() {
         .single();
 
       if (emailError) throw emailError;
+
+      // Verify email belongs to selected project
+      if (selectedProject?.id) {
+        const emailBelongsToProject = 
+          emailData.project_id === selectedProject.id || 
+          emailData.project === selectedProject.name;
+
+        if (!emailBelongsToProject) {
+          toast({
+            title: "Nesprávný projekt",
+            description: "Tento e-mail nepatří do vybraného projektu",
+            variant: "destructive"
+          });
+          navigate('/emails');
+          return;
+        }
+      }
+
       setEmail(emailData);
 
       // Fetch user preferences for email mode
@@ -122,11 +143,12 @@ export default function EmailDetail() {
         setEmailMode(userPrefs.email_mode as 'test' | 'production');
       }
 
-      // Fetch related email logs
+      // Fetch related email logs for THIS email only
       const { data: logsData } = await supabase
         .from('EmailLogs')
         .select('*')
         .eq('user_id', user.id)
+        .eq('recipient_email', emailData.recipient || '')
         .order('sent_at', { ascending: false });
       
       setEmailLogs(logsData || []);
@@ -420,7 +442,7 @@ export default function EmailDetail() {
         recipient: email.recipient,
         subject: email.subject || `Opravo – ${email.type || email.project || 'Zpráva'}`,
         project: email.project + " (kopie)",
-        project_id: null,
+        project_id: email.project_id ?? selectedProject?.id ?? null,
         user_id: user.id
       };
 
