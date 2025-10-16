@@ -252,6 +252,30 @@ export default function CampaignDetail() {
           : (data.message || "E-maily byly úspěšně odeslány všem příjemcům")
       });
 
+      // Trigger campaign automation (create posts and videos)
+      const { data: automationData, error: automationError } = await supabase.functions.invoke('campaign-automation', {
+        body: { 
+          campaign_id: campaign.id,
+          user_id: (await supabase.auth.getUser()).data.user?.id
+        }
+      });
+
+      if (automationError) {
+        console.error('Campaign automation error:', automationError);
+      } else if (automationData?.results) {
+        const { post_created, video_created } = automationData.results;
+        if (post_created || video_created) {
+          const createdItems = [];
+          if (post_created) createdItems.push('příspěvek');
+          if (video_created) createdItems.push('video');
+          
+          toast({
+            title: "Automatizace dokončena",
+            description: `Vytvořeno: ${createdItems.join(' a ')} (status: koncept)`
+          });
+        }
+      }
+
       // Update campaign status to active
       const { error: updateError } = await supabase
         .from('Campaigns')

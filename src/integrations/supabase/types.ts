@@ -990,6 +990,27 @@ export type Database = {
           },
         ]
       }
+      MarketingCampaigns: {
+        Row: {
+          campaign_name: string
+          created_at: string | null
+          id: string
+          status: string | null
+        }
+        Insert: {
+          campaign_name: string
+          created_at?: string | null
+          id?: string
+          status?: string | null
+        }
+        Update: {
+          campaign_name?: string
+          created_at?: string | null
+          id?: string
+          status?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           id: string
@@ -1544,6 +1565,59 @@ export type Database = {
           role?: string | null
         }
         Relationships: []
+      }
+      videos: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          description: string | null
+          duration: number | null
+          id: string
+          metadata: Json | null
+          status: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          video_url: string | null
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          video_url?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          id?: string
+          metadata?: Json | null
+          status?: string
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          video_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "videos_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "Campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vouchers: {
         Row: {
