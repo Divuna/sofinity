@@ -10,6 +10,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { format } from 'date-fns';
 import { cs } from 'date-fns/locale/cs';
 import { 
@@ -77,18 +78,24 @@ export default function CampaignSchedule() {
     publish_at: '',
     time: '09:00'
   });
+  const { selectedProject } = useSelectedProject();
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchScheduleItems();
-    fetchCampaigns();
-  }, []);
+    if (selectedProject?.id) {
+      fetchScheduleItems();
+      fetchCampaigns();
+    }
+  }, [selectedProject?.id]);
 
   const fetchScheduleItems = async () => {
+    if (!selectedProject?.id) return;
+    
     try {
       const { data, error } = await supabase
         .from('CampaignSchedule')
         .select('*')
+        .eq('project_id', selectedProject.id)
         .order('publish_at', { ascending: true });
 
       if (error) throw error;
@@ -105,10 +112,13 @@ export default function CampaignSchedule() {
   };
 
   const fetchCampaigns = async () => {
+    if (!selectedProject?.id) return;
+    
     try {
       const { data, error } = await supabase
         .from('Campaigns')
         .select('id, name')
+        .eq('project_id', selectedProject.id)
         .order('name');
 
       if (error) throw error;
@@ -167,7 +177,8 @@ export default function CampaignSchedule() {
           content: newItem.content,
           publish_at: publishDateTime.toISOString(), // Already in UTC
           published: false,
-          user_id: user.id
+          user_id: user.id,
+          project_id: selectedProject?.id || null
         });
 
       if (error) {
@@ -270,12 +281,24 @@ export default function CampaignSchedule() {
     return groups;
   }, {} as Record<string, ScheduleItem[]>);
 
+  if (!selectedProject) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="flex items-center justify-center h-32 pt-6">
+            <p className="text-muted-foreground">Vyberte projekt pro zobrazení plánu publikace.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Plán publikace</h1>
+          <h1 className="text-3xl font-bold text-foreground">Plán publikace — {selectedProject.name}</h1>
           <p className="text-muted-foreground mt-1">
             Kalendář a správa naplánovaných publikací
           </p>

@@ -382,6 +382,7 @@ export type Database = {
           content: string
           created_at: string | null
           id: string
+          project_id: string | null
           publish_at: string
           published: boolean | null
           user_id: string | null
@@ -392,6 +393,7 @@ export type Database = {
           content: string
           created_at?: string | null
           id?: string
+          project_id?: string | null
           publish_at: string
           published?: boolean | null
           user_id?: string | null
@@ -402,6 +404,7 @@ export type Database = {
           content?: string
           created_at?: string | null
           id?: string
+          project_id?: string | null
           publish_at?: string
           published?: boolean | null
           user_id?: string | null
@@ -412,6 +415,20 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "Campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "CampaignSchedule_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "CampaignSchedule_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
             referencedColumns: ["id"]
           },
         ]
@@ -614,6 +631,13 @@ export type Database = {
             columns: ["email_id"]
             isOneToOne: false
             referencedRelation: "Emails"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "EmailEvents_email_id_fkey"
+            columns: ["email_id"]
+            isOneToOne: false
+            referencedRelation: "filtered_emails"
             referencedColumns: ["id"]
           },
         ]
@@ -995,21 +1019,39 @@ export type Database = {
           campaign_name: string
           created_at: string | null
           id: string
+          project_id: string | null
           status: string | null
         }
         Insert: {
           campaign_name: string
           created_at?: string | null
           id?: string
+          project_id?: string | null
           status?: string | null
         }
         Update: {
           campaign_name?: string
           created_at?: string | null
           id?: string
+          project_id?: string | null
           status?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "MarketingCampaigns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "MarketingCampaigns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
@@ -1657,6 +1699,147 @@ export type Database = {
       }
     }
     Views: {
+      filtered_campaigns: {
+        Row: {
+          campaign_name: string | null
+          created_at: string | null
+          id: string | null
+          project_id: string | null
+          status: string | null
+        }
+        Insert: {
+          campaign_name?: string | null
+          created_at?: string | null
+          id?: string | null
+          project_id?: string | null
+          status?: string | null
+        }
+        Update: {
+          campaign_name?: string | null
+          created_at?: string | null
+          id?: string | null
+          project_id?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "MarketingCampaigns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "MarketingCampaigns_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      filtered_emails: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          email_mode: string | null
+          id: string | null
+          project: string | null
+          project_id: string | null
+          recipient: string | null
+          scheduled_at: string | null
+          status: string | null
+          subject: string | null
+          type: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          email_mode?: string | null
+          id?: string | null
+          project?: string | null
+          project_id?: string | null
+          recipient?: string | null
+          scheduled_at?: string | null
+          status?: string | null
+          subject?: string | null
+          type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          email_mode?: string | null
+          id?: string | null
+          project?: string | null
+          project_id?: string | null
+          recipient?: string | null
+          scheduled_at?: string | null
+          status?: string | null
+          subject?: string | null
+          type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "Emails_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "onemill_reporting"
+            referencedColumns: ["project_id"]
+          },
+          {
+            foreignKeyName: "Emails_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      filtered_posts: {
+        Row: {
+          channel: string | null
+          created_at: string | null
+          format: string | null
+          id: string | null
+          project_id: string | null
+          publish_date: string | null
+          status: string | null
+          text: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          channel?: string | null
+          created_at?: string | null
+          format?: string | null
+          id?: string | null
+          project_id?: string | null
+          publish_date?: string | null
+          status?: string | null
+          text?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          channel?: string | null
+          created_at?: string | null
+          format?: string | null
+          id?: string | null
+          project_id?: string | null
+          publish_date?: string | null
+          status?: string | null
+          text?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       onemill_reporting: {
         Row: {
           created_at: string | null
