@@ -50,33 +50,14 @@ export default function CampaignsOverview() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [projectFilter, setProjectFilter] = useState<string>('all');
-  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
   const { selectedProject } = useSelectedProject();
-
-  // Read project from location state or URL params
-  useEffect(() => {
-    const stateProject = location.state?.SelectedProject;
-    if (stateProject?.id && stateProject?.name) {
-      setCurrentProject(stateProject);
-    } else {
-      const urlParams = new URLSearchParams(location.search);
-      const projectId = urlParams.get('project_id');
-      const projectName = urlParams.get('name');
-      if (projectId && projectName) {
-        setCurrentProject({ id: projectId, name: projectName });
-      } else {
-        setCurrentProject(null);
-      }
-    }
-  }, [location.state, location.search]);
 
   useEffect(() => {
     fetchCampaigns();
     fetchProjects();
-  }, [currentProject]);
+  }, [selectedProject]);
 
   const fetchCampaigns = async () => {
     try {
@@ -87,12 +68,12 @@ export default function CampaignsOverview() {
       let campaignsByProjectName: Campaign[] = [];
 
       // Primary query: by project_id
-      if (currentProject?.id) {
+      if (selectedProject?.id) {
         const { data: projectIdData, error: projectIdError } = await supabase
           .from('Campaigns')
           .select('*')
           .eq('user_id', user.id)
-          .eq('project_id', currentProject.id)
+          .eq('project_id', selectedProject.id)
           .order('created_at', { ascending: false });
 
         if (projectIdError) throw projectIdError;
@@ -100,12 +81,12 @@ export default function CampaignsOverview() {
       }
 
       // Fallback query: by project name (only if needed)
-      if (currentProject?.name && campaignsByProjectId.length === 0) {
+      if (selectedProject?.name && campaignsByProjectId.length === 0) {
         const { data: projectNameData, error: projectNameError } = await supabase
           .from('Campaigns')
           .select('*')
           .eq('user_id', user.id)
-          .eq('project', currentProject.name)
+          .eq('project', selectedProject.name)
           .order('created_at', { ascending: false });
 
         if (projectNameError) throw projectNameError;
@@ -113,7 +94,7 @@ export default function CampaignsOverview() {
       }
 
       // No project selected - get all campaigns
-      if (!currentProject) {
+      if (!selectedProject) {
         const { data: allData, error: allError } = await supabase
           .from('Campaigns')
           .select('*')
@@ -189,7 +170,7 @@ export default function CampaignsOverview() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">
-            Kampaně{currentProject ? ` — ${currentProject.name}` : ''}
+            Kampaně{selectedProject ? ` — ${selectedProject.name}` : ''}
           </h1>
           <p className="text-muted-foreground mt-1">
             Správa marketingových kampaní a jejich obsahu
