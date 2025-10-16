@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { 
   Plus, 
   Search, 
@@ -66,17 +67,24 @@ export default function Contacts() {
     source: 'manual'
   });
   const { toast } = useToast();
+  const { selectedProject } = useSelectedProject();
 
   useEffect(() => {
     fetchContacts();
-  }, []);
+  }, [selectedProject]);
 
   const fetchContacts = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('Contacts')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
+
+      // Filter by project if selected
+      if (selectedProject?.id) {
+        query = query.eq('project_id', selectedProject.id);
+      }
+
+      const { data, error } = await query.order('created_at', { ascending: false });
 
       if (error) throw error;
       setContacts(data || []);
@@ -99,7 +107,8 @@ export default function Contacts() {
         phone: newContact.phone || null,
         tags: newContact.tags ? newContact.tags.split(',').map(tag => tag.trim()).filter(Boolean) : null,
         source: newContact.source,
-        subscribed: true
+        subscribed: true,
+        project_id: selectedProject?.id || null
       };
 
       if (editingContact) {
@@ -279,7 +288,9 @@ export default function Contacts() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Kontakty</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Kontakty{selectedProject ? ` — ${selectedProject.name}` : ''}
+          </h1>
           <p className="text-muted-foreground mt-1">
             Správa kontaktní databáze a odběratelů
           </p>

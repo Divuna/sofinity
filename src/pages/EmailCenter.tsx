@@ -44,33 +44,14 @@ export default function EmailCenter() {
   const [emails, setEmails] = useState<EmailItem[]>([]);
   const [userEmailMode, setUserEmailMode] = useState<'test' | 'production'>('production');
   const [loading, setLoading] = useState(true);
-  const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const location = useLocation();
   const { selectedProject } = useSelectedProject();
-
-  // Read project from location state or URL params
-  useEffect(() => {
-    const stateProject = location.state?.SelectedProject;
-    if (stateProject?.id && stateProject?.name) {
-      setCurrentProject(stateProject);
-    } else {
-      const urlParams = new URLSearchParams(location.search);
-      const projectId = urlParams.get('project_id');
-      const projectName = urlParams.get('name');
-      if (projectId && projectName) {
-        setCurrentProject({ id: projectId, name: projectName });
-      } else {
-        setCurrentProject(null);
-      }
-    }
-  }, [location.state, location.search]);
 
   useEffect(() => {
     fetchUserEmailMode();
     fetchEmails();
-  }, [currentProject]);
+  }, [selectedProject, userEmailMode]);
 
   const fetchUserEmailMode = async () => {
     try {
@@ -100,12 +81,12 @@ export default function EmailCenter() {
       let emailsByProjectName: EmailItem[] = [];
 
       // Primary query: by project_id with email mode filter
-      if (currentProject?.id) {
+      if (selectedProject?.id) {
         const { data: projectIdData, error: projectIdError } = await supabase
           .from('Emails')
           .select('*')
           .eq('user_id', user.id)
-          .eq('project_id', currentProject.id)
+          .eq('project_id', selectedProject.id)
           .eq('email_mode', userEmailMode)
           .order('created_at', { ascending: false });
 
@@ -114,12 +95,12 @@ export default function EmailCenter() {
       }
 
       // Fallback query: by project name with email mode filter (only if needed)
-      if (currentProject?.name && emailsByProjectId.length === 0) {
+      if (selectedProject?.name && emailsByProjectId.length === 0) {
         const { data: projectNameData, error: projectNameError } = await supabase
           .from('Emails')
           .select('*')
           .eq('user_id', user.id)
-          .eq('project', currentProject.name)
+          .eq('project', selectedProject.name)
           .eq('email_mode', userEmailMode)
           .order('created_at', { ascending: false });
 
@@ -128,7 +109,7 @@ export default function EmailCenter() {
       }
 
       // No project selected - get all emails filtered by email mode
-      if (!currentProject) {
+      if (!selectedProject) {
         const { data: allData, error: allError } = await supabase
           .from('Emails')
           .select('*')
@@ -161,7 +142,7 @@ export default function EmailCenter() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">
-            E-maily{currentProject ? ` — ${currentProject.name}` : ''}
+            E-maily{selectedProject ? ` — ${selectedProject.name}` : ''}
           </h1>
           <p className="text-muted-foreground mt-1">
             Správa e-mailů a sledování jejich doručení ({userEmailMode === 'test' ? 'Test režim' : 'Produkční režim'})
