@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { StatsCard } from '@/components/Dashboard/StatsCard';
-import { ProjectSelector } from '@/components/Dashboard/ProjectSelector';
+
 import PostForm from '@/components/PostForm';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -904,12 +904,7 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-4">
-        {/* Project Selector */}
-        <div>
-          <ProjectSelector />
-        </div>
-
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Recent Campaigns */}
         <div className="lg:col-span-2">
           <Card>
