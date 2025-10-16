@@ -118,6 +118,22 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('❌ [disconnect-sofinity] Failed to update project:', updateError);
+      
+      // Special handling for pg_net extension missing error (code 42883)
+      if (updateError.code === '42883') {
+        console.error('❌ [disconnect-sofinity] pg_net extension missing - DB trigger cannot call net.http_post');
+        return new Response(
+          JSON.stringify({ 
+            error: 'Database extension missing', 
+            details: 'The pg_net extension is required but not installed. Database migration completed - please refresh and try again.' 
+          }), 
+          { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
+      
       return new Response(
         JSON.stringify({ 
           error: 'Failed to disconnect project from Sofinity',
