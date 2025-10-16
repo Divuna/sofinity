@@ -1020,15 +1020,10 @@ export default function Dashboard() {
                      <div className="flex items-center justify-between mb-2">
                         <h4 className="font-semibold text-sm">{project.name}</h4>
                         <div className="flex items-center gap-2">
-                          {project.sofinityStatus?.isConnected ? (
+                          {project.external_connection ? (
                             <Badge variant="default" className="text-xs">
                               <Link2 className="w-3 h-3 mr-1" />
                               Propojeno se Sofinity
-                            </Badge>
-                          ) : project.sofinityStatus?.error ? (
-                            <Badge variant="destructive" className="text-xs">
-                              <Link2Off className="w-3 h-3 mr-1" />
-                              Chyba: {project.sofinityStatus.error.substring(0, 30)}
                             </Badge>
                           ) : (
                             <Badge variant="secondary" className="text-xs">
@@ -1045,7 +1040,7 @@ export default function Dashboard() {
                                   className="h-8 w-8 p-0"
                                   onClick={() => handleProjectConnection(project)}
                                 >
-                                  {project.sofinityStatus?.isConnected ? (
+                                  {project.external_connection ? (
                                     <Link2 className="w-4 h-4 text-success" />
                                   ) : (
                                     <Link2Off className="w-4 h-4 text-muted-foreground" />
@@ -1053,7 +1048,7 @@ export default function Dashboard() {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                {project.sofinityStatus?.isConnected 
+                                {project.external_connection 
                                   ? 'Klikněte pro odpojení' 
                                   : 'Klikněte pro připojení'
                                 }
