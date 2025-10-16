@@ -67,29 +67,77 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log('Processing campaign send request:', { email_id, campaign_id, batch_size });
+    console.log('Processing campaign send request:', { email_id, campaign_id, batch_size, user_id });
 
-    // Fetch emails to send
-    let emailsQuery = supabase
-      .from('Emails')
-      .select('*');
+    let emailContent: string;
+    let emailSubject: string;
+    let effectiveUserId: string;
 
-    if (email_id) {
-      emailsQuery = emailsQuery.eq('id', email_id);
-    } else if (campaign_id) {
-      emailsQuery = emailsQuery.eq('campaign_id', campaign_id);
-    }
+    if (campaign_id) {
+      // Fetch campaign data
+      const { data: campaign, error: campaignError } = await supabase
+        .from('Campaigns')
+        .select('*')
+        .eq('id', campaign_id)
+        .single();
 
-    const { data: emails, error: emailsError } = await emailsQuery;
+      if (campaignError || !campaign) {
+        console.error('Campaign fetch error:', campaignError);
+        return new Response(
+          JSON.stringify({ error: 'Campaign not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
-    if (emailsError || !emails || emails.length === 0) {
+      console.log('Found campaign:', campaign.name);
+
+      // Extract email content from campaign
+      if (!campaign.email) {
+        return new Response(
+          JSON.stringify({ error: 'Campaign has no email content' }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      // Parse email content - it may contain "Subject: ..." at the start
+      const emailParts = campaign.email.split('\n\n');
+      const firstLine = emailParts[0];
+      
+      if (firstLine.startsWith('Subject: ')) {
+        emailSubject = firstLine.replace('Subject: ', '').trim();
+        emailContent = emailParts.slice(1).join('\n\n');
+      } else {
+        emailSubject = `Campaign: ${campaign.name}`;
+        emailContent = campaign.email;
+      }
+
+      effectiveUserId = campaign.user_id;
+    } else if (email_id) {
+      // Fetch email from Emails table
+      const { data: email, error: emailError } = await supabase
+        .from('Emails')
+        .select('*')
+        .eq('id', email_id)
+        .single();
+
+      if (emailError || !email) {
+        return new Response(
+          JSON.stringify({ error: 'Email not found' }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      emailContent = email.content;
+      emailSubject = email.subject || 'Email from OneMil';
+      effectiveUserId = email.user_id;
+    } else {
       return new Response(
-        JSON.stringify({ error: 'No emails found to send' }),
-        { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'No valid email source provided' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`Found ${emails.length} emails to send`);
+    console.log(`Email subject: ${emailSubject}`);
 
     // Fetch subscribed contacts for OneMil project
     const { data: contactsData, error: contactsError } = await supabase
@@ -110,91 +158,93 @@ const handler = async (req: Request): Promise<Response> => {
     let totalSent = 0;
     let totalFailed = 0;
     const emailLogs: EmailLog[] = [];
+    const emailResults: any[] = [];
 
-    // Process each email
-    for (const email of emails) {
-      console.log(`Processing email: ${email.subject}`);
+    // Process contacts in batches
+    for (let i = 0; i < contacts.length; i += batch_size) {
+      const batch = contacts.slice(i, i + batch_size);
+      
+      for (const contact of batch) {
+        try {
+          // Send email via Resend
+          const { data: sendData, error: sendError } = await resend.emails.send({
+            from: 'OneMil <noreply@opravo.cz>',
+            to: [contact.email],
+            subject: emailSubject,
+            html: emailContent,
+            text: emailContent.replace(/<[^>]*>/g, ''), // Strip HTML for text version
+          });
 
-      // Process contacts in batches
-      for (let i = 0; i < contacts.length; i += batch_size) {
-        const batch = contacts.slice(i, i + batch_size);
-        
-        for (const contact of batch) {
-          try {
-            // Send email via Resend
-            const { data: sendData, error: sendError } = await resend.emails.send({
-              from: 'OneMil <noreply@onefocusedmillion.com>',
-              to: [contact.email],
-              subject: email.subject,
-              html: email.content,
-              text: email.content.replace(/<[^>]*>/g, ''), // Strip HTML for text version
-            });
-
-            if (sendError) {
-              throw sendError;
-            }
-
-            // Log successful send
-            const emailLog: EmailLog = {
-              recipient_email: contact.email,
-              subject: email.subject,
-              status: 'sent',
-              sent_at: new Date().toISOString(),
-              campaign_id: email.campaign_id || null,
-              user_id: user_id || email.user_id,
-              payload: {
-                email_id: email.id,
-                contact_name: contact.name,
-                resend_id: sendData?.id
-              },
-              message_id: sendData?.id || undefined
-            };
-
-            emailLogs.push(emailLog);
-            totalSent++;
-
-            console.log(`Email sent successfully to ${contact.email}`);
-
-          } catch (error) {
-            console.error(`Failed to send email to ${contact.email}:`, error);
-
-            // Log failed send
-            const emailLog: EmailLog = {
-              recipient_email: contact.email,
-              subject: email.subject,
-              status: 'failed',
-              sent_at: new Date().toISOString(),
-              campaign_id: email.campaign_id || null,
-              user_id: user_id || email.user_id,
-              payload: {
-                email_id: email.id,
-                contact_name: contact.name,
-                error: error instanceof Error ? error.message : 'Unknown error'
-              }
-            };
-
-            emailLogs.push(emailLog);
-            totalFailed++;
+          if (sendError) {
+            throw sendError;
           }
 
-          // Small delay between emails to avoid rate limiting
-          await new Promise(resolve => setTimeout(resolve, 100));
+          // Log successful send
+          const emailLog: EmailLog = {
+            recipient_email: contact.email,
+            subject: emailSubject,
+            status: 'sent',
+            sent_at: new Date().toISOString(),
+            campaign_id: campaign_id || null,
+            user_id: user_id || effectiveUserId,
+            payload: {
+              email_id: email_id,
+              campaign_id: campaign_id,
+              contact_name: contact.name,
+              resend_id: sendData?.id
+            },
+            message_id: sendData?.id || undefined
+          };
+
+          emailLogs.push(emailLog);
+          emailResults.push({ status: 'success', email: contact.email, message_id: sendData?.id });
+          totalSent++;
+
+          console.log(`Email sent successfully to ${contact.email}`);
+
+        } catch (error) {
+          console.error(`Failed to send email to ${contact.email}:`, error);
+
+          // Log failed send
+          const emailLog: EmailLog = {
+            recipient_email: contact.email,
+            subject: emailSubject,
+            status: 'failed',
+            sent_at: new Date().toISOString(),
+            campaign_id: campaign_id || null,
+            user_id: user_id || effectiveUserId,
+            payload: {
+              email_id: email_id,
+              campaign_id: campaign_id,
+              contact_name: contact.name,
+              error: error instanceof Error ? error.message : 'Unknown error'
+            }
+          };
+
+          emailLogs.push(emailLog);
+          emailResults.push({ status: 'error', email: contact.email, error: error instanceof Error ? error.message : 'Unknown error' });
+          totalFailed++;
         }
 
-        // Delay between batches
-        if (i + batch_size < contacts.length) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        // Small delay between emails to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 100));
       }
 
-      // Update email status to sent
+      // Delay between batches
+      if (i + batch_size < contacts.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    // Update campaign status if campaign_id is provided
+    if (campaign_id) {
       const { error: updateError } = await supabase
-        .from('Emails')
-        .update({ status: 'sent' })
-        .eq('id', email.id);
+        .from('Campaigns')
+        .update({ status: 'active' })
+        .eq('id', campaign_id);
 
       if (updateError) {
-        console.error('Failed to update email status:', updateError);
+        console.error('Failed to update campaign status:', updateError);
       }
     }
 
@@ -214,15 +264,14 @@ const handler = async (req: Request): Promise<Response> => {
       .from('audit_logs')
       .insert({
         event_name: 'campaign_emails_sent',
-        user_id: user_id || emails[0].user_id,
+        user_id: user_id || effectiveUserId,
         event_data: {
-          total_emails: emails.length,
           total_contacts: contacts.length,
           total_sent: totalSent,
           total_failed: totalFailed,
           batch_size: batch_size,
           campaign_id: campaign_id,
-          email_ids: emails.map(e => e.id),
+          email_id: email_id,
           sent_at: new Date().toISOString()
         }
       });
@@ -237,11 +286,12 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({
         success: true,
+        message: `Successfully sent ${totalSent} emails to ${contacts.length} contacts`,
         total_sent: totalSent,
         total_failed: totalFailed,
-        emails_processed: emails.length,
         contacts_count: contacts.length,
-        logs_created: emailLogs.length
+        logs_created: emailLogs.length,
+        emailResults: emailResults
       }),
       {
         status: 200,

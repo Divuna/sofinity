@@ -211,7 +211,10 @@ export default function CampaignDetail() {
     setSaving(true);
     try {
       const { data, error } = await supabase.functions.invoke('send-campaign-emails', {
-        body: { campaignId: campaign.id }
+        body: { 
+          campaign_id: campaign.id,
+          user_id: (await supabase.auth.getUser()).data.user?.id
+        }
       });
 
       if (error) throw error;
