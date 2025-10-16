@@ -15,19 +15,30 @@ serve(async (req) => {
   try {
     console.log('🔌 [disconnect-sofinity] Request received');
 
+    // Extract JWT token from Authorization header
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.error('❌ [disconnect-sofinity] Missing or invalid Authorization header');
+      return new Response(
+        JSON.stringify({ error: 'Missing or invalid Authorization header' }), 
+        { 
+          status: 401, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      );
+    }
+
+    const token = authHeader.replace('Bearer ', '');
+    console.log('🔑 [disconnect-sofinity] JWT token extracted');
+
     // Initialize Supabase client
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
-    // Get authenticated user
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    // Get authenticated user with explicit token
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
     
     if (authError || !user) {
       console.error('❌ [disconnect-sofinity] Authentication failed:', authError);
