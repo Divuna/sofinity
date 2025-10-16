@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { MultiSelect, MultiSelectOption } from '@/components/ui/multi-select';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, Mail, FileText, Video } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
@@ -14,6 +14,11 @@ export default function CampaignNew() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGenerating, setIsGenerating] = useState({
+    email: false,
+    post: false,
+    video: false
+  });
   const [contacts, setContacts] = useState<MultiSelectOption[]>([]);
   const [formData, setFormData] = useState({
     name: '',
@@ -57,6 +62,84 @@ export default function CampaignNew() {
       ...prev,
       [field]: value
     }));
+  };
+
+  const generateContent = async (type: 'email' | 'post' | 'video') => {
+    if (!formData.name && !formData.targeting) {
+      toast({
+        title: "Chyba",
+        description: "Nejprve vyplňte název kampaně nebo cílení",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsGenerating(prev => ({ ...prev, [type]: true }));
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Chyba",
+          description: "Musíte být přihlášeni",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      let prompt = '';
+      let aiType = '';
+
+      switch (type) {
+        case 'email':
+          prompt = `Generate a professional marketing email for campaign: "${formData.name}". Target audience: ${formData.targeting || 'general'}. Include compelling subject line and HTML content.`;
+          aiType = 'email_generator';
+          break;
+        case 'post':
+          prompt = `Generate an engaging social media post for campaign: "${formData.name}". Target audience: ${formData.targeting || 'general'}. Include hashtags and call-to-action.`;
+          aiType = 'post_generator';
+          break;
+        case 'video':
+          prompt = `Generate a video script and description for campaign: "${formData.name}". Target audience: ${formData.targeting || 'general'}. Include scene descriptions and key messaging.`;
+          aiType = 'video_generator';
+          break;
+      }
+
+      const { data, error } = await supabase.functions.invoke('ai-assistant', {
+        body: { 
+          prompt,
+          user_id: user.id,
+          email_type: aiType
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        if (type === 'email' && data.ai_response) {
+          handleInputChange('email', `Subject: ${data.ai_response.subject}\n\n${data.ai_response.content}`);
+        } else if (type === 'post' && data.ai_response?.content) {
+          handleInputChange('post', data.ai_response.content);
+        } else if (type === 'video' && data.ai_response?.content) {
+          handleInputChange('video', data.ai_response.content);
+        }
+
+        toast({
+          title: "Úspěch",
+          description: `${type === 'email' ? 'Email' : type === 'post' ? 'Příspěvek' : 'Video skript'} byl vygenerován pomocí AI`,
+        });
+      }
+    } catch (error) {
+      console.error('Chyba při generování:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se vygenerovat obsah",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(prev => ({ ...prev, [type]: false }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -195,7 +278,19 @@ export default function CampaignNew() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email obsah</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="email">Email obsah</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generateContent('email')}
+                  disabled={isGenerating.email}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  {isGenerating.email ? 'Generuje se...' : 'Generovat email'}
+                </Button>
+              </div>
               <Textarea
                 id="email"
                 placeholder="Obsah emailové kampaně..."
@@ -206,7 +301,19 @@ export default function CampaignNew() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="post">Obsah příspěvku</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="post">Obsah příspěvku</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generateContent('post')}
+                  disabled={isGenerating.post}
+                >
+                  <FileText className="h-4 w-4 mr-2" />
+                  {isGenerating.post ? 'Generuje se...' : 'Generovat post'}
+                </Button>
+              </div>
               <Textarea
                 id="post"
                 placeholder="Text pro sociální sítě..."
@@ -217,7 +324,19 @@ export default function CampaignNew() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="video">Video obsah</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="video">Video obsah</Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => generateContent('video')}
+                  disabled={isGenerating.video}
+                >
+                  <Video className="h-4 w-4 mr-2" />
+                  {isGenerating.video ? 'Generuje se...' : 'Generovat video'}
+                </Button>
+              </div>
               <Textarea
                 id="video"
                 placeholder="Popis video obsahu nebo script..."
