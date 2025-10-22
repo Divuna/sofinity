@@ -5,10 +5,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Validation constants
+const MAX_STRING_LENGTH = 500;
+const MAX_DESCRIPTION_LENGTH = 2000;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 // Helper function to validate UUID format
 function isValidUUID(str: string): boolean {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   return uuidRegex.test(str);
+}
+
+// Sanitize string input to prevent XSS
+function sanitizeString(input: string, maxLength: number = MAX_STRING_LENGTH): string {
+  if (!input || typeof input !== 'string') return '';
+  return input
+    .replace(/[<>]/g, '')
+    .replace(/javascript:/gi, '')
+    .trim()
+    .substring(0, maxLength);
+}
+
+// Validate email format
+function isValidEmail(email: string): boolean {
+  return EMAIL_REGEX.test(email) && email.length <= 255;
 }
 
 Deno.serve(async (req) => {
@@ -28,6 +48,17 @@ Deno.serve(async (req) => {
     
     console.log('Received Opravo webhook:', { type: webhookData.type, data: Object.keys(webhookData) })
 
+    // Validate webhook structure
+    if (!webhookData.type || typeof webhookData.type !== 'string') {
+      return new Response(
+        JSON.stringify({ error: 'Invalid webhook: missing or invalid type field' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
     // Handle different event types
     if (webhookData.type === 'RequestCreated' || webhookData.type === 'OfferCreated') {
       const { request, user } = webhookData
@@ -36,6 +67,17 @@ Deno.serve(async (req) => {
       if (!request || !user?.email) {
         return new Response(
           JSON.stringify({ error: 'Missing required fields: request and user.email for contact ingestion' }),
+          { 
+            status: 400, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        )
+      }
+
+      // Validate email format
+      if (!isValidEmail(user.email)) {
+        return new Response(
+          JSON.stringify({ error: 'Invalid email format' }),
           { 
             status: 400, 
             headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -56,6 +98,17 @@ Deno.serve(async (req) => {
     if (!request || !user?.email) {
       return new Response(
         JSON.stringify({ error: 'Missing required fields: request and user.email' }),
+        { 
+          status: 400, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        }
+      )
+    }
+
+    // Validate email format
+    if (!isValidEmail(user.email)) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid email format' }),
         { 
           status: 400, 
           headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
@@ -122,12 +175,18 @@ Deno.serve(async (req) => {
       )
     }
 
+    // Sanitize inputs
+    const sanitizedPopis = sanitizeString(request.popis || '', MAX_DESCRIPTION_LENGTH);
+    const sanitizedKategorie = sanitizeString(request.kategorie || '');
+    const sanitizedLokalita = sanitizeString(request.lokalita || request.adresa || '');
+    const sanitizedEmail = sanitizeString(user.email, 255);
+
     // Create detailed prompt based on request data
     const urgencyText = request.urgentni ? ' (URGENTNÍ)' : ''
-    const categoryText = request.kategorie ? ` v kategorii ${request.kategorie}` : ''
-    const locationText = request.adresa || request.lokalita ? ` v lokalitě ${request.adresa || request.lokalita}` : ''
+    const categoryText = sanitizedKategorie ? ` v kategorii ${sanitizedKategorie}` : ''
+    const locationText = sanitizedLokalita ? ` v lokalitě ${sanitizedLokalita}` : ''
     
-    const prompt = `Create a follow-up email or campaign for a new service request${urgencyText}: "${request.popis}"${categoryText}${locationText}. The request was created for user ${user.email}.`
+    const prompt = `Create a follow-up email or campaign for a new service request${urgencyText}: "${sanitizedPopis}"${categoryText}${locationText}. The request was created for user ${sanitizedEmail}.`
 
     // Create AI Request in Sofinity
     const { data: aiRequest, error: aiError } = await supabase
@@ -152,16 +211,16 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Create OpravoJobs record with external_request_id
+    // Create OpravoJobs record with external_request_id (sanitized inputs)
     const { data: opravoJob, error: jobError } = await supabase
       .from('opravojobs')
       .insert({
         request_id: isValidUUID(request.id) ? request.id : null,
-        external_request_id: request.id,
-        popis: request.popis,
+        external_request_id: sanitizeString(request.id || ''),
+        popis: sanitizedPopis,
         vytvoreno: request.created_at || new Date().toISOString(),
-        urgentni: request.urgentni || false,
-        lokalita: request.lokalita || request.adresa,
+        urgentni: Boolean(request.urgentni),
+        lokalita: sanitizedLokalita,
         zadavatel_id: request.zadavatel_id,
         status: 'pending',
         project_id: null, // Will be set below if project creation succeeds

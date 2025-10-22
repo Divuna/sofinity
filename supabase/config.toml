@@ -30,92 +30,90 @@ port = 54325
 [analytics]
 enabled = false
 
+# SECURITY: Functions requiring user authentication
 [functions.ai-assistant]
+verify_jwt = true
+
+[functions.generate-media]
+verify_jwt = true
+
+[functions.campaign-automation]
+verify_jwt = true
+
+[functions.send-email]
+verify_jwt = true
+
+[functions.send-email-resend]
+verify_jwt = true
+
+[functions.send-campaign-emails]
+verify_jwt = true
+
+[functions.process-ai-requests]
+verify_jwt = true
+
+[functions.connect-sofinity]
+verify_jwt = true
+
+[functions.disconnect-sofinity]
+verify_jwt = true
+
+# SECURITY: Webhook endpoints with custom authentication
+[functions.email-events-ingest]
 verify_jwt = false
 
+[functions.opravo-integration]
+verify_jwt = false
+
+[functions.sofinity-event]
+verify_jwt = false
+
+[functions.insert_opravo_job]
+verify_jwt = false
+
+[functions.sofinity-api]
+verify_jwt = false
+
+[functions.connect-opravo-sofinity]
+verify_jwt = false
+
+[functions.sofinity-opravo-status]
+verify_jwt = false
+
+[functions.opravo-status]
+verify_jwt = false
+
+[functions.opravo-email-metrics-sync]
+verify_jwt = false
+
+[functions.opravo-offers-integration]
+verify_jwt = false
+
+# SECURITY: Internal/cron functions with service role
 [functions.automated-monitoring]
 verify_jwt = false
 
 [functions.automated-workflow]
 verify_jwt = false
 
-[functions.batch-email-test]
-verify_jwt = false
-
-[functions.connect-opravo-sofinity]
-verify_jwt = false
-
-[functions.email-events-ingest]
-verify_jwt = false
-
-[functions.generate-media]
-verify_jwt = false
-
-[functions.insert_opravo_job]
-verify_jwt = false
-
-[functions.on-project-connection]
-verify_jwt = false
-
-[functions.opravo-email-metrics-sync]
-verify_jwt = false
-
-[functions.opravo-integration]
-verify_jwt = false
-
-[functions.opravo-offers-integration]
-verify_jwt = false
-
-[functions.opravo-status]
-verify_jwt = false
-
-[functions.register-onemill-project]
-verify_jwt = false
-
-[functions.send-campaign-emails]
-verify_jwt = false
-
-[functions.send-email]
-verify_jwt = false
-
-[functions.send-email-resend]
-verify_jwt = false
-
-[functions.sofinity-api]
-verify_jwt = false
-
-[functions.sofinity-event]
-verify_jwt = false
-
-[functions.sofinity-opravo-status]
-verify_jwt = false
-
-[functions.storage-soft-rollback]
+[functions.fn_scheduler_daily]
 verify_jwt = false
 
 [functions.fix-missing-events]
 verify_jwt = false
 
-[functions.ai-evaluator]
-verify_jwt = false
-
 [functions.standardize-event]
 verify_jwt = false
 
-[functions.process-ai-requests]
+[functions.ai-evaluator]
 verify_jwt = false
 
-[functions.campaign-automation]
+[functions.on-project-connection]
 verify_jwt = false
 
-[functions.sofinity-status]
+# SECURITY: Test functions
+[functions.batch-email-test]
 verify_jwt = false
 
-[functions.connect-sofinity]
-verify_jwt = false
-
-[functions.disconnect-sofinity]
-verify_jwt = false
-
-[functions.fn_scheduler_daily]
+[functions.storage-soft-rollback]
 verify_jwt = false

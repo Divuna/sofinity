@@ -7,6 +7,11 @@ const corsHeaders = {
 };
 
 const ALLOWED_EVENT_TYPES = ['delivered', 'bounced', 'opened', 'clicked'];
+const MAX_EMAIL_LENGTH = 255;
+const MAX_MESSAGE_ID_LENGTH = 255;
+
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 interface EmailEventRequest {
   message_id: string;
@@ -14,6 +19,48 @@ interface EmailEventRequest {
   recipient_email: string;
   event_timestamp?: string;
   [key: string]: any;
+}
+
+// Sanitize string input
+function sanitizeString(input: string, maxLength: number): string {
+  return input
+    .replace(/[<>]/g, '')
+    .replace(/javascript:/gi, '')
+    .trim()
+    .substring(0, maxLength);
+}
+
+// Validate email event request
+function validateEmailEvent(eventData: EmailEventRequest): { valid: boolean; error?: string } {
+  if (!eventData.message_id || typeof eventData.message_id !== 'string') {
+    return { valid: false, error: 'message_id is required and must be a string' };
+  }
+
+  if (eventData.message_id.length > MAX_MESSAGE_ID_LENGTH) {
+    return { valid: false, error: `message_id must not exceed ${MAX_MESSAGE_ID_LENGTH} characters` };
+  }
+
+  if (!eventData.event_type || typeof eventData.event_type !== 'string') {
+    return { valid: false, error: 'event_type is required and must be a string' };
+  }
+
+  if (!ALLOWED_EVENT_TYPES.includes(eventData.event_type)) {
+    return { valid: false, error: `Nepovolený typ události: ${eventData.event_type}. Povolené typy: ${ALLOWED_EVENT_TYPES.join(', ')}` };
+  }
+
+  if (!eventData.recipient_email || typeof eventData.recipient_email !== 'string') {
+    return { valid: false, error: 'recipient_email is required and must be a string' };
+  }
+
+  if (!EMAIL_REGEX.test(eventData.recipient_email)) {
+    return { valid: false, error: 'recipient_email must be a valid email address' };
+  }
+
+  if (eventData.recipient_email.length > MAX_EMAIL_LENGTH) {
+    return { valid: false, error: `recipient_email must not exceed ${MAX_EMAIL_LENGTH} characters` };
+  }
+
+  return { valid: true };
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -40,12 +87,16 @@ const handler = async (req: Request): Promise<Response> => {
 
     const eventData: EmailEventRequest = await req.json();
     
-    console.log('Received email event:', eventData);
+    console.log('Received email event:', { 
+      message_id: eventData.message_id?.substring(0, 20),
+      event_type: eventData.event_type 
+    });
 
-    // Validate required fields
-    if (!eventData.message_id || !eventData.event_type || !eventData.recipient_email) {
+    // Validate input
+    const validation = validateEmailEvent(eventData);
+    if (!validation.valid) {
       return new Response(
-        JSON.stringify({ error: 'Chybí povinné pole: message_id, event_type nebo recipient_email' }),
+        JSON.stringify({ error: validation.error }),
         {
           status: 400,
           headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -53,28 +104,19 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Validate event type
-    if (!ALLOWED_EVENT_TYPES.includes(eventData.event_type)) {
-      return new Response(
-        JSON.stringify({ 
-          error: `Nepovolený typ události: ${eventData.event_type}. Povolené typy: ${ALLOWED_EVENT_TYPES.join(', ')}` 
-        }),
-        {
-          status: 400,
-          headers: { 'Content-Type': 'application/json', ...corsHeaders },
-        }
-      );
-    }
+    // Sanitize inputs
+    const sanitizedMessageId = sanitizeString(eventData.message_id, MAX_MESSAGE_ID_LENGTH);
+    const sanitizedEmail = sanitizeString(eventData.recipient_email, MAX_EMAIL_LENGTH);
 
     // Look up the email by message_id
     const { data: emailRecord, error: emailError } = await supabaseClient
       .from('Emails')
       .select('id, user_id')
-      .eq('message_id', eventData.message_id)
+      .eq('message_id', sanitizedMessageId)
       .single();
 
     if (emailError || !emailRecord) {
-      console.log(`Email not found for message_id: ${eventData.message_id}`);
+      console.log(`Email not found for message_id: ${sanitizedMessageId}`);
       return new Response(
         JSON.stringify({ error: 'E-mail nebyl nalezen' }),
         {
@@ -94,7 +136,7 @@ const handler = async (req: Request): Promise<Response> => {
       .from('EmailEvents')
       .insert({
         email_id: emailRecord.id,
-        recipient_email: eventData.recipient_email,
+        recipient_email: sanitizedEmail,
         event_type: eventData.event_type,
         event_timestamp: eventTimestamp,
         raw_data: eventData
@@ -107,11 +149,11 @@ const handler = async (req: Request): Promise<Response> => {
       .from('EmailLogs')
       .insert({
         user_id: emailRecord.user_id,
-        recipient_email: eventData.recipient_email,
+        recipient_email: sanitizedEmail,
         status: eventData.event_type,
         type: 'webhook_event',
         subject: `Email ${eventData.event_type}`,
-        recipient: eventData.recipient_email,
+        recipient: sanitizedEmail,
         payload: eventData
       })
       .select()
@@ -119,7 +161,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // If there's a unique constraint violation (duplicate), we ignore it
     if (insertError && insertError.code === '23505') {
-      console.log(`Duplicate email event ignored for message_id: ${eventData.message_id}, event_type: ${eventData.event_type}`);
+      console.log(`Duplicate email event ignored for message_id: ${sanitizedMessageId}, event_type: ${eventData.event_type}`);
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -137,7 +179,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw insertError;
     }
 
-    console.log(`Successfully processed email event: ${eventData.event_type} for message_id: ${eventData.message_id}`);
+    console.log(`Successfully processed email event: ${eventData.event_type} for message_id: ${sanitizedMessageId}`);
 
     return new Response(
       JSON.stringify({ 
@@ -153,10 +195,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error('Error in email-events-ingest function:', error);
     return new Response(
-      JSON.stringify({ 
-        error: 'Interní chyba serveru',
-        details: error.message 
-      }),
+      JSON.stringify({ error: 'Interní chyba serveru' }),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },

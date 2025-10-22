@@ -6,6 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Input validation schema
 interface AIRequest {
   prompt: string;
   user_id?: string;
@@ -32,6 +33,40 @@ interface EmailDraft {
   project_id: string;
 }
 
+// Validation constants
+const MAX_PROMPT_LENGTH = 2000;
+const MAX_AGENT_NAME_LENGTH = 50;
+const ALLOWED_EMAIL_TYPES = ['newsletter', 'campaign', 'notification', 'autoresponder'];
+
+// Sanitize string input to prevent XSS
+function sanitizeString(input: string): string {
+  return input
+    .replace(/[<>]/g, '') // Remove < and >
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .trim();
+}
+
+// Validate inputs
+function validateAIRequest(request: AIRequest): { valid: boolean; error?: string } {
+  if (!request.prompt || typeof request.prompt !== 'string') {
+    return { valid: false, error: 'Prompt is required and must be a string' };
+  }
+
+  if (request.prompt.length > MAX_PROMPT_LENGTH) {
+    return { valid: false, error: `Prompt must not exceed ${MAX_PROMPT_LENGTH} characters` };
+  }
+
+  if (request.agent_name && request.agent_name.length > MAX_AGENT_NAME_LENGTH) {
+    return { valid: false, error: `Agent name must not exceed ${MAX_AGENT_NAME_LENGTH} characters` };
+  }
+
+  if (request.email_type && !ALLOWED_EMAIL_TYPES.includes(request.email_type)) {
+    return { valid: false, error: `Invalid email type. Allowed: ${ALLOWED_EMAIL_TYPES.join(', ')}` };
+  }
+
+  return { valid: true };
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -46,7 +81,16 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    // Initialize Supabase client with service role key for admin operations
+    // Get authenticated user from JWT
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing authorization header' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
@@ -56,30 +100,58 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse the request body
-    const { prompt, user_id, project_id = 'defababe-004b-4c63-9ff1-311540b0a3c9', email_type = 'newsletter', agent_name = 'Sofi.Writer' }: AIRequest = await req.json();
+    // Verify JWT and get user
+    const token = authHeader.replace('Bearer ', '');
+    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
 
-    if (!prompt) {
+    if (authError || !user) {
       return new Response(
-        JSON.stringify({ error: 'Prompt is required' }),
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Parse and validate request
+    const rawRequest = await req.json();
+    const requestData: AIRequest = {
+      prompt: rawRequest.prompt,
+      user_id: user.id, // Use authenticated user ID
+      project_id: rawRequest.project_id || 'defababe-004b-4c63-9ff1-311540b0a3c9',
+      email_type: rawRequest.email_type || 'newsletter',
+      agent_name: rawRequest.agent_name || 'Sofi.Writer'
+    };
+
+    // Validate input
+    const validation = validateAIRequest(requestData);
+    if (!validation.valid) {
+      return new Response(
+        JSON.stringify({ error: validation.error }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log('Processing AI assistant request:', { prompt: prompt.substring(0, 100), user_id, project_id, email_type, agent_name });
+    // Sanitize inputs
+    const sanitizedPrompt = sanitizeString(requestData.prompt);
+    const sanitizedAgentName = sanitizeString(requestData.agent_name!);
+
+    console.log('Processing AI assistant request:', { 
+      prompt: sanitizedPrompt.substring(0, 100), 
+      user_id: requestData.user_id, 
+      agent_name: sanitizedAgentName 
+    });
 
     // Fetch the agent from database
     const { data: agent, error: agentError } = await supabase
       .from('Agents')
       .select('*')
-      .eq('name', agent_name)
+      .eq('name', sanitizedAgentName)
       .eq('active', true)
       .single();
 
     if (agentError || !agent) {
-      console.error('Agent not found or inactive:', agent_name, agentError);
+      console.error('Agent not found or inactive:', sanitizedAgentName, agentError);
       return new Response(
-        JSON.stringify({ error: `Agent ${agent_name} not found or inactive` }),
+        JSON.stringify({ error: `Agent ${sanitizedAgentName} not found or inactive` }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -121,7 +193,7 @@ const handler = async (req: Request): Promise<Response> => {
           },
           {
             role: 'user',
-            content: prompt
+            content: sanitizedPrompt
           }
         ],
         temperature: 0.7,
@@ -130,7 +202,7 @@ const handler = async (req: Request): Promise<Response> => {
     });
 
     if (!aiResponse.ok) {
-      console.error('AI API error:', aiResponse.status, await aiResponse.text());
+      console.error('AI API error:', aiResponse.status);
       throw new Error(`AI API error: ${aiResponse.status}`);
     }
 
@@ -180,12 +252,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Create email draft in database
     const emailDraft: EmailDraft = {
-      subject: emailData.subject,
+      subject: sanitizeString(emailData.subject).substring(0, 200),
       content: emailData.content,
-      type: email_type,
+      type: requestData.email_type!,
       status: 'draft',
-      user_id: user_id || 'bbc1d329-fe8d-449e-9960-6633a647b65a',
-      project_id: project_id,
+      user_id: requestData.user_id!,
+      project_id: requestData.project_id!,
     };
 
     const { data: emailRecord, error: emailError } = await supabase
@@ -196,7 +268,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (emailError) {
       console.error('Database error creating email:', emailError);
-      throw new Error(`Failed to save email draft: ${emailError.message}`);
+      throw new Error('Failed to save email draft');
     }
 
     console.log('Email draft created:', emailRecord.id);
@@ -210,10 +282,10 @@ const handler = async (req: Request): Promise<Response> => {
       .insert({
         event_name: 'ai_email_generated',
         user_id: emailDraft.user_id,
-        project_id: project_id,
+        project_id: requestData.project_id,
         event_data: {
           email_id: emailRecord.id,
-          prompt: prompt.substring(0, 500), // Truncate for storage
+          prompt: sanitizedPrompt.substring(0, 500), // Truncate for storage
           subject: emailData.subject,
           agent_name: agent.name,
           agent_gpt_id: agent.gpt_id,

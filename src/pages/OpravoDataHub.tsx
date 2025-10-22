@@ -1105,7 +1105,7 @@ const JobDetail = ({ job }: { job: OpravoJob }) => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('user_id, name, email, role')
+          .select('user_id, name, email')
           .eq('user_id', job.zadavatel_id)
           .maybeSingle();
 
@@ -1163,9 +1163,6 @@ const JobDetail = ({ job }: { job: OpravoJob }) => {
           <div className="mt-2 p-3 bg-muted/30 rounded-md">
             <p className="text-sm font-medium">{customerProfile.name}</p>
             <p className="text-sm text-muted-foreground">{customerProfile.email}</p>
-            {customerProfile.role && (
-              <p className="text-xs text-muted-foreground">Role: {customerProfile.role}</p>
-            )}
             <Button asChild size="sm" variant="outline" className="mt-2">
               <Link to={`/profile/${customerProfile.user_id}`}>
                 Zobrazit profil v Sofinity
@@ -1207,7 +1204,7 @@ const OfferDetail = ({ offer }: { offer: OpravoOffer }) => {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('user_id, name, email, role')
+          .select('user_id, name, email')
           .eq('user_id', offer.opravar_id)
           .maybeSingle();
 
@@ -1261,9 +1258,6 @@ const OfferDetail = ({ offer }: { offer: OpravoOffer }) => {
           <div className="mt-2 p-3 bg-muted/30 rounded-md">
             <p className="text-sm font-medium">{repairerProfile.name}</p>
             <p className="text-sm text-muted-foreground">{repairerProfile.email}</p>
-            {repairerProfile.role && (
-              <p className="text-xs text-muted-foreground">Role: {repairerProfile.role}</p>
-            )}
             <Button asChild size="sm" variant="outline" className="mt-2">
               <Link to={`/profile/${repairerProfile.user_id}`}>
                 Zobrazit profil v Sofinity

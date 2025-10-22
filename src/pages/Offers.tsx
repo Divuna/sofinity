@@ -90,44 +90,14 @@ export default function Offers() {
         offersQuery = offersQuery.eq('project_id', selectedProject.id);
       }
 
-      // Apply role-based filtering
-      const userRole = currentUser?.profile?.role;
-      if (userRole === 'customer') {
-        // Customer: Show only offers linked to their own requests
-        // Need to join with requests table to check customer_id
-        offersQuery = supabase
-          .from('offers')
-          .select(`
-            *,
-            opravo_jobs!inner(*)
-          `)
-          .eq('opravo_jobs.customer_id', currentUser.id)
-          .order('created_at', { ascending: false });
-          
-        if (selectedProject?.id) {
-          offersQuery = offersQuery.eq('project_id', selectedProject.id);
-        }
-      } else if (userRole === 'repairer') {
-        // Repairer: Show only offers they created
-        offersQuery = offersQuery.eq('repairer_id', currentUser.id);
-      }
-      // Admin: Show all offers (no additional filtering)
+      // Note: Role-based filtering removed - roles now stored in user_roles table
+      // All users can view offers for their projects via RLS policies
 
       const { data: offersData, error: offersError } = await offersQuery;
 
       if (offersError) throw offersError;
       
-      // Extract offers data if joined with opravo_jobs
-      const extractedOffers = offersData?.map((item: any) => {
-        if (item.opravo_jobs) {
-          // Remove the joined data and return just the offer
-          const { opravo_jobs, ...offer } = item;
-          return offer;
-        }
-        return item;
-      }) || [];
-      
-      setOffers(extractedOffers);
+      setOffers(offersData || []);
 
     } catch (error) {
       console.error('Error fetching offers data:', error);

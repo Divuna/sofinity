@@ -1377,7 +1377,6 @@ export type Database = {
           id: string
           name: string
           onboarding_complete: boolean
-          role: string
           updated_at: string
           user_id: string
         }
@@ -1388,7 +1387,6 @@ export type Database = {
           id?: string
           name: string
           onboarding_complete?: boolean
-          role: string
           updated_at?: string
           user_id: string
         }
@@ -1399,7 +1397,6 @@ export type Database = {
           id?: string
           name?: string
           onboarding_complete?: boolean
-          role?: string
           updated_at?: string
           user_id?: string
         }
@@ -1564,13 +1561,6 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "tickets_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "visible_profiles"
-            referencedColumns: ["id"]
-          },
         ]
       }
       user_preferences: {
@@ -1626,6 +1616,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
       }
       users: {
         Row: {
@@ -1729,13 +1740,6 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vouchers_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "visible_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -1894,42 +1898,6 @@ export type Database = {
         }
         Relationships: []
       }
-      visible_profiles: {
-        Row: {
-          created_at: string | null
-          email: string | null
-          favorite_project: string | null
-          id: string | null
-          name: string | null
-          onboarding_complete: boolean | null
-          role: string | null
-          updated_at: string | null
-          user_id: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          email?: string | null
-          favorite_project?: string | null
-          id?: string | null
-          name?: string | null
-          onboarding_complete?: boolean | null
-          role?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          email?: string | null
-          favorite_project?: string | null
-          id?: string | null
-          name?: string | null
-          onboarding_complete?: boolean | null
-          role?: string | null
-          updated_at?: string | null
-          user_id?: string | null
-        }
-        Relationships: []
-      }
     }
     Functions: {
       bytea_to_text: {
@@ -1948,6 +1916,13 @@ export type Database = {
       get_safe_integration_data: {
         Args: { integration_id: string }
         Returns: Json
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
       }
       http: {
         Args: { request: Database["public"]["CompositeTypes"]["http_request"] }
@@ -2010,7 +1985,7 @@ export type Database = {
       }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "moderator" | "user"
     }
     CompositeTypes: {
       http_header: {
@@ -2153,6 +2128,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "moderator", "user"],
+    },
   },
 } as const
