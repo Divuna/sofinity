@@ -11,6 +11,16 @@ interface AIRequest {
   user_id?: string;
   project_id?: string;
   email_type?: string;
+  agent_name?: string;
+}
+
+interface Agent {
+  id: string;
+  name: string;
+  gpt_id: string;
+  role: string;
+  persona: string;
+  active: boolean;
 }
 
 interface EmailDraft {
@@ -47,7 +57,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse the request body
-    const { prompt, user_id, project_id = 'defababe-004b-4c63-9ff1-311540b0a3c9', email_type = 'newsletter' }: AIRequest = await req.json();
+    const { prompt, user_id, project_id = 'defababe-004b-4c63-9ff1-311540b0a3c9', email_type = 'newsletter', agent_name = 'Sofi.Writer' }: AIRequest = await req.json();
 
     if (!prompt) {
       return new Response(
@@ -56,27 +66,45 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log('Processing AI assistant request:', { prompt: prompt.substring(0, 100), user_id, project_id, email_type });
+    console.log('Processing AI assistant request:', { prompt: prompt.substring(0, 100), user_id, project_id, email_type, agent_name });
 
-    // Get the Lovable AI API key
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
-    if (!lovableApiKey) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    // Fetch the agent from database
+    const { data: agent, error: agentError } = await supabase
+      .from('Agents')
+      .select('*')
+      .eq('name', agent_name)
+      .eq('active', true)
+      .single();
+
+    if (agentError || !agent) {
+      console.error('Agent not found or inactive:', agent_name, agentError);
+      return new Response(
+        JSON.stringify({ error: `Agent ${agent_name} not found or inactive` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
-    // Call Lovable AI Gateway for email generation
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    console.log('Using agent:', agent.name, 'with GPT ID:', agent.gpt_id);
+
+    // Get the OpenAI API key
+    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
+    if (!openaiApiKey) {
+      throw new Error('OPENAI_API_KEY not configured');
+    }
+
+    // Call OpenAI ChatGPT API with the specific agent
+    const aiResponse = await fetch(`https://api.openai.com/v1/chat/completions`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${openaiApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
-            content: `You are an expert email marketing assistant for OneMil. Create professional, engaging email content.
+            content: `${agent.persona}
             
             CRITICAL: Return ONLY a valid JSON object with this exact structure:
             {"subject": "Email subject line", "content": "Full email content in HTML format"}
@@ -96,6 +124,8 @@ const handler = async (req: Request): Promise<Response> => {
             content: prompt
           }
         ],
+        temperature: 0.7,
+        max_tokens: 2000,
       }),
     });
 
@@ -171,6 +201,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Email draft created:', emailRecord.id);
 
+    // Update AIRequest with agent_id if there's a related request
+    // This will be done by the calling code if needed
+
     // Log the AI generation event to audit_logs
     const { error: auditError } = await supabase
       .from('audit_logs')
@@ -182,7 +215,9 @@ const handler = async (req: Request): Promise<Response> => {
           email_id: emailRecord.id,
           prompt: prompt.substring(0, 500), // Truncate for storage
           subject: emailData.subject,
-          ai_model: 'google/gemini-2.5-flash',
+          agent_name: agent.name,
+          agent_gpt_id: agent.gpt_id,
+          ai_model: 'gpt-4o-mini',
           generated_at: new Date().toISOString()
         }
       });
