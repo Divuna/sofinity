@@ -183,10 +183,11 @@ export default function Dashboard() {
         created_at: campaign.created_at
       })));
 
-      // Fetch AI requests filtered by selected project
+      // Fetch AI requests filtered by selected project (campaign_generator and evaluator only)
       let aiRequestsQuery = supabase
         .from('AIRequests')
         .select('*')
+        .in('type', ['campaign_generator', 'evaluator'])
         .order('created_at', { ascending: false });
       
       if (selectedProject?.id) {
