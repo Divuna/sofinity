@@ -119,6 +119,11 @@ export default function Dashboard() {
   const [reactions, setReactions] = useState<Reaction[]>([]);
   const [isPostModalOpen, setIsPostModalOpen] = useState(false);
   const [projectStatuses, setProjectStatuses] = useState<Record<string, SofinityStatus>>({});
+  const [showAllAiRequests, setShowAllAiRequests] = useState(false);
+  const [showAllOneMilEvents, setShowAllOneMilEvents] = useState(false);
+  const [showAllReactions, setShowAllReactions] = useState(false);
+  const [showAllPosts, setShowAllPosts] = useState(false);
+  const [showAllCampaigns, setShowAllCampaigns] = useState(false);
   const [stats, setStats] = useState<DashboardStats>({
     activeCampaigns: 0,
     totalEmails: 0,
@@ -628,7 +633,20 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent className="space-y-4">
           {Array.isArray(aiRequests) && aiRequests.length > 0 ? (
-            aiRequests.map((request) => (
+            <>
+              {aiRequests.length > 5 && (
+                <div className="flex justify-center pb-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAllAiRequests(!showAllAiRequests)}
+                    className="w-full max-w-xs"
+                  >
+                    {showAllAiRequests ? 'Skrýt' : 'Zobrazit vše'}
+                  </Button>
+                </div>
+              )}
+              
+              {(showAllAiRequests ? aiRequests : aiRequests.slice(0, 5)).map((request) => (
               <div
                 key={request.id}
                 className="p-4 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
@@ -671,7 +689,20 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
-            ))
+              ))}
+              
+              {aiRequests.length > 5 && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAllAiRequests(!showAllAiRequests)}
+                    className="w-full max-w-xs"
+                  >
+                    {showAllAiRequests ? 'Skrýt' : 'Zobrazit vše'}
+                  </Button>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-8">
               <Brain className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -708,7 +739,20 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent className="space-y-4">
           {Array.isArray(oneMilEvents) && oneMilEvents.length > 0 ? (
-            oneMilEvents.map((event) => (
+            <>
+              {oneMilEvents.length > 5 && (
+                <div className="flex justify-center pb-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAllOneMilEvents(!showAllOneMilEvents)}
+                    className="w-full max-w-xs"
+                  >
+                    {showAllOneMilEvents ? 'Skrýt' : 'Zobrazit vše'}
+                  </Button>
+                </div>
+              )}
+              
+              {(showAllOneMilEvents ? oneMilEvents : oneMilEvents.slice(0, 5)).map((event) => (
               <div
                 key={event.id}
                 className="p-4 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
@@ -745,7 +789,20 @@ export default function Dashboard() {
                   )}
                 </div>
               </div>
-            ))
+              ))}
+              
+              {oneMilEvents.length > 5 && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAllOneMilEvents(!showAllOneMilEvents)}
+                    className="w-full max-w-xs"
+                  >
+                    {showAllOneMilEvents ? 'Skrýt' : 'Zobrazit vše'}
+                  </Button>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-8">
               <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -767,7 +824,20 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent className="space-y-4">
           {Array.isArray(reactions) && reactions.length > 0 ? (
-            reactions.map((reaction) => (
+            <>
+              {reactions.length > 5 && (
+                <div className="flex justify-center pb-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAllReactions(!showAllReactions)}
+                    className="w-full max-w-xs"
+                  >
+                    {showAllReactions ? 'Skrýt' : 'Zobrazit vše'}
+                  </Button>
+                </div>
+              )}
+              
+              {(showAllReactions ? reactions : reactions.slice(0, 5)).map((reaction) => (
               <div
                 key={reaction.id}
                 className="p-4 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
@@ -809,7 +879,20 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            ))
+              ))}
+              
+              {reactions.length > 5 && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAllReactions(!showAllReactions)}
+                    className="w-full max-w-xs"
+                  >
+                    {showAllReactions ? 'Skrýt' : 'Zobrazit vše'}
+                  </Button>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-8">
               <Sparkles className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -856,7 +939,20 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent className="space-y-4">
           {Array.isArray(posts) && posts.length > 0 ? (
-            posts.map((post) => (
+            <>
+              {posts.length > 5 && (
+                <div className="flex justify-center pb-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAllPosts(!showAllPosts)}
+                    className="w-full max-w-xs"
+                  >
+                    {showAllPosts ? 'Skrýt' : 'Zobrazit vše'}
+                  </Button>
+                </div>
+              )}
+              
+              {(showAllPosts ? posts : posts.slice(0, 5)).map((post) => (
               <div
                 key={post.id}
                 className="p-4 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
@@ -893,7 +989,20 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
-            ))
+              ))}
+              
+              {posts.length > 5 && (
+                <div className="flex justify-center pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowAllPosts(!showAllPosts)}
+                    className="w-full max-w-xs"
+                  >
+                    {showAllPosts ? 'Skrýt' : 'Zobrazit vše'}
+                  </Button>
+                </div>
+              )}
+            </>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
               <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
@@ -924,7 +1033,20 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="space-y-4">
               {Array.isArray(campaigns) && campaigns.length > 0 ? (
-                campaigns.map((campaign) => (
+                <>
+                  {campaigns.length > 5 && (
+                    <div className="flex justify-center pb-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowAllCampaigns(!showAllCampaigns)}
+                        className="w-full max-w-xs"
+                      >
+                        {showAllCampaigns ? 'Skrýt' : 'Zobrazit vše'}
+                      </Button>
+                    </div>
+                  )}
+                  
+                  {(showAllCampaigns ? campaigns : campaigns.slice(0, 5)).map((campaign) => (
                   <div
                     key={campaign.id}
                     className="p-4 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
@@ -979,7 +1101,20 @@ export default function Dashboard() {
                       </span>
                     </div>
                   </div>
-                ))
+                  ))}
+                  
+                  {campaigns.length > 5 && (
+                    <div className="flex justify-center pt-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowAllCampaigns(!showAllCampaigns)}
+                        className="w-full max-w-xs"
+                      >
+                        {showAllCampaigns ? 'Skrýt' : 'Zobrazit vše'}
+                      </Button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <div className="text-center py-8">
                   <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
