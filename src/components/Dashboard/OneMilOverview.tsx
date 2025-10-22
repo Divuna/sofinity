@@ -38,6 +38,7 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
   const [selectedEventType, setSelectedEventType] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<OneMilCampaignData | null>(null);
+  const [showAll, setShowAll] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -242,7 +243,8 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
 
       <CardContent className="space-y-4">
         {Array.isArray(filteredData) && filteredData.length > 0 ? (
-          filteredData.map((item) => (
+          <>
+            {(showAll ? filteredData : filteredData.slice(0, 5)).map((item) => (
             <div
               key={item.id}
               className="p-4 rounded-lg border border-border bg-surface-variant hover:shadow-soft transition-all duration-300"
@@ -365,7 +367,20 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
                 </Dialog>
               </div>
             </div>
-          ))
+            ))}
+            
+            {filteredData.length > 5 && (
+              <div className="flex justify-center pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAll(!showAll)}
+                  className="w-full max-w-xs"
+                >
+                  {showAll ? 'Skrýt' : 'Zobrazit vše'}
+                </Button>
+              </div>
+            )}
+          </>
         ) : (
           <div className="text-center py-8">
             <Brain className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
