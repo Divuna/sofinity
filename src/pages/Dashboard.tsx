@@ -433,7 +433,8 @@ export default function Dashboard() {
     return Math.round((completed / total) * 100);
   };
 
-  const truncateText = (text: string, maxLength: number) => {
+  const truncateText = (text: string | null | undefined, maxLength: number) => {
+    if (!text) return '';
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   };
@@ -549,7 +550,7 @@ export default function Dashboard() {
             }`}
           >
             <div className="text-sm font-medium">Všechny projekty</div>
-            <div className="text-xs opacity-75 mt-1">{projects.length} projektů</div>
+            <div className="text-xs opacity-75 mt-1">{Array.isArray(projects) ? projects.length : 0} projektů</div>
           </button>
           {projects.map((project) => (
             <button
@@ -561,7 +562,7 @@ export default function Dashboard() {
                   : 'bg-surface border-border hover:bg-surface-variant hover:shadow-soft'
               }`}
             >
-              <div className="text-sm font-medium text-left">{project.name}</div>
+            <div className="text-sm font-medium text-left truncate">{project.name}</div>
               <div className="text-xs opacity-75 mt-1 text-left">
                 {project.campaignCount || 0} kampaní · {project.emailCount || 0} emailů
               </div>
@@ -575,7 +576,7 @@ export default function Dashboard() {
         <StatsCard
           title="Aktivní kampaně"
           value={stats.activeCampaigns.toString()}
-          change={`${campaigns.filter(c => c.status === 'active').length} z ${campaigns.length} posledních`}
+          change={`${Array.isArray(campaigns) ? campaigns.filter(c => c.status === 'active').length : 0} z ${Array.isArray(campaigns) ? campaigns.length : 0} posledních`}
           changeType="positive"
           icon={Target}
           gradient
@@ -625,7 +626,7 @@ export default function Dashboard() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {aiRequests.length > 0 ? (
+          {Array.isArray(aiRequests) && aiRequests.length > 0 ? (
             aiRequests.map((request) => (
               <div
                 key={request.id}
@@ -702,7 +703,7 @@ export default function Dashboard() {
           </Button>
         </CardHeader>
         <CardContent className="space-y-4">
-          {oneMilEvents.length > 0 ? (
+          {Array.isArray(oneMilEvents) && oneMilEvents.length > 0 ? (
             oneMilEvents.map((event) => (
               <div
                 key={event.id}
@@ -761,7 +762,7 @@ export default function Dashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {reactions.length > 0 ? (
+          {Array.isArray(reactions) && reactions.length > 0 ? (
             reactions.map((reaction) => (
               <div
                 key={reaction.id}
@@ -850,7 +851,7 @@ export default function Dashboard() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {posts.length > 0 ? (
+          {Array.isArray(posts) && posts.length > 0 ? (
             posts.map((post) => (
               <div
                 key={post.id}
@@ -918,7 +919,7 @@ export default function Dashboard() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              {campaigns.length > 0 ? (
+              {Array.isArray(campaigns) && campaigns.length > 0 ? (
                 campaigns.map((campaign) => (
                   <div
                     key={campaign.id}
@@ -1004,7 +1005,7 @@ export default function Dashboard() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-3">
-              {projects.length > 0 ? (
+              {Array.isArray(projects) && projects.length > 0 ? (
                 projects.map((project) => (
                   <div
                     key={project.id}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 
 interface AuthGuardProps {
   children: React.ReactNode;
@@ -11,6 +12,7 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const { loadingSelectedProject } = useSelectedProject();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,12 +43,15 @@ const AuthGuard: React.FC<AuthGuardProps> = ({ children }) => {
     return () => subscription.unsubscribe();
   }, [navigate]);
 
-  if (loading) {
+  // Show loading if auth is still loading OR project data is still loading
+  if (loading || loadingSelectedProject) {
     return (
       <div className="min-h-screen bg-gradient-surface flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Načítání...</p>
+          <p className="mt-2 text-muted-foreground">
+            {loading ? 'Načítání...' : 'Načítání projektu...'}
+          </p>
         </div>
       </div>
     );
