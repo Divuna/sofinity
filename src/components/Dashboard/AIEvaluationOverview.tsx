@@ -44,13 +44,13 @@ export const AIEvaluationOverview: React.FC<AIEvaluationOverviewProps> = ({ aiRe
     switch (status) {
       case 'completed':
       case 'done':
-        return <Badge variant="default" className="bg-success text-success-foreground">Dokončeno</Badge>;
+        return <Badge variant="default" className="bg-success text-success-foreground">🟢 Dokončeno</Badge>;
       case 'waiting':
       case 'pending':
-        return <Badge variant="secondary">Čekání</Badge>;
+        return <Badge variant="secondary">🟡 Čekání</Badge>;
       case 'error':
       case 'failed':
-        return <Badge variant="destructive">Chyba</Badge>;
+        return <Badge variant="destructive">🔴 Chyba</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
