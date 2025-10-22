@@ -154,52 +154,63 @@ export default function AIAssistant() {
         throw new Error('Musíte být přihlášeni');
       }
 
-        console.log('Sending AI request:', {
+      console.log('Creating AI request:', {
+        type: requestType,
+        prompt: promptText,
+        user_id: user.id,
+        project_id: selectedProject?.id
+      });
+
+      // 1. NEJPRVE vytvoříme záznam v AIRequests
+      const { data: aiRequest, error: insertError } = await supabase
+        .from('AIRequests')
+        .insert({
           type: requestType,
           prompt: promptText,
           user_id: user.id,
-          project_id: selectedProject?.id
-        });
+          project_id: selectedProject?.id || null,
+          status: 'waiting',
+          response: null
+        })
+        .select()
+        .single();
 
-        const { data, error } = await supabase.functions.invoke('ai-assistant', {
-          body: {
-            type: requestType,
-            prompt: promptText,
-            user_id: user.id,
-            project_id: selectedProject?.id
-          }
-        });
-
-      if (error) {
-        console.error('Supabase function error:', error);
-        throw new Error(error.message || 'Chyba při volání AI funkce');
+      if (insertError) {
+        console.error('Insert error:', insertError);
+        throw new Error(insertError.message || 'Nepodařilo se vytvořit AI požadavek');
       }
 
-      if (data?.error) {
-        console.error('AI function returned error:', data.error);
-        throw new Error(data.error);
-      }
+      console.log('AI request created:', aiRequest.id);
 
-      console.log('AI request successful:', data);
+      // 2. PAK zavoláme edge funkci pro zpracování
+      const { error: functionError } = await supabase.functions.invoke('sofinity-agent-dispatcher', {
+        body: {
+          id: aiRequest.id,
+          user_id: user.id,
+          type: requestType,
+          prompt: promptText
+        }
+      });
+
+      if (functionError) {
+        console.error('Edge function error:', functionError);
+        // Neházat error - záznam už je vytvořený a bude viditelný
+      }
 
       toast({
         title: "Úspěch!",
-        description: "AI požadavek byl úspěšně zpracován",
+        description: "AI požadavek byl vytvořen a čeká na zpracování",
       });
 
       setPromptText('');
       setRequestType('');
-      
-      // Refresh the list
-      setTimeout(() => {
-        fetchAIRequests();
-      }, 1000);
+      // Real-time subscription automaticky aktualizuje seznam
 
     } catch (error) {
       console.error('AI request error:', error);
       toast({
         title: "Chyba",
-        description: error.message || "Nepodařilo se zpracovat AI požadavek",
+        description: error.message || "Nepodařilo se vytvořit AI požadavek",
         variant: "destructive"
       });
     } finally {
