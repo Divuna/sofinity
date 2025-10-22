@@ -149,6 +149,16 @@ export default function AIAssistant() {
       return;
     }
 
+    // Ověřit, že prompt má alespoň 10 znaků
+    if (promptText.trim().length < 10) {
+      toast({
+        title: "Chyba",
+        description: "Prompt musí obsahovat alespoň 10 znaků",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -196,7 +206,18 @@ export default function AIAssistant() {
 
       if (functionError) {
         console.error('Edge function error:', functionError);
-        // Neházat error - záznam už je vytvořený a bude viditelný
+        
+        // Označit požadavek jako error v databázi
+        await supabase
+          .from('AIRequests')
+          .update({
+            status: 'error',
+            response: `❌ Chyba při volání AI: ${functionError.message}`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', aiRequest.id);
+        
+        throw new Error(`Nepodařilo se zpracovat požadavek: ${functionError.message}`);
       }
 
       toast({
@@ -220,6 +241,62 @@ export default function AIAssistant() {
     }
   };
 
+  const retryRequest = async (requestId: string, prompt: string, type: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Musíte být přihlášeni');
+
+      setIsLoading(true);
+      
+      // Reset statusu na waiting
+      await supabase
+        .from('AIRequests')
+        .update({
+          status: 'waiting',
+          response: '♻️ Požadavek byl znovu odeslán k AI zpracování.',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', requestId);
+
+      // Zavolat edge funkci znovu
+      const { error: functionError } = await supabase.functions.invoke('sofinity-agent-dispatcher', {
+        body: {
+          id: requestId,
+          user_id: user.id,
+          type: type,
+          prompt: prompt
+        }
+      });
+
+      if (functionError) {
+        // Označit jako error
+        await supabase
+          .from('AIRequests')
+          .update({
+            status: 'error',
+            response: `❌ Chyba při volání AI: ${functionError.message}`,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', requestId);
+        
+        throw new Error(functionError.message);
+      }
+
+      toast({
+        title: "✅ Požadavek byl znovu odeslán",
+        description: "AI začne zpracovávat požadavek",
+      });
+    } catch (error) {
+      console.error('Retry error:', error);
+      toast({
+        title: "Chyba",
+        description: error.message || "Nepodařilo se znovu odeslat požadavek",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -326,6 +403,19 @@ export default function AIAssistant() {
                         <span className="text-xs font-medium">
                           {request.status_label}
                         </span>
+                        {(request.status === 'waiting' || request.status === 'error') && request.prompt && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              retryRequest(request.id, request.prompt, request.type);
+                            }}
+                            className="ml-2 h-6 px-2 text-xs"
+                          >
+                            🔄 Zkusit znovu
+                          </Button>
+                        )}
                         <span className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(request.updated_at), { 
                             addSuffix: true, 

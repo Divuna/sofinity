@@ -86,7 +86,7 @@ export type Database = {
           id: string
           metadata: Json | null
           project_id: string | null
-          prompt: string | null
+          prompt: string
           response: string | null
           status: string
           type: string
@@ -101,7 +101,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           project_id?: string | null
-          prompt?: string | null
+          prompt: string
           response?: string | null
           status?: string
           type: string
@@ -116,7 +116,7 @@ export type Database = {
           id?: string
           metadata?: Json | null
           project_id?: string | null
-          prompt?: string | null
+          prompt?: string
           response?: string | null
           status?: string
           type?: string
