@@ -146,6 +146,19 @@ export default function AIRequests() {
     }
   };
 
+  const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (status) {
+      case 'completed':
+        return 'default';
+      case 'waiting':
+        return 'secondary';
+      case 'error':
+        return 'destructive';
+      default:
+        return 'outline';
+    }
+  };
+
   const handleProjectChange = (value: string) => {
     if (value === 'all') {
       setCurrentProject(null);
@@ -237,7 +250,7 @@ export default function AIRequests() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={request.status === 'completed' ? 'default' : 'secondary'} className="gap-1">
+                      <Badge variant={getStatusBadgeVariant(request.status)} className="gap-1">
                         {request.status_label}
                       </Badge>
                       <span className="text-xs text-muted-foreground">

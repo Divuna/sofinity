@@ -485,6 +485,19 @@ export default function Dashboard() {
     return typeMap[type] || type;
   };
 
+  const getStatusBadgeVariant = (status: string): "default" | "secondary" | "destructive" | "outline" => {
+    switch (status) {
+      case 'completed':
+        return 'default';
+      case 'waiting':
+        return 'secondary';
+      case 'error':
+        return 'destructive';
+      default:
+        return 'outline';
+    }
+  };
+
   const handleProjectConnection = async (project: Project) => {
     try {
       const session = await supabase.auth.getSession();
@@ -686,7 +699,7 @@ export default function Dashboard() {
                     <Badge variant="outline" className="text-xs">
                       {getRequestTypeLabel(request.type)}
                     </Badge>
-                    <Badge variant="secondary" className="text-xs">
+                    <Badge variant={getStatusBadgeVariant(request.status)} className="text-xs">
                       {request.status_label}
                     </Badge>
                   </div>
