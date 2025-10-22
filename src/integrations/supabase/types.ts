@@ -102,13 +102,6 @@ export type Database = {
             foreignKeyName: "AIRequests_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: "onemill_reporting"
-            referencedColumns: ["project_id"]
-          },
-          {
-            foreignKeyName: "AIRequests_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
             referencedRelation: "Projects"
             referencedColumns: ["id"]
           },
@@ -153,7 +146,7 @@ export type Database = {
           event_data: Json | null
           event_name: string
           id: string
-          ip_address: unknown | null
+          ip_address: unknown
           project_id: string | null
           user_agent: string | null
           user_id: string | null
@@ -163,7 +156,7 @@ export type Database = {
           event_data?: Json | null
           event_name: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           project_id?: string | null
           user_agent?: string | null
           user_id?: string | null
@@ -173,19 +166,12 @@ export type Database = {
           event_data?: Json | null
           event_name?: string
           id?: string
-          ip_address?: unknown | null
+          ip_address?: unknown
           project_id?: string | null
           user_agent?: string | null
           user_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "audit_logs_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "onemill_reporting"
-            referencedColumns: ["project_id"]
-          },
           {
             foreignKeyName: "audit_logs_project_id_fkey"
             columns: ["project_id"]
@@ -267,6 +253,13 @@ export type Database = {
             referencedRelation: "Campaigns"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "CallToAction_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "filtered_campaigns"
+            referencedColumns: ["id"]
+          },
         ]
       }
       campaign_contacts: {
@@ -297,6 +290,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "Campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_campaign_contacts_campaign_id"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "filtered_campaigns"
             referencedColumns: ["id"]
           },
           {
@@ -353,6 +353,13 @@ export type Database = {
             referencedRelation: "Campaigns"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "CampaignReports_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "filtered_campaigns"
+            referencedColumns: ["id"]
+          },
         ]
       }
       Campaigns: {
@@ -406,13 +413,6 @@ export type Database = {
             foreignKeyName: "Campaigns_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: "onemill_reporting"
-            referencedColumns: ["project_id"]
-          },
-          {
-            foreignKeyName: "Campaigns_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
             referencedRelation: "Projects"
             referencedColumns: ["id"]
           },
@@ -461,11 +461,11 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "CampaignSchedule_project_id_fkey"
-            columns: ["project_id"]
+            foreignKeyName: "CampaignSchedule_campaign_id_fkey"
+            columns: ["campaign_id"]
             isOneToOne: false
-            referencedRelation: "onemill_reporting"
-            referencedColumns: ["project_id"]
+            referencedRelation: "filtered_campaigns"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "CampaignSchedule_project_id_fkey"
@@ -512,6 +512,13 @@ export type Database = {
             referencedRelation: "Campaigns"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "CampaignStats_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "filtered_campaigns"
+            referencedColumns: ["id"]
+          },
         ]
       }
       CampaignTags: {
@@ -542,6 +549,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "Campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "CampaignTags_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "filtered_campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -596,13 +610,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "Contacts_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "onemill_reporting"
-            referencedColumns: ["project_id"]
-          },
           {
             foreignKeyName: "Contacts_project_id_fkey"
             columns: ["project_id"]
@@ -694,6 +701,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "EmailEvents_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "filtered_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "EmailEvents_email_id_fkey"
             columns: ["email_id"]
             isOneToOne: false
@@ -770,6 +784,13 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "Campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "EmailLogs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "filtered_campaigns"
             referencedColumns: ["id"]
           },
         ]
@@ -863,13 +884,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "Emails_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "onemill_reporting"
-            referencedColumns: ["project_id"]
-          },
           {
             foreignKeyName: "Emails_project_id_fkey"
             columns: ["project_id"]
@@ -1079,6 +1093,13 @@ export type Database = {
             referencedRelation: "Campaigns"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "Feedback_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "filtered_campaigns"
+            referencedColumns: ["id"]
+          },
         ]
       }
       MarketingCampaigns: {
@@ -1104,13 +1125,6 @@ export type Database = {
           status?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "MarketingCampaigns_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "onemill_reporting"
-            referencedColumns: ["project_id"]
-          },
           {
             foreignKeyName: "MarketingCampaigns_project_id_fkey"
             columns: ["project_id"]
@@ -1299,13 +1313,6 @@ export type Database = {
           zadavatel_id?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "opravojobs_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "onemill_reporting"
-            referencedColumns: ["project_id"]
-          },
           {
             foreignKeyName: "opravojobs_project_id_fkey"
             columns: ["project_id"]
@@ -1629,13 +1636,6 @@ export type Database = {
             foreignKeyName: "UserPreferences_selected_project_id_fkey"
             columns: ["selected_project_id"]
             isOneToOne: false
-            referencedRelation: "onemill_reporting"
-            referencedColumns: ["project_id"]
-          },
-          {
-            foreignKeyName: "UserPreferences_selected_project_id_fkey"
-            columns: ["selected_project_id"]
-            isOneToOne: false
             referencedRelation: "Projects"
             referencedColumns: ["id"]
           },
@@ -1737,6 +1737,13 @@ export type Database = {
             referencedRelation: "Campaigns"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "videos_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "filtered_campaigns"
+            referencedColumns: ["id"]
+          },
         ]
       }
       vouchers: {
@@ -1799,36 +1806,53 @@ export type Database = {
     Views: {
       filtered_campaigns: {
         Row: {
-          campaign_name: string | null
           created_at: string | null
+          email: string | null
+          email_mode: string | null
+          event_id: string | null
           id: string | null
+          name: string | null
+          post: string | null
+          project: string | null
           project_id: string | null
           status: string | null
+          targeting: string | null
+          user_id: string | null
+          video: string | null
         }
         Insert: {
-          campaign_name?: string | null
           created_at?: string | null
+          email?: string | null
+          email_mode?: string | null
+          event_id?: string | null
           id?: string | null
+          name?: string | null
+          post?: string | null
+          project?: string | null
           project_id?: string | null
           status?: string | null
+          targeting?: string | null
+          user_id?: string | null
+          video?: string | null
         }
         Update: {
-          campaign_name?: string | null
           created_at?: string | null
+          email?: string | null
+          email_mode?: string | null
+          event_id?: string | null
           id?: string | null
+          name?: string | null
+          post?: string | null
+          project?: string | null
           project_id?: string | null
           status?: string | null
+          targeting?: string | null
+          user_id?: string | null
+          video?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "MarketingCampaigns_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "onemill_reporting"
-            referencedColumns: ["project_id"]
-          },
-          {
-            foreignKeyName: "MarketingCampaigns_project_id_fkey"
+            foreignKeyName: "Campaigns_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "Projects"
@@ -1887,13 +1911,6 @@ export type Database = {
             foreignKeyName: "Emails_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
-            referencedRelation: "onemill_reporting"
-            referencedColumns: ["project_id"]
-          },
-          {
-            foreignKeyName: "Emails_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
             referencedRelation: "Projects"
             referencedColumns: ["id"]
           },
@@ -1940,23 +1957,67 @@ export type Database = {
       }
       onemill_reporting: {
         Row: {
+          campaign_id: string | null
+          click_rate: number | null
+          conversions: number | null
           created_at: string | null
-          event_data: Json | null
-          event_name: string | null
+          export_link: string | null
           id: string | null
-          project_id: string | null
-          project_name: string | null
+          impressions: number | null
+          open_rate: number | null
+          summary_text: string | null
+          user_id: string | null
         }
-        Relationships: []
+        Insert: {
+          campaign_id?: string | null
+          click_rate?: number | null
+          conversions?: number | null
+          created_at?: string | null
+          export_link?: string | null
+          id?: string | null
+          impressions?: number | null
+          open_rate?: number | null
+          summary_text?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          campaign_id?: string | null
+          click_rate?: number | null
+          conversions?: number | null
+          created_at?: string | null
+          export_link?: string | null
+          id?: string | null
+          impressions?: number | null
+          open_rate?: number | null
+          summary_text?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "CampaignReports_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "Campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "CampaignReports_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "filtered_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
-      bytea_to_text: {
-        Args: { data: string }
-        Returns: string
+      bytea_to_text: { Args: { data: string }; Returns: string }
+      call_insert_opravo_job: {
+        Args: { _request_id: string; _user_id: string }
+        Returns: undefined
       }
       check_fk_integrity_admin: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           invalid_count: number
           status: boolean
@@ -1964,14 +2025,8 @@ export type Database = {
           valid_count: number
         }[]
       }
-      cleanup_old_nonces: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
-      cleanup_old_webhook_requests: {
-        Args: Record<PropertyKey, never>
-        Returns: undefined
-      }
+      cleanup_old_nonces: { Args: never; Returns: undefined }
+      cleanup_old_webhook_requests: { Args: never; Returns: undefined }
       get_safe_integration_data: {
         Args: { integration_id: string }
         Returns: Json
@@ -1986,27 +2041,77 @@ export type Database = {
       http: {
         Args: { request: Database["public"]["CompositeTypes"]["http_request"] }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "http_request"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      http_delete: {
-        Args:
-          | { content: string; content_type: string; uri: string }
-          | { uri: string }
-        Returns: Database["public"]["CompositeTypes"]["http_response"]
-      }
-      http_get: {
-        Args: { data: Json; uri: string } | { uri: string }
-        Returns: Database["public"]["CompositeTypes"]["http_response"]
-      }
+      http_delete:
+        | {
+            Args: { uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { content: string; content_type: string; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+      http_get:
+        | {
+            Args: { uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { data: Json; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       http_head: {
         Args: { uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "*"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       http_header: {
         Args: { field: string; value: string }
         Returns: Database["public"]["CompositeTypes"]["http_header"]
+        SetofOptions: {
+          from: "*"
+          to: "http_header"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       http_list_curlopt: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           curlopt: string
           value: string
@@ -2015,33 +2120,65 @@ export type Database = {
       http_patch: {
         Args: { content: string; content_type: string; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "*"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      http_post: {
-        Args:
-          | { content: string; content_type: string; uri: string }
-          | { data: Json; uri: string }
-        Returns: Database["public"]["CompositeTypes"]["http_response"]
-      }
+      http_post:
+        | {
+            Args: { content: string; content_type: string; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: { data: Json; uri: string }
+            Returns: Database["public"]["CompositeTypes"]["http_response"]
+            SetofOptions: {
+              from: "*"
+              to: "http_response"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
       http_put: {
         Args: { content: string; content_type: string; uri: string }
         Returns: Database["public"]["CompositeTypes"]["http_response"]
+        SetofOptions: {
+          from: "*"
+          to: "http_response"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
-      http_reset_curlopt: {
-        Args: Record<PropertyKey, never>
-        Returns: boolean
-      }
+      http_reset_curlopt: { Args: never; Returns: boolean }
       http_set_curlopt: {
         Args: { curlopt: string; value: string }
         Returns: boolean
       }
-      text_to_bytea: {
-        Args: { data: string }
-        Returns: string
-      }
-      urlencode: {
-        Args: { data: Json } | { string: string } | { string: string }
-        Returns: string
-      }
+      text_to_bytea: { Args: { data: string }; Returns: string }
+      trigger_ai_evaluation: { Args: { event_id: string }; Returns: undefined }
+      urlencode:
+        | { Args: { data: Json }; Returns: string }
+        | {
+            Args: { string: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.urlencode(string => bytea), public.urlencode(string => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
+        | {
+            Args: { string: string }
+            Returns: {
+              error: true
+            } & "Could not choose the best candidate function between: public.urlencode(string => bytea), public.urlencode(string => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
+          }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
@@ -2052,7 +2189,7 @@ export type Database = {
         value: string | null
       }
       http_request: {
-        method: unknown | null
+        method: unknown
         uri: string | null
         headers: Database["public"]["CompositeTypes"]["http_header"][] | null
         content_type: string | null
