@@ -104,15 +104,19 @@ serve(async (req) => {
 
         // Process based on request type
         if (request.type === 'campaign_generator') {
-          // Create a Campaign
+          // Create a Campaign draft linked to AIRequest
+          const campaignName = request.prompt 
+            ? request.prompt.substring(0, 100) 
+            : `AI Kampaň: ${request.event_name || 'Vygenerováno'}`;
+          
           const { error: campaignError } = await supabase
             .from('Campaigns')
             .insert({
               user_id: request.user_id,
               project_id: request.project_id,
-              event_id: request.id,
-              name: `AI Campaign: ${request.event_name || 'Generated'}`,
-              targeting: aiResponse || request.metadata?.toString() || '{}',
+              ai_request_id: request.id,
+              name: campaignName,
+              targeting: aiResponse || '',
               status: 'draft',
             });
 

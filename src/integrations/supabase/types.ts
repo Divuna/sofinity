@@ -90,6 +90,7 @@ export type Database = {
           response: string | null
           status: string
           type: string
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
@@ -104,6 +105,7 @@ export type Database = {
           response?: string | null
           status?: string
           type: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
@@ -118,6 +120,7 @@ export type Database = {
           response?: string | null
           status?: string
           type?: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -394,6 +397,7 @@ export type Database = {
       }
       Campaigns: {
         Row: {
+          ai_request_id: string | null
           created_at: string | null
           email: string | null
           email_mode: string | null
@@ -409,6 +413,7 @@ export type Database = {
           video: string | null
         }
         Insert: {
+          ai_request_id?: string | null
           created_at?: string | null
           email?: string | null
           email_mode?: string | null
@@ -424,6 +429,7 @@ export type Database = {
           video?: string | null
         }
         Update: {
+          ai_request_id?: string | null
           created_at?: string | null
           email?: string | null
           email_mode?: string | null
@@ -439,6 +445,13 @@ export type Database = {
           video?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "Campaigns_ai_request_id_fkey"
+            columns: ["ai_request_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "Campaigns_project_id_fkey"
             columns: ["project_id"]

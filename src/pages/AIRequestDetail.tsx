@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Save, FileText, Mail, MessageSquare, Bot, Clock, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Save, FileText, Mail, MessageSquare, Bot, Clock, CheckCircle, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
@@ -28,6 +28,7 @@ export default function AIRequestDetail() {
   const [loading, setLoading] = useState(true);
   const [savingCampaign, setSavingCampaign] = useState(false);
   const [savingEmail, setSavingEmail] = useState(false);
+  const [linkedCampaignId, setLinkedCampaignId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchAIRequest = async () => {
@@ -46,6 +47,19 @@ export default function AIRequestDetail() {
 
         if (error) throw error;
         setAiRequest(data);
+
+        // Check if there's a linked campaign for campaign_generator type
+        if (data && data.type === 'campaign_generator') {
+          const { data: campaignData } = await supabase
+            .from('Campaigns')
+            .select('id')
+            .eq('ai_request_id', id)
+            .single();
+          
+          if (campaignData) {
+            setLinkedCampaignId(campaignData.id);
+          }
+        }
       } catch (error) {
         console.error('Error fetching AI request:', error);
         toast({
@@ -327,14 +341,26 @@ export default function AIRequestDetail() {
             <CardContent>
               <div className="flex gap-3">
                 {aiRequest.type === 'campaign_generator' && (
-                  <Button 
-                    onClick={saveAsCampaign}
-                    disabled={savingCampaign}
-                    className="flex items-center gap-2"
-                  >
-                    <Save className="h-4 w-4" />
-                    {savingCampaign ? 'Ukládám...' : 'Uložit jako kampaň'}
-                  </Button>
+                  <>
+                    {linkedCampaignId ? (
+                      <Button 
+                        onClick={() => navigate(`/campaigns/${linkedCampaignId}`)}
+                        className="flex items-center gap-2"
+                      >
+                        <ExternalLink className="h-4 w-4" />
+                        Otevřít kampaň
+                      </Button>
+                    ) : (
+                      <Button 
+                        onClick={saveAsCampaign}
+                        disabled={savingCampaign}
+                        className="flex items-center gap-2"
+                      >
+                        <Save className="h-4 w-4" />
+                        {savingCampaign ? 'Ukládám...' : 'Uložit jako kampaň'}
+                      </Button>
+                    )}
+                  </>
                 )}
                 
                 {aiRequest.type === 'email_assistant' && (
