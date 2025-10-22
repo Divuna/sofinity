@@ -633,6 +633,30 @@ export type Database = {
         }
         Relationships: []
       }
+      cron_request_nonces: {
+        Row: {
+          created_at: string
+          function_name: string
+          id: string
+          nonce: string
+          timestamp: string
+        }
+        Insert: {
+          created_at?: string
+          function_name: string
+          id?: string
+          nonce: string
+          timestamp: string
+        }
+        Update: {
+          created_at?: string
+          function_name?: string
+          id?: string
+          nonce?: string
+          timestamp?: string
+        }
+        Relationships: []
+      }
       EmailEvents: {
         Row: {
           campaign_id: string | null
@@ -1912,6 +1936,10 @@ export type Database = {
           table_name: string
           valid_count: number
         }[]
+      }
+      cleanup_old_nonces: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
       }
       get_safe_integration_data: {
         Args: { integration_id: string }

@@ -27,10 +27,73 @@ serve(async (req) => {
   }
 
   try {
+    // SECURITY: Verify X-SOFINITY-CRON header
+    const cronSecret = req.headers.get('X-SOFINITY-CRON');
+    const expectedSecret = Deno.env.get('SOFINITY_CRON_SECRET');
+    
+    if (!cronSecret || cronSecret !== expectedSecret) {
+      console.error('❌ Unauthorized: Invalid or missing X-SOFINITY-CRON header');
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // SECURITY: Replay attack prevention
+    const timestamp = req.headers.get('X-Timestamp');
+    const nonce = req.headers.get('X-Nonce');
+    
+    if (!timestamp || !nonce) {
+      console.error('❌ Bad Request: Missing timestamp or nonce');
+      return new Response(
+        JSON.stringify({ error: 'Missing timestamp or nonce' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const requestTime = new Date(timestamp);
+    const now = new Date();
+    const timeDiff = Math.abs(now.getTime() - requestTime.getTime()) / 1000;
+
+    if (timeDiff > 300) {
+      console.error('❌ Request rejected: Timestamp too old', timeDiff);
+      return new Response(
+        JSON.stringify({ error: 'Request timestamp too old' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
+
+    // Check for nonce replay
+    const { data: existingNonce } = await supabase
+      .from('cron_request_nonces')
+      .select('id')
+      .eq('nonce', nonce)
+      .single();
+
+    if (existingNonce) {
+      console.error('❌ Replay attack detected: Nonce already used');
+      return new Response(
+        JSON.stringify({ error: 'Nonce already used' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Store nonce
+    await supabase
+      .from('cron_request_nonces')
+      .insert({
+        nonce,
+        timestamp: requestTime.toISOString(),
+        function_name: 'automated-monitoring'
+      });
+
+    // Cleanup old nonces
+    await supabase.rpc('cleanup_old_nonces');
 
     const report: MonitoringReport = {
       timestamp: new Date().toISOString(),
@@ -240,10 +303,12 @@ serve(async (req) => {
     console.log('🔍 Monitoring completed');
     console.log(`📊 Summary: ${report.newCampaigns} new campaigns, ${report.newCustomers} new customers, ${report.triggeredWorkflows} workflows triggered`);
 
+    const jobId = crypto.randomUUID();
+
+    // Return minimal response (detailed metrics already in audit_logs)
     return new Response(JSON.stringify({
-      success: true,
-      message: 'Automated monitoring completed',
-      report
+      ok: true,
+      job_id: jobId
     }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
