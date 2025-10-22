@@ -17,8 +17,10 @@ interface AIRequest {
   prompt: string;
   response: string | null;
   status: string;
+  status_label: string;
   project_id: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 interface Project {
@@ -42,7 +44,7 @@ export default function AIRequests() {
       if (!user) return;
 
       let query = supabase
-        .from('AIRequests')
+        .from('v_ai_requests_status')
         .select('*')
         .eq('user_id', user.id);
 
@@ -51,7 +53,7 @@ export default function AIRequests() {
         query = query.eq('project_id', currentProject.id);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await query.order('updated_at', { ascending: false });
 
       if (error) throw error;
       
@@ -235,19 +237,11 @@ export default function AIRequests() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      {request.status === 'completed' ? (
-                        <Badge variant="default" className="gap-1">
-                          <CheckCircle className="h-3 w-3" />
-                          Dokončeno
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary" className="gap-1">
-                          <Clock className="h-3 w-3" />
-                          Zpracovává se
-                        </Badge>
-                      )}
+                      <Badge variant={request.status === 'completed' ? 'default' : 'secondary'} className="gap-1">
+                        {request.status_label}
+                      </Badge>
                       <span className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(request.created_at), { 
+                        {formatDistanceToNow(new Date(request.updated_at), { 
                           addSuffix: true, 
                           locale: cs 
                         })}

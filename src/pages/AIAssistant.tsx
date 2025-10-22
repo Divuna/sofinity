@@ -18,8 +18,10 @@ interface AIRequest {
   prompt: string;
   response: string | null;
   status: string;
+  status_label: string;
   project_id: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 export default function AIAssistant() {
@@ -38,7 +40,7 @@ export default function AIAssistant() {
       if (!user) return;
 
       let query = supabase
-        .from('AIRequests')
+        .from('v_ai_requests_status')
         .select('*')
         .eq('user_id', user.id);
 
@@ -47,7 +49,7 @@ export default function AIAssistant() {
         query = query.eq('project_id', selectedProject.id);
       }
 
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await query.order('updated_at', { ascending: false });
 
       if (error) throw error;
       setAiRequests(data || []);
@@ -321,13 +323,11 @@ export default function AIAssistant() {
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {request.status === 'completed' ? (
-                          <CheckCircle className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Clock className="h-4 w-4 text-yellow-500" />
-                        )}
+                        <span className="text-xs font-medium">
+                          {request.status_label}
+                        </span>
                         <span className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(request.created_at), { 
+                          {formatDistanceToNow(new Date(request.updated_at), { 
                             addSuffix: true, 
                             locale: cs 
                           })}

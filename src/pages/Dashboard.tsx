@@ -79,7 +79,9 @@ interface AIRequest {
   prompt: string;
   response: string | null;
   status: string;
+  status_label: string;
   created_at: string;
+  updated_at: string;
   project_id: string | null;
   event_name: string | null;
   metadata: any;
@@ -185,10 +187,10 @@ export default function Dashboard() {
 
       // Fetch AI requests filtered by selected project (campaign_generator and evaluator only)
       let aiRequestsQuery = supabase
-        .from('AIRequests')
+        .from('v_ai_requests_status')
         .select('*')
         .in('type', ['campaign_generator', 'evaluator'])
-        .order('created_at', { ascending: false });
+        .order('updated_at', { ascending: false });
       
       if (selectedProject?.id) {
         aiRequestsQuery = aiRequestsQuery.or(`project_id.is.null,project_id.eq.${selectedProject.id}`);
@@ -203,7 +205,9 @@ export default function Dashboard() {
         prompt: request.prompt,
         response: request.response,
         status: request.status,
+        status_label: request.status_label,
         created_at: request.created_at,
+        updated_at: request.updated_at,
         project_id: request.project_id,
         event_name: request.event_name,
         metadata: request.metadata
@@ -666,13 +670,12 @@ export default function Dashboard() {
                               request.status === 'waiting' ? 'secondary' : 'destructive'}
                       className="text-xs"
                     >
-                      {request.status === 'completed' ? 'Dokončeno' :
-                       request.status === 'waiting' ? 'Čekání' : 'Chyba'}
+                      {request.status_label}
                     </Badge>
                   </div>
                   <div className="flex items-center text-xs text-muted-foreground">
                     <Clock className="w-4 h-4 mr-1" />
-                    {new Date(request.created_at).toLocaleDateString('cs-CZ')}
+                    {new Date(request.updated_at).toLocaleDateString('cs-CZ')}
                   </div>
                 </div>
                 

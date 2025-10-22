@@ -453,6 +453,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "Campaigns_ai_request_id_fkey"
+            columns: ["ai_request_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_requests_status"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "Campaigns_project_id_fkey"
             columns: ["project_id"]
             isOneToOne: false
@@ -2090,6 +2097,72 @@ export type Database = {
             columns: ["campaign_id"]
             isOneToOne: false
             referencedRelation: "filtered_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      v_ai_requests_status: {
+        Row: {
+          agent_id: string | null
+          created_at: string | null
+          event_id: string | null
+          event_name: string | null
+          id: string | null
+          metadata: Json | null
+          project_id: string | null
+          prompt: string | null
+          response: string | null
+          status: string | null
+          status_label: string | null
+          type: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string | null
+          event_id?: string | null
+          event_name?: string | null
+          id?: string | null
+          metadata?: Json | null
+          project_id?: string | null
+          prompt?: string | null
+          response?: string | null
+          status?: string | null
+          status_label?: never
+          type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string | null
+          event_id?: string | null
+          event_name?: string | null
+          id?: string | null
+          metadata?: Json | null
+          project_id?: string | null
+          prompt?: string | null
+          response?: string | null
+          status?: string | null
+          status_label?: never
+          type?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "AIRequests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "Agents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "AIRequests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
             referencedColumns: ["id"]
           },
         ]

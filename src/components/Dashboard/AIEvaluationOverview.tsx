@@ -11,8 +11,10 @@ interface AIRequest {
   id: string;
   type: string;
   status: string;
+  status_label: string;
   response: string | null;
   created_at: string;
+  updated_at: string;
   event_name: string | null;
   metadata: any;
   prompt: string | null;
@@ -30,11 +32,15 @@ export const AIEvaluationOverview: React.FC<AIEvaluationOverviewProps> = ({ aiRe
   // Filter only evaluator type requests
   const evaluatorRequests = aiRequests
     .filter(req => req.type === 'evaluator')
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
   const displayedRequests = showAll ? evaluatorRequests : evaluatorRequests.slice(0, 5);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, statusLabel?: string) => {
+    if (statusLabel) {
+      return <Badge variant={status === 'completed' ? 'default' : status === 'waiting' ? 'secondary' : 'destructive'}>{statusLabel}</Badge>;
+    }
+    
     switch (status) {
       case 'completed':
       case 'done':
@@ -106,7 +112,7 @@ export const AIEvaluationOverview: React.FC<AIEvaluationOverviewProps> = ({ aiRe
                           <span className="font-medium text-sm">
                             {request.event_name || 'Neznámá událost'}
                           </span>
-                          {getStatusBadge(request.status)}
+                          {getStatusBadge(request.status, request.status_label)}
                         </div>
                         
                         <p className="text-sm text-muted-foreground">
@@ -115,7 +121,7 @@ export const AIEvaluationOverview: React.FC<AIEvaluationOverviewProps> = ({ aiRe
                         
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <span>
-                            {format(new Date(request.created_at), 'dd.MM.yyyy HH:mm', { locale: cs })}
+                            {format(new Date(request.updated_at), 'dd.MM.yyyy HH:mm', { locale: cs })}
                           </span>
                         </div>
                       </div>
@@ -157,13 +163,13 @@ export const AIEvaluationOverview: React.FC<AIEvaluationOverviewProps> = ({ aiRe
 
               <div>
                 <h3 className="font-semibold mb-2">Status</h3>
-                {getStatusBadge(selectedRequest.status)}
+                {getStatusBadge(selectedRequest.status, selectedRequest.status_label)}
               </div>
 
               <div>
-                <h3 className="font-semibold mb-2">Datum vytvoření</h3>
+                <h3 className="font-semibold mb-2">Datum aktualizace</h3>
                 <p className="text-sm">
-                  {format(new Date(selectedRequest.created_at), 'dd. MMMM yyyy HH:mm:ss', { locale: cs })}
+                  {format(new Date(selectedRequest.updated_at), 'dd. MMMM yyyy HH:mm:ss', { locale: cs })}
                 </p>
               </div>
 
