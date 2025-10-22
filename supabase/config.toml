@@ -117,3 +117,6 @@ verify_jwt = false
 
 [functions.storage-soft-rollback]
 verify_jwt = false
+
+[functions.sofinity-agent-dispatcher]
+verify_jwt = false
