@@ -73,8 +73,9 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
         .eq('type', 'campaign_generator')
         .order('created_at', { ascending: false });
 
+      // Include AIRequests where project_id is null OR equals current projectId
       if (projectId) {
-        query = query.eq('project_id', projectId);
+        query = query.or(`project_id.is.null,project_id.eq.${projectId}`);
       }
 
       const { data: aiRequests, error } = await query;
