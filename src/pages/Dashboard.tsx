@@ -191,7 +191,7 @@ export default function Dashboard() {
         .order('created_at', { ascending: false });
       
       if (selectedProject?.id) {
-        aiRequestsQuery = aiRequestsQuery.eq('project_id', selectedProject.id);
+        aiRequestsQuery = aiRequestsQuery.or(`project_id.is.null,project_id.eq.${selectedProject.id}`);
       }
       
       const { data: aiRequestsData, error: aiRequestsError } = await aiRequestsQuery;
