@@ -147,6 +147,27 @@ export default function Dashboard() {
   useEffect(() => {
     fetchDashboardData();
     loadUserProfile();
+
+    // Subscribe to real-time updates for AIRequests
+    const channel = supabase
+      .channel('schema-db-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'AIRequests'
+        },
+        () => {
+          console.log('AIRequests changed, refetching dashboard data');
+          fetchDashboardData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [selectedProject]);
 
   const loadUserProfile = async () => {
@@ -330,7 +351,7 @@ export default function Dashboard() {
           ] = await Promise.all([
             supabase.from('Campaigns').select('*', { count: 'exact', head: true }).eq('project_id', project.id),
             supabase.from('Emails').select('*', { count: 'exact', head: true }).eq('project_id', project.id),
-            supabase.from('AIRequests').select('*', { count: 'exact', head: true }).eq('project_id', project.id)
+            supabase.from('v_ai_requests_status').select('*', { count: 'exact', head: true }).eq('project_id', project.id)
           ]);
 
           // Check Sofinity status dynamically
@@ -665,11 +686,7 @@ export default function Dashboard() {
                     <Badge variant="outline" className="text-xs">
                       {getRequestTypeLabel(request.type)}
                     </Badge>
-                    <Badge 
-                      variant={request.status === 'completed' ? 'default' : 
-                              request.status === 'waiting' ? 'secondary' : 'destructive'}
-                      className="text-xs"
-                    >
+                    <Badge variant="secondary" className="text-xs">
                       {request.status_label}
                     </Badge>
                   </div>
