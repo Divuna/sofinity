@@ -327,9 +327,9 @@ export default function AIAssistant() {
                     <div>
                       <p className="text-sm font-medium text-muted-foreground mb-1">Prompt:</p>
                       <p className="text-sm bg-muted/50 p-2 rounded">
-                        {request.prompt.length > 100 
-                          ? `${request.prompt.substring(0, 100)}...` 
-                          : request.prompt}
+                        {(request.prompt || '').length > 100 
+                          ? `${request.prompt?.substring(0, 100)}...` 
+                          : (request.prompt || '')}
                       </p>
                     </div>
 
@@ -337,9 +337,9 @@ export default function AIAssistant() {
                       <div>
                         <p className="text-sm font-medium text-muted-foreground mb-1">Odpověď:</p>
                         <p className="text-sm bg-green-50 p-2 rounded border-l-2 border-green-200">
-                          {request.response.length > 150 
-                            ? `${request.response.substring(0, 150)}...` 
-                            : request.response}
+                          {(request.response || '').length > 150 
+                            ? `${request.response?.substring(0, 150)}...` 
+                            : (request.response || '')}
                         </p>
                       </div>
                     )}
