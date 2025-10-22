@@ -244,6 +244,18 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
       <CardContent className="space-y-4">
         {Array.isArray(filteredData) && filteredData.length > 0 ? (
           <>
+            {filteredData.length > 5 && (
+              <div className="flex justify-center pb-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAll(!showAll)}
+                  className="w-full max-w-xs"
+                >
+                  {showAll ? 'Skrýt' : 'Zobrazit vše'}
+                </Button>
+              </div>
+            )}
+            
             {(showAll ? filteredData : filteredData.slice(0, 5)).map((item) => (
             <div
               key={item.id}
