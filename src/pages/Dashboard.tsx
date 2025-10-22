@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { StatsCard } from '@/components/Dashboard/StatsCard';
+import { OneMilOverview } from '@/components/Dashboard/OneMilOverview';
 
 import PostForm from '@/components/PostForm';
 import { supabase } from '@/integrations/supabase/client';
@@ -687,6 +688,9 @@ export default function Dashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* OneMil Campaign & AI Overview */}
+      <OneMilOverview projectId={selectedProject?.id} />
 
       {/* OneMil Events Section */}
       <Card>
