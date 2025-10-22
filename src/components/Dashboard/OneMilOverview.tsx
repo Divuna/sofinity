@@ -52,7 +52,7 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
     try {
       setLoading(true);
 
-      // Fetch AIRequests joined with EventLogs where source_system = 'onemil'
+      // Fetch AIRequests with campaign_generator type and join with EventLogs
       let query = supabase
         .from('AIRequests')
         .select(`
@@ -62,14 +62,15 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
           response,
           created_at,
           event_id,
-          EventLogs!inner (
+          project_id,
+          EventLogs (
             id,
             event_name,
             source_system,
             metadata
           )
         `)
-        .eq('EventLogs.source_system', 'onemil')
+        .eq('type', 'campaign_generator')
         .order('created_at', { ascending: false });
 
       if (projectId) {
@@ -80,12 +81,12 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
 
       if (error) throw error;
 
-      // Transform the data
-      const transformedData: OneMilCampaignData[] = (aiRequests || []).map((item: any) => ({
+      // Transform the data with null-safe operations
+      const transformedData: OneMilCampaignData[] = (aiRequests ?? []).map((item: any) => ({
         id: item.id,
-        event_name: item.EventLogs?.event_name || 'unknown',
-        type: item.type,
-        status: item.status,
+        event_name: item.EventLogs?.event_name ?? 'unknown',
+        type: item.type ?? 'campaign_generator',
+        status: item.status ?? 'waiting',
         created_at: item.created_at,
         response: item.response,
         event_id: item.event_id,
