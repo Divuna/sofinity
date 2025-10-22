@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+import { verifyWebhookRequest, createUnauthorizedResponse } from '../_shared/webhook-security.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -12,20 +13,6 @@ serve(async (req) => {
   }
 
   try {
-    const expected = Deno.env.get("SOFINITY_API_KEY") ?? "";
-    const norm = (s = "") => s.replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000]/g, " ")
-                             .replace(/\s+/g, " ").trim();
-    const x = norm(req.headers.get("x-api-key") ?? "");
-    const a = norm(req.headers.get("authorization") ?? "");
-    const bearer = a.toLowerCase().startsWith("bearer ") ? a.slice(7) : "";
-    const provided = x || bearer;
-    if (!provided || provided !== expected) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      });
-    }
-
     const url = new URL(req.url);
     let path = url.pathname.replace(/\/+$/,'');
     if (path === "" || path === "/") path = "/sofinity-api/ingest";
@@ -38,25 +25,26 @@ serve(async (req) => {
     }
 
     if (req.method === "POST" && path.endsWith("/ingest")) {
-      const body = await req.json().catch(() => ({}));
-      console.log("ingest", { 
-        ts: new Date().toISOString(), 
-        keys: Object.keys(body||{}), 
-        size: JSON.stringify(body).length 
-      });
+      // Verify webhook signature
+      const secret = Deno.env.get('SOFINITY_WEBHOOK_SECRET') ?? '';
+      const verification = await verifyWebhookRequest(req, 'sofinity-api', secret);
+      
+      if (!verification.valid) {
+        return createUnauthorizedResponse(corsHeaders);
+      }
+
+      const body = await JSON.parse(await req.text()).catch(() => ({}));
+      // Don't log request details
       return new Response(JSON.stringify({ ok: true }), {
         status: 200, 
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ error: "requested path is invalid" }), {
-      status: 404, 
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return createUnauthorizedResponse(corsHeaders);
   } catch (error) {
-    console.error("Error in sofinity-api function:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
+    // Don't log error details
+    return new Response(JSON.stringify({ error: "Internal error" }), {
       status: 500, 
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

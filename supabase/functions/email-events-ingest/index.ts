@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { verifyWebhookRequest, createUnauthorizedResponse } from '../_shared/webhook-security.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -70,13 +71,15 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   if (req.method !== 'POST') {
-    return new Response(
-      JSON.stringify({ error: 'Pouze POST požadavky jsou povoleny' }),
-      {
-        status: 405,
-        headers: { 'Content-Type': 'application/json', ...corsHeaders },
-      }
-    );
+    return createUnauthorizedResponse(corsHeaders);
+  }
+
+  // Verify webhook signature and security checks
+  const secret = Deno.env.get('SOFINITY_WEBHOOK_SECRET') ?? '';
+  const verification = await verifyWebhookRequest(req, 'email-events-ingest', secret);
+  
+  if (!verification.valid) {
+    return createUnauthorizedResponse(corsHeaders);
   }
 
   try {
@@ -85,7 +88,7 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const eventData: EmailEventRequest = await req.json();
+    const eventData: EmailEventRequest = await JSON.parse(await req.text());
     
     console.log('Received email event:', { 
       message_id: eventData.message_id?.substring(0, 20),
@@ -193,9 +196,9 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: any) {
-    console.error('Error in email-events-ingest function:', error);
+    // Don't log error details, return generic error
     return new Response(
-      JSON.stringify({ error: 'Interní chyba serveru' }),
+      JSON.stringify({ error: 'Internal error' }),
       {
         status: 500,
         headers: { 'Content-Type': 'application/json', ...corsHeaders },

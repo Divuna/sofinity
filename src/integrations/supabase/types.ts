@@ -1768,6 +1768,33 @@ export type Database = {
           },
         ]
       }
+      webhook_requests: {
+        Row: {
+          created_at: string
+          endpoint: string
+          id: string
+          idempotency_key: string
+          source_ip: string | null
+          timestamp: string
+        }
+        Insert: {
+          created_at?: string
+          endpoint: string
+          id?: string
+          idempotency_key: string
+          source_ip?: string | null
+          timestamp: string
+        }
+        Update: {
+          created_at?: string
+          endpoint?: string
+          id?: string
+          idempotency_key?: string
+          source_ip?: string | null
+          timestamp?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       filtered_campaigns: {
@@ -1938,6 +1965,10 @@ export type Database = {
         }[]
       }
       cleanup_old_nonces: {
+        Args: Record<PropertyKey, never>
+        Returns: undefined
+      }
+      cleanup_old_webhook_requests: {
         Args: Record<PropertyKey, never>
         Returns: undefined
       }

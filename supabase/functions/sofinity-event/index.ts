@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
+import { verifyWebhookRequest, createUnauthorizedResponse } from '../_shared/webhook-security.ts';
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -25,7 +26,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Handle test ping requests
+  // Handle test ping requests (allow without signature for monitoring)
   if (req.headers.get('x-test-ping') === 'true') {
     console.log('🏓 Test ping received');
     return new Response(
@@ -38,56 +39,20 @@ const handler = async (req: Request): Promise<Response> => {
     );
   }
 
+  if (req.method !== "POST") {
+    return createUnauthorizedResponse(corsHeaders);
+  }
+
+  // Verify webhook signature and security checks
+  const secret = Deno.env.get('SOFINITY_WEBHOOK_SECRET') ?? '';
+  const verification = await verifyWebhookRequest(req, 'sofinity-event', secret);
+  
+  if (!verification.valid) {
+    return createUnauthorizedResponse(corsHeaders);
+  }
+
   try {
-    if (req.method !== "POST") {
-      console.error("Method not allowed:", req.method);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Method not allowed" 
-        }),
-        {
-          status: 405,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
-    }
-
-    // Check if request is explicitly marked as external
-    const isExternalRequest = req.headers.get("x-external-request") === "true";
-    
-    // Validate API key for external calls
-    const apiKey = req.headers.get("x-api-key") || req.headers.get("authorization")?.replace("Bearer ", "");
-    const expectedApiKey = Deno.env.get("SOFINITY_API_KEY");
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
-    
-    // Determine if this is a test/internal request
-    let isTestRequest = false;
-    
-    // If explicitly external, require valid API key
-    if (isExternalRequest) {
-      if (!apiKey || apiKey !== expectedApiKey) {
-        console.error("❌ External request missing valid API key");
-        return new Response(
-          JSON.stringify({ 
-            success: false, 
-            error: "Unauthorized: External requests require valid API key" 
-          }),
-          {
-            status: 401,
-            headers: { "Content-Type": "application/json", ...corsHeaders },
-          }
-        );
-      }
-    } else {
-      // Internal/test requests: allow if no auth or anon key
-      if (!apiKey || apiKey === anonKey || apiKey !== expectedApiKey) {
-        console.log("🧪 Internal/test request detected - allowing as manual_test");
-        isTestRequest = true;
-      }
-    }
-
-    const eventData: SofinityEventRequest = await req.json();
+    const eventData: SofinityEventRequest = await JSON.parse(await req.text());
 
     // Validate required fields
     if (!eventData.project_id || !eventData.event_name) {
@@ -389,13 +354,11 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: any) {
-    console.error("Error in sofinity-event function:", error);
-    
+    // Don't log error details
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: "Internal server error",
-        details: error.message
+        error: "Internal error"
       }),
       {
         status: 500,

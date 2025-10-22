@@ -1,4 +1,5 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { verifyWebhookRequest, createUnauthorizedResponse } from '../_shared/webhook-security.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,6 +38,14 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders })
   }
 
+  // Verify webhook signature and security checks
+  const secret = Deno.env.get('SOFINITY_WEBHOOK_SECRET') ?? '';
+  const verification = await verifyWebhookRequest(req, 'opravo-integration', secret);
+  
+  if (!verification.valid) {
+    return createUnauthorizedResponse(corsHeaders);
+  }
+
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -44,7 +53,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     // Parse the incoming webhook data from Opravo
-    const webhookData = await req.json()
+    const webhookData = await JSON.parse(await req.text())
     
     console.log('Received Opravo webhook:', { type: webhookData.type, data: Object.keys(webhookData) })
 
@@ -293,9 +302,9 @@ Deno.serve(async (req) => {
     )
 
   } catch (error) {
-    console.error('Error in opravo-integration function:', error)
+    // Don't log error details
     return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
+      JSON.stringify({ error: 'Internal error' }),
       { 
         status: 500, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 

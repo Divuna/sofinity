@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.52.1";
+import { verifyWebhookRequest, createUnauthorizedResponse } from '../_shared/webhook-security.ts';
 
 const supabase = createClient(
   Deno.env.get("SUPABASE_URL") ?? "",
@@ -30,40 +31,20 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  if (req.method !== "POST") {
+    return createUnauthorizedResponse(corsHeaders);
+  }
+
+  // Verify webhook signature and security checks
+  const secret = Deno.env.get('SOFINITY_WEBHOOK_SECRET') ?? '';
+  const verification = await verifyWebhookRequest(req, 'insert_opravo_job', secret);
+  
+  if (!verification.valid) {
+    return createUnauthorizedResponse(corsHeaders);
+  }
+
   try {
-    if (req.method !== "POST") {
-      console.error("Method not allowed:", req.method);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Method not allowed" 
-        }),
-        {
-          status: 200,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
-    }
-
-    // Validate Authorization header
-    const authHeader = req.headers.get("Authorization");
-    const sharedKey = Deno.env.get("OPRAVO_SHARED_KEY");
-
-    if (!authHeader || authHeader !== `Bearer ${sharedKey}`) {
-      console.error("Invalid or missing authorization");
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: "Unauthorized" 
-        }),
-        {
-          status: 403,
-          headers: { "Content-Type": "application/json", ...corsHeaders },
-        }
-      );
-    }
-
-    const jobData: OpravoJobRequest = await req.json();
+    const jobData: OpravoJobRequest = await JSON.parse(await req.text());
 
     // Validate required fields
     if (!jobData.id) {
@@ -131,16 +112,14 @@ const handler = async (req: Request): Promise<Response> => {
     );
 
   } catch (error: any) {
-    console.error("Error in insert_opravo_job function:", error);
-    
+    // Don't log error details
     return new Response(
       JSON.stringify({ 
         success: false, 
-        error: "Internal server error",
-        details: error.message
+        error: "Internal error"
       }),
       {
-        status: 200,
+        status: 500,
         headers: { "Content-Type": "application/json", ...corsHeaders },
       }
     );
