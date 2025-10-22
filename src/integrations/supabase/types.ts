@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_event_queue: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          payload: Json
+          processed: boolean | null
+          record_id: string
+          source_table: string
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          payload: Json
+          processed?: boolean | null
+          record_id: string
+          source_table: string
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          payload?: Json
+          processed?: boolean | null
+          record_id?: string
+          source_table?: string
+        }
+        Relationships: []
+      }
       Agents: {
         Row: {
           active: boolean | null
@@ -892,6 +922,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      event_forward_log: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          event_name: string
+          id: string
+          payload: Json
+          record_id: string
+          response_data: Json | null
+          retry_count: number | null
+          status: string
+          table_name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          event_name: string
+          id?: string
+          payload: Json
+          record_id: string
+          response_data?: Json | null
+          retry_count?: number | null
+          status?: string
+          table_name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          event_name?: string
+          id?: string
+          payload?: Json
+          record_id?: string
+          response_data?: Json | null
+          retry_count?: number | null
+          status?: string
+          table_name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       eventlogs: {
         Row: {
