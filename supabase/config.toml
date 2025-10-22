@@ -116,3 +116,6 @@ verify_jwt = false
 
 [functions.disconnect-sofinity]
 verify_jwt = false
+
+[functions.fn_scheduler_daily]
+verify_jwt = false
