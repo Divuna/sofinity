@@ -52,6 +52,12 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
     try {
       setLoading(true);
 
+      // Get current user for debugging
+      const { data: { user } } = await supabase.auth.getUser();
+      const currentUserId = user?.id;
+
+      console.log('🔍 [OneMilOverview] Fetching data with:', { projectId, currentUserId });
+
       // Fetch AIRequests with campaign_generator type and join with EventLogs
       let query = supabase
         .from('AIRequests')
@@ -63,6 +69,7 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
           created_at,
           event_id,
           project_id,
+          user_id,
           EventLogs (
             id,
             event_name,
@@ -80,26 +87,55 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
 
       const { data: aiRequests, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ [OneMilOverview] Supabase error:', error);
+        throw error;
+      }
+
+      console.log('✅ [OneMilOverview] Fetched records:', aiRequests?.length ?? 0);
+      console.log('📊 [OneMilOverview] Sample data:', aiRequests?.slice(0, 2));
 
       // Transform the data with null-safe operations
-      const transformedData: OneMilCampaignData[] = (aiRequests ?? []).map((item: any) => ({
-        id: item.id,
-        event_name: item.EventLogs?.event_name ?? 'unknown',
-        type: item.type ?? 'campaign_generator',
-        status: item.status ?? 'waiting',
-        created_at: item.created_at,
-        response: item.response,
-        event_id: item.event_id,
-        metadata: item.EventLogs?.metadata,
-      }));
+      const transformedData: OneMilCampaignData[] = (aiRequests ?? []).map((item: any) => {
+        const eventName = item.EventLogs?.event_name ?? 'unknown';
+        const sourceSystem = item.EventLogs?.source_system ?? 'unknown';
+        
+        // Log records with missing EventLogs
+        if (!item.EventLogs || eventName === 'unknown') {
+          console.warn('⚠️ [OneMilOverview] Missing EventLog for AIRequest:', {
+            id: item.id,
+            event_id: item.event_id,
+            project_id: item.project_id
+          });
+        }
+
+        return {
+          id: item.id,
+          event_name: eventName,
+          type: item.type ?? 'campaign_generator',
+          status: item.status ?? 'waiting',
+          created_at: item.created_at,
+          response: item.response,
+          event_id: item.event_id,
+          metadata: item.EventLogs?.metadata,
+        };
+      });
+
+      console.log('🎯 [OneMilOverview] Transformed data count:', transformedData.length);
+      
+      // Count records by event type
+      const eventTypeCounts = transformedData.reduce((acc, item) => {
+        acc[item.event_name] = (acc[item.event_name] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+      console.log('📈 [OneMilOverview] Event types:', eventTypeCounts);
 
       setData(transformedData);
-    } catch (error) {
-      console.error('Error fetching OneMil data:', error);
+    } catch (error: any) {
+      console.error('❌ [OneMilOverview] Error fetching data:', error);
       toast({
-        title: 'Chyba',
-        description: 'Nepodařilo se načíst OneMil data',
+        title: 'Chyba načítání dat',
+        description: error.message || 'Nepodařilo se načíst OneMil data',
         variant: 'destructive',
       });
     } finally {
