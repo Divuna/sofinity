@@ -63,6 +63,52 @@ export default function AIAssistant() {
     fetchAIRequests();
   }, [selectedProject]);
 
+  // Realtime subscription for AIRequests updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('ai-requests-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'AIRequests'
+        },
+        (payload) => {
+          console.log('AIRequest updated:', payload);
+          
+          // Check if status changed to 'completed'
+          if (payload.new.status === 'completed' && payload.old.status === 'waiting') {
+            toast({
+              title: "✅ AI odpověď byla vygenerována",
+              description: "Nová odpověď je k dispozici",
+            });
+          }
+          
+          // Refresh the list
+          fetchAIRequests();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'AIRequests'
+        },
+        (payload) => {
+          console.log('New AIRequest inserted:', payload);
+          // Refresh the list
+          fetchAIRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedProject]);
+
 
   const getTypeLabel = (type: string) => {
     switch (type) {
