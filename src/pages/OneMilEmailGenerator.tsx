@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, Mail, Image, Video, Send, RefreshCw, Eye, Trash2 } from 'lucide-react';
+import { sanitizeHTML, htmlToPlainText } from '@/lib/html-sanitizer';
 
 const ONEMILL_PROJECT_ID = "defababe-004b-4c63-9ff1-311540b0a3c9";
 
@@ -388,10 +389,29 @@ export default function OneMilEmailGenerator() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium mb-1">Obsah</label>
-                      <div 
-                        className="text-sm bg-gray-50 p-3 rounded max-h-64 overflow-y-auto"
-                        dangerouslySetInnerHTML={{ __html: selectedDraft.content }}
-                      />
+                      {(() => {
+                        const { safe, html } = sanitizeHTML(selectedDraft.content);
+                        
+                        if (!safe || html.length === 0) {
+                          toast({
+                            title: "Nebezpečný obsah blokován",
+                            description: "Email obsahuje potenciálně nebezpečný kód. Zobrazuji bezpečnou verzi.",
+                            variant: "destructive"
+                          });
+                          return (
+                            <div className="text-sm bg-gray-50 p-3 rounded max-h-64 overflow-y-auto whitespace-pre-wrap">
+                              {htmlToPlainText(selectedDraft.content)}
+                            </div>
+                          );
+                        }
+                        
+                        return (
+                          <div 
+                            className="text-sm bg-gray-50 p-3 rounded max-h-64 overflow-y-auto"
+                            dangerouslySetInnerHTML={{ __html: html }}
+                          />
+                        );
+                      })()}
                     </div>
                     <div className="flex gap-2">
                       <Input
