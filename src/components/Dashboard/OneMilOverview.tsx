@@ -52,56 +52,67 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
     try {
       setLoading(true);
 
-      // Get current user for debugging
-      const { data: { user } } = await supabase.auth.getUser();
-      const currentUserId = user?.id;
+      console.log('🔍 [OneMilOverview] Fetching data with projectId:', projectId);
 
-      console.log('🔍 [OneMilOverview] Fetching data with:', { projectId, currentUserId });
-
-      // Fetch AIRequests with campaign_generator type and join with EventLogs
+      // Step 1: Fetch AIRequests without join
       let query = supabase
         .from('AIRequests')
-        .select(`
-          id,
-          type,
-          status,
-          response,
-          created_at,
-          event_id,
-          project_id,
-          user_id,
-          EventLogs (
-            id,
-            event_name,
-            source_system,
-            metadata
-          )
-        `)
+        .select('id, type, status, response, created_at, event_id, project_id')
         .eq('type', 'campaign_generator')
         .order('created_at', { ascending: false });
 
-      // Include AIRequests where project_id is null OR equals current projectId
+      // Apply project filter if projectId is provided
       if (projectId) {
         query = query.or(`project_id.is.null,project_id.eq.${projectId}`);
       }
 
-      const { data: aiRequests, error } = await query;
+      const { data: aiRequests, error: aiError } = await query;
 
-      if (error) {
-        console.error('❌ [OneMilOverview] Supabase error:', error);
-        throw error;
+      if (aiError) {
+        console.error('❌ [OneMilOverview] AIRequests error:', aiError);
+        throw aiError;
       }
 
-      console.log('✅ [OneMilOverview] Fetched records:', aiRequests?.length ?? 0);
-      console.log('📊 [OneMilOverview] Sample data:', aiRequests?.slice(0, 2));
+      console.log('✅ [OneMilOverview] Fetched AIRequests:', aiRequests?.length ?? 0);
 
-      // Transform the data with null-safe operations
-      const transformedData: OneMilCampaignData[] = (aiRequests ?? []).map((item: any) => {
-        const eventName = item.EventLogs?.event_name ?? 'unknown';
-        const sourceSystem = item.EventLogs?.source_system ?? 'unknown';
-        
-        // Log records with missing EventLogs
-        if (!item.EventLogs || eventName === 'unknown') {
+      // Step 2: Collect unique event_ids
+      const eventIds = Array.from(
+        new Set(
+          (aiRequests ?? [])
+            .map((req) => req.event_id)
+            .filter((id): id is string => !!id)
+        )
+      );
+
+      console.log('📋 [OneMilOverview] Event IDs to fetch:', eventIds.length);
+
+      // Step 3: Fetch EventLogs if there are any event_ids
+      let eventLogsMap = new Map<string, any>();
+      
+      if (eventIds.length > 0) {
+        const { data: eventLogs, error: eventsError } = await supabase
+          .from('EventLogs')
+          .select('id, event_name, source_system, metadata')
+          .in('id', eventIds);
+
+        if (eventsError) {
+          console.error('⚠️ [OneMilOverview] EventLogs error:', eventsError);
+          // Continue without event logs rather than failing completely
+        } else {
+          console.log('✅ [OneMilOverview] Fetched EventLogs:', eventLogs?.length ?? 0);
+          // Create a map for quick lookup
+          (eventLogs ?? []).forEach((log) => {
+            eventLogsMap.set(log.id, log);
+          });
+        }
+      }
+
+      // Step 4: Transform and merge data
+      const transformedData: OneMilCampaignData[] = (aiRequests ?? []).map((item) => {
+        const eventLog = item.event_id ? eventLogsMap.get(item.event_id) : null;
+        const eventName = eventLog?.event_name ?? 'unknown';
+
+        if (!eventLog && item.event_id) {
           console.warn('⚠️ [OneMilOverview] Missing EventLog for AIRequest:', {
             id: item.id,
             event_id: item.event_id,
@@ -117,13 +128,12 @@ export const OneMilOverview: React.FC<OneMilOverviewProps> = ({ projectId }) => 
           created_at: item.created_at,
           response: item.response,
           event_id: item.event_id,
-          metadata: item.EventLogs?.metadata,
+          metadata: eventLog?.metadata,
         };
       });
 
       console.log('🎯 [OneMilOverview] Transformed data count:', transformedData.length);
       
-      // Count records by event type
       const eventTypeCounts = transformedData.reduce((acc, item) => {
         acc[item.event_name] = (acc[item.event_name] || 0) + 1;
         return acc;
