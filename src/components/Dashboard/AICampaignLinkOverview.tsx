@@ -96,6 +96,16 @@ export default function AICampaignLinkOverview({ refreshTrigger, loading: parent
     };
   }, []);
 
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      console.log('Auto-refreshing campaign links (30s interval)...');
+      fetchCampaignLinks();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   const getTypeLabel = (type: string | null) => {
     if (!type) return 'N/A';
     const typeMap: Record<string, string> = {
