@@ -2809,6 +2809,7 @@ export type Database = {
         Args: { curlopt: string; value: string }
         Returns: boolean
       }
+      run_daily_audit: { Args: never; Returns: undefined }
       text_to_bytea: { Args: { data: string }; Returns: string }
       trigger_ai_evaluation: { Args: { event_id: string }; Returns: undefined }
       urlencode:
