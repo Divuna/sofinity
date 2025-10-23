@@ -1498,6 +1498,7 @@ export type Database = {
         Row: {
           id: string
           message: string
+          project_id: string | null
           read: boolean | null
           sent_at: string | null
           title: string
@@ -1507,6 +1508,7 @@ export type Database = {
         Insert: {
           id?: string
           message: string
+          project_id?: string | null
           read?: boolean | null
           sent_at?: string | null
           title: string
@@ -1516,13 +1518,22 @@ export type Database = {
         Update: {
           id?: string
           message?: string
+          project_id?: string | null
           read?: boolean | null
           sent_at?: string | null
           title?: string
           type?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "Notifications_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       offers: {
         Row: {

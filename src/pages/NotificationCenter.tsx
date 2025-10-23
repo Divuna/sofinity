@@ -60,14 +60,57 @@ export default function NotificationCenter() {
   const { selectedProject } = useSelectedProject();
 
   useEffect(() => {
-    fetchNotifications();
-  }, []);
+    if (selectedProject?.id) {
+      setLoading(true);
+      fetchNotifications();
+      
+      toast({
+        title: "Projekt změněn",
+        description: `Načítám notifikace pro ${selectedProject.name}`,
+      });
+    } else {
+      setNotifications([]);
+      setLoading(false);
+    }
+  }, [selectedProject?.id]);
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!selectedProject?.id) return;
+
+    const channel = supabase
+      .channel('notifications-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Notifications',
+          filter: `project_id=eq.${selectedProject.id}`,
+        },
+        () => {
+          fetchNotifications();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedProject?.id]);
 
   const fetchNotifications = async () => {
+    if (!selectedProject?.id) {
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('Notifications')
         .select('*')
+        .eq('project_id', selectedProject.id)
         .order('sent_at', { ascending: false });
 
       if (error) throw error;
