@@ -283,6 +283,49 @@ export default function AIRequestsMonitoring() {
     };
   }, []);
 
+  // Realtime subscription for NotificationQueue
+  useEffect(() => {
+    const channel = supabase
+      .channel('notification-queue-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'NotificationQueue'
+        },
+        (payload) => {
+          console.log('NotificationQueue INSERT:', payload);
+          fetchNotificationQueue();
+          toast({
+            title: "Nová notifikace přidána",
+            description: `Událost: ${payload.new.event_name || 'N/A'}`,
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'NotificationQueue'
+        },
+        (payload) => {
+          console.log('NotificationQueue UPDATE:', payload);
+          fetchNotificationQueue();
+          toast({
+            title: "Stav notifikace aktualizován",
+            description: `Nový stav: ${payload.new.status || 'N/A'}`,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [toast]);
+
   const getTypeLabel = (type: string) => {
     const typeMap: Record<string, string> = {
       'campaign_generator': 'Generátor kampaní',
