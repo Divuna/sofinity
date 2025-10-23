@@ -206,11 +206,10 @@ export default function Dashboard() {
         created_at: campaign.created_at
       })));
 
-      // Fetch AI requests filtered by selected project (campaign_generator and evaluator only)
+      // Fetch AI requests using AIRequests_View_Recent, including Email Assistant and system requests
       let aiRequestsQuery = supabase
-        .from('v_ai_requests_status')
+        .from('AIRequests_View_Recent' as any)
         .select('*')
-        .in('type', ['campaign_generator', 'evaluator'])
         .order('updated_at', { ascending: false });
       
       if (selectedProject?.id) {
@@ -220,18 +219,18 @@ export default function Dashboard() {
       const { data: aiRequestsData, error: aiRequestsError } = await aiRequestsQuery;
       
       if (aiRequestsError) throw aiRequestsError;
-      setAiRequests((aiRequestsData || []).map(request => ({
+      setAiRequests((aiRequestsData || []).map((request: any) => ({
         id: request.id,
         type: request.type,
         prompt: request.prompt,
         response: request.response,
         status: request.status,
-        status_label: request.status_label,
+        status_label: request.status || 'waiting',
         created_at: request.created_at,
         updated_at: request.updated_at,
         project_id: request.project_id,
-        event_name: request.event_name,
-        metadata: request.metadata
+        event_name: request.event_name || null,
+        metadata: request.metadata || null
       })));
 
       // Fetch recent posts filtered by selected project
