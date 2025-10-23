@@ -10,6 +10,7 @@ import { formatDistanceToNow, subHours } from 'date-fns';
 import { cs } from 'date-fns/locale/cs';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import AICampaignLinkOverview from '@/components/Dashboard/AICampaignLinkOverview';
 
 interface DashboardViewItem {
   type: string;
@@ -63,6 +64,7 @@ export default function AIRequestsMonitoring() {
   const [showErrorAlert, setShowErrorAlert] = useState(false);
   const [errorAlertDismissed, setErrorAlertDismissed] = useState(false);
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
   const tableRef = useRef<HTMLDivElement>(null);
   const hasShownToast = useRef(false);
 
@@ -100,6 +102,9 @@ export default function AIRequestsMonitoring() {
 
       // Check error rate
       checkErrorRate((dashData as any[]) || []);
+      
+      // Trigger refresh for child components
+      setRefreshTrigger(prev => prev + 1);
     } catch (error) {
       console.error('Error fetching monitoring data:', error);
       toast({
@@ -702,6 +707,9 @@ export default function AIRequestsMonitoring() {
           )}
         </CardContent>
       </Card>
+
+      {/* AI Campaign Link Overview */}
+      <AICampaignLinkOverview refreshTrigger={refreshTrigger} loading={loading} />
     </div>
   );
 }

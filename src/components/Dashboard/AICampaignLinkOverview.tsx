@@ -20,7 +20,12 @@ interface CampaignLinkData {
   airequest_id: string | null;
 }
 
-export default function AICampaignLinkOverview() {
+interface AICampaignLinkOverviewProps {
+  refreshTrigger?: number;
+  loading?: boolean;
+}
+
+export default function AICampaignLinkOverview({ refreshTrigger, loading: parentLoading }: AICampaignLinkOverviewProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [data, setData] = useState<CampaignLinkData[]>([]);
@@ -52,7 +57,7 @@ export default function AICampaignLinkOverview() {
 
   useEffect(() => {
     fetchCampaignLinks();
-  }, []);
+  }, [refreshTrigger]);
 
   const getTypeLabel = (type: string | null) => {
     if (!type) return 'N/A';
@@ -86,18 +91,7 @@ export default function AICampaignLinkOverview() {
     }
   };
 
-  if (loading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Propojení AI požadavků a kampaní</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-sm text-muted-foreground">Načítání...</div>
-        </CardContent>
-      </Card>
-    );
-  }
+  const isLoading = parentLoading ?? loading;
 
   return (
     <Card>
@@ -105,7 +99,11 @@ export default function AICampaignLinkOverview() {
         <CardTitle>Propojení AI požadavků a kampaní</CardTitle>
       </CardHeader>
       <CardContent>
-        {data.length === 0 ? (
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <ExternalLink className="h-6 w-6 animate-spin" />
+          </div>
+        ) : data.length === 0 ? (
           <div className="text-sm text-muted-foreground text-center py-8">
             Zatím nebyly vytvořeny žádné kampaně z AI požadavků
           </div>
