@@ -1042,6 +1042,78 @@ export default function AIRequestsMonitoring() {
                   </div>
                 )}
 
+                {/* Delivery Details Summary */}
+                {selectedNotification.payload?.email_response && (
+                  <div className="border rounded-lg p-4 space-y-3 bg-muted/30">
+                    <h3 className="text-sm font-semibold mb-3">Informace o doručení</h3>
+                    
+                    {/* Delivery Status */}
+                    <div>
+                      <h4 className="text-sm font-medium text-muted-foreground mb-1">Stav odeslání</h4>
+                      {selectedNotification.status === 'failed' ? (
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-semibold text-red-600">Doručení selhalo</p>
+                            {selectedNotification.payload.email_response.error && (
+                              <p className="text-sm text-red-600 mt-1">
+                                {selectedNotification.payload.email_response.error}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ) : selectedNotification.status === 'sent' ? (
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <span className="text-sm font-semibold text-green-600">Doručeno úspěšně</span>
+                        </div>
+                      ) : (
+                        <Badge variant="outline">{selectedNotification.status}</Badge>
+                      )}
+                    </div>
+
+                    {/* Message ID */}
+                    {selectedNotification.payload.email_response.id && (
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground mb-1">ID zprávy</h4>
+                        <p className="text-sm font-mono bg-background p-2 rounded border">
+                          {selectedNotification.payload.email_response.id}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Error Details */}
+                    {selectedNotification.status === 'failed' && selectedNotification.payload.email_response.error && (
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground mb-1">Chyba</h4>
+                        <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900 p-3 rounded">
+                          <p className="text-sm text-red-800 dark:text-red-400">
+                            {selectedNotification.payload.email_response.error}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Timestamp */}
+                    {selectedNotification.payload.failed_at && (
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground mb-1">Čas selhání</h4>
+                        <p className="text-sm">
+                          {new Date(selectedNotification.payload.failed_at).toLocaleString('cs-CZ')}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Additional Status Info */}
+                    {selectedNotification.payload.email_response.status && (
+                      <div>
+                        <h4 className="text-sm font-medium text-muted-foreground mb-1">Status kód</h4>
+                        <Badge variant="outline">{selectedNotification.payload.email_response.status}</Badge>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground mb-2">Payload (JSON)</h3>
                   <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96 border">
