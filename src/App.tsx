@@ -18,6 +18,7 @@ import TeamFeedback from "./pages/TeamFeedback";
 import VersionTracker from "./pages/VersionTracker";
 import AIAssistant from "./pages/AIAssistant";
 import AIRequestDetail from "./pages/AIRequestDetail";
+import AIRequestsMonitoring from "./pages/AIRequestsMonitoring";
 import OneMilSofinityTestSuite from "./pages/OneMilSofinityTestSuite";
 import OneMilSofinityAuditAutoFix from "./pages/OneMilSofinityAuditAutoFix";
 import OneMilAudit from "./pages/OneMilAudit";
@@ -125,6 +126,7 @@ const App = () => {
                 <Route path="/version-tracker" element={<AuthGuard><MainLayout><VersionTracker /></MainLayout></AuthGuard>} />
                 <Route path="/ai-assistant" element={<AuthGuard><MainLayout><AIAssistant /></MainLayout></AuthGuard>} />
                 <Route path="/ai-assistant/:id" element={<AuthGuard><MainLayout><AIRequestDetail /></MainLayout></AuthGuard>} />
+                <Route path="/ai-requests-monitoring" element={<AuthGuard><MainLayout><AIRequestsMonitoring /></MainLayout></AuthGuard>} />
                 <Route path="/onemil-test-suite" element={<AuthGuard><MainLayout><OneMilSofinityTestSuite /></MainLayout></AuthGuard>} />
                 <Route path="/onemil-audit-autofix" element={<AuthGuard><MainLayout><OneMilSofinityAuditAutoFix /></MainLayout></AuthGuard>} />
                 <Route path="/onemil-audit" element={<AuthGuard><MainLayout><OneMilAudit /></MainLayout></AuthGuard>} />
