@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Activity, TrendingUp, Clock, CheckCircle2, AlertCircle, Radio, X, AlertTriangle } from 'lucide-react';
+import { Activity, TrendingUp, Clock, CheckCircle2, AlertCircle, Radio, X, AlertTriangle, Bell, Filter } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
@@ -10,6 +10,8 @@ import { formatDistanceToNow, subHours } from 'date-fns';
 import { cs } from 'date-fns/locale/cs';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import AICampaignLinkOverview from '@/components/Dashboard/AICampaignLinkOverview';
 
 interface DashboardViewItem {
@@ -48,6 +50,17 @@ interface LastActivity {
   type: string;
 }
 
+interface NotificationQueueItem {
+  id: string;
+  event_id: string | null;
+  event_name: string;
+  user_id: string | null;
+  payload: any;
+  status: string;
+  created_at: string;
+  target_email: string | null;
+}
+
 // Configurable threshold for error rate alert
 const ERROR_RATE_THRESHOLD = 10;
 
@@ -67,6 +80,12 @@ export default function AIRequestsMonitoring() {
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const tableRef = useRef<HTMLDivElement>(null);
   const hasShownToast = useRef(false);
+  
+  // Notification Queue State
+  const [notificationQueue, setNotificationQueue] = useState<NotificationQueueItem[]>([]);
+  const [notificationStatusFilter, setNotificationStatusFilter] = useState<string>('all');
+  const [selectedNotification, setSelectedNotification] = useState<NotificationQueueItem | null>(null);
+  const [notificationLoading, setNotificationLoading] = useState(false);
 
   const fetchMonitoringData = async () => {
     try {
@@ -220,9 +239,32 @@ export default function AIRequestsMonitoring() {
     }
   };
 
+  const fetchNotificationQueue = async () => {
+    try {
+      setNotificationLoading(true);
+      const { data, error } = await supabase
+        .from('NotificationQueue')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setNotificationQueue(data || []);
+    } catch (error) {
+      console.error('Error fetching notification queue:', error);
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se načíst frontu notifikací",
+        variant: "destructive"
+      });
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchMonitoringData();
     fetchRealtimeData();
+    fetchNotificationQueue();
     
     // Auto-refresh dashboard data every 30 seconds
     const dashboardInterval = setInterval(fetchMonitoringData, 30000);
@@ -230,9 +272,13 @@ export default function AIRequestsMonitoring() {
     // Auto-refresh realtime data every 10 seconds
     const realtimeInterval = setInterval(fetchRealtimeData, 10000);
     
+    // Auto-refresh notification queue every 30 seconds
+    const notificationInterval = setInterval(fetchNotificationQueue, 30000);
+    
     return () => {
       clearInterval(dashboardInterval);
       clearInterval(realtimeInterval);
+      clearInterval(notificationInterval);
       sessionStorage.removeItem('errorAlertDismissed');
     };
   }, []);
@@ -291,6 +337,24 @@ export default function AIRequestsMonitoring() {
     ? typesWithErrors 
     : dashboardData;
 
+  // Filter notification queue
+  const filteredNotifications = notificationStatusFilter === 'all'
+    ? notificationQueue
+    : notificationQueue.filter(n => n.status === notificationStatusFilter);
+
+  const getNotificationStatusBadge = (status: string) => {
+    switch (status) {
+      case 'sent':
+        return <Badge variant="default" className="bg-green-600">Odesláno</Badge>;
+      case 'pending':
+        return <Badge variant="secondary">Čeká</Badge>;
+      case 'failed':
+        return <Badge variant="destructive">Selhalo</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Error Rate Alert Banner */}
@@ -342,12 +406,24 @@ export default function AIRequestsMonitoring() {
           <Activity className="h-6 w-6 text-primary" />
         </div>
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Přehled požadavků AI</h1>
+          <h1 className="text-3xl font-bold text-foreground">AI & Kampaně</h1>
           <p className="text-muted-foreground mt-1">
-            Monitoring a analýza výkonu AI požadavků
+            Monitoring a analýza výkonu AI požadavků a notifikací
           </p>
         </div>
       </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList>
+          <TabsTrigger value="overview">Přehled</TabsTrigger>
+          <TabsTrigger value="notifications">
+            <Bell className="h-4 w-4 mr-2" />
+            Notifikace
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6 mt-6">
 
       {/* Live Counters */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -710,6 +786,203 @@ export default function AIRequestsMonitoring() {
 
       {/* AI Campaign Link Overview */}
       <AICampaignLinkOverview refreshTrigger={refreshTrigger} loading={loading} />
+        </TabsContent>
+
+        <TabsContent value="notifications" className="space-y-6 mt-6">
+          {/* Notification Queue Statistics */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Celkem notifikací</CardTitle>
+                <Bell className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{notificationQueue.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  Všechny notifikace ve frontě
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-yellow-500/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Čekající</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {notificationQueue.filter(n => n.status === 'pending').length}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Čekají na odeslání
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-green-500/20">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Odesláno</CardTitle>
+                <CheckCircle2 className="h-4 w-4 text-green-600" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">
+                  {notificationQueue.filter(n => n.status === 'sent').length}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Úspěšně doručeno
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Notification Queue Table */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Bell className="h-5 w-5" />
+                    Fronta notifikací
+                  </CardTitle>
+                  <CardDescription>
+                    Seznam všech notifikací a jejich stav
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Filter className="h-4 w-4 text-muted-foreground" />
+                  <select
+                    className="border rounded-md px-3 py-1.5 text-sm"
+                    value={notificationStatusFilter}
+                    onChange={(e) => setNotificationStatusFilter(e.target.value)}
+                  >
+                    <option value="all">Všechny stavy</option>
+                    <option value="pending">Čekající</option>
+                    <option value="sent">Odesláno</option>
+                    <option value="failed">Selhalo</option>
+                  </select>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {notificationLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Activity className="h-6 w-6 animate-spin" />
+                </div>
+              ) : filteredNotifications.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  Žádné notifikace k zobrazení
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Událost</TableHead>
+                      <TableHead>Stav</TableHead>
+                      <TableHead>Cílový email</TableHead>
+                      <TableHead>Vytvořeno</TableHead>
+                      <TableHead className="w-[50px]"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredNotifications.map((notification) => (
+                      <TableRow 
+                        key={notification.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => setSelectedNotification(notification)}
+                      >
+                        <TableCell className="font-medium">
+                          {notification.event_name}
+                        </TableCell>
+                        <TableCell>
+                          {getNotificationStatusBadge(notification.status)}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {notification.target_email || '-'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {formatDistanceToNow(new Date(notification.created_at), {
+                            addSuffix: true,
+                            locale: cs
+                          })}
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="ghost" size="sm">
+                            Detail
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Notification Detail Sheet */}
+      <Sheet open={!!selectedNotification} onOpenChange={() => setSelectedNotification(null)}>
+        <SheetContent className="w-full sm:max-w-2xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Bell className="h-5 w-5" />
+              Detail notifikace
+            </SheetTitle>
+            <SheetDescription>
+              Úplné informace o notifikaci
+            </SheetDescription>
+          </SheetHeader>
+          
+          {selectedNotification && (
+            <div className="mt-6 space-y-6">
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">ID</h3>
+                  <p className="text-sm font-mono bg-muted p-2 rounded">{selectedNotification.id}</p>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Název události</h3>
+                  <p className="text-sm">{selectedNotification.event_name}</p>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Stav</h3>
+                  {getNotificationStatusBadge(selectedNotification.status)}
+                </div>
+
+                {selectedNotification.target_email && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Cílový email</h3>
+                    <p className="text-sm">{selectedNotification.target_email}</p>
+                  </div>
+                )}
+
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Vytvořeno</h3>
+                  <p className="text-sm">
+                    {new Date(selectedNotification.created_at).toLocaleString('cs-CZ')}
+                  </p>
+                </div>
+
+                {selectedNotification.event_id && (
+                  <div>
+                    <h3 className="text-sm font-medium text-muted-foreground mb-1">ID události</h3>
+                    <p className="text-sm font-mono bg-muted p-2 rounded">{selectedNotification.event_id}</p>
+                  </div>
+                )}
+
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Payload (JSON)</h3>
+                  <pre className="text-xs bg-muted p-4 rounded overflow-auto max-h-96 border">
+                    {JSON.stringify(selectedNotification.payload, null, 2)}
+                  </pre>
+                </div>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
