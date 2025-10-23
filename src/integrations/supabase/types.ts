@@ -320,6 +320,39 @@ export type Database = {
           },
         ]
       }
+      AuditHistory: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          details: Json | null
+          id: string
+          run_at: string
+          summary_text: string | null
+          total_tables: number | null
+          valid_ratio: number | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          details?: Json | null
+          id?: string
+          run_at?: string
+          summary_text?: string | null
+          total_tables?: number | null
+          valid_ratio?: number | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          details?: Json | null
+          id?: string
+          run_at?: string
+          summary_text?: string | null
+          total_tables?: number | null
+          valid_ratio?: number | null
+        }
+        Relationships: []
+      }
       Autoresponses: {
         Row: {
           channel: string | null
