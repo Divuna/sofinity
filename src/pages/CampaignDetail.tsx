@@ -11,9 +11,8 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useSelectedProject } from '@/providers/ProjectProvider';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import {
+import { 
   Save, 
   Play, 
   Pause, 
@@ -69,7 +68,6 @@ export default function CampaignDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { selectedProject } = useSelectedProject();
   
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [schedule, setSchedule] = useState<CampaignSchedule[]>([]);

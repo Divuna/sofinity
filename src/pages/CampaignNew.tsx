@@ -9,12 +9,10 @@ import { ArrowLeft, Sparkles, Mail, FileText, Video } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/components/ui/use-toast';
-import { useSelectedProject } from '@/providers/ProjectProvider';
 
 export default function CampaignNew() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { selectedProject } = useSelectedProject();
   const [isLoading, setIsLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState({
     email: false,
@@ -33,23 +31,18 @@ export default function CampaignNew() {
 
   useEffect(() => {
     fetchContacts();
-  }, [selectedProject]);
+  }, []);
 
   const fetchContacts = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      let query = supabase
+      const { data: contactsData, error } = await supabase
         .from('Contacts')
         .select('id, name, email, full_name')
-        .eq('user_id', user.id);
-
-      if (selectedProject?.id) {
-        query = query.eq('project_id', selectedProject.id);
-      }
-
-      const { data: contactsData, error } = await query.order('name', { ascending: true });
+        .eq('user_id', user.id)
+        .order('name', { ascending: true });
 
       if (error) throw error;
 
@@ -174,7 +167,6 @@ export default function CampaignNew() {
           post: formData.post,
           video: formData.video,
           user_id: user.id,
-          project_id: selectedProject?.id || null,
           status: 'draft'
         })
         .select()

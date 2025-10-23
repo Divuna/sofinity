@@ -5,9 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { useSelectedProject } from '@/providers/ProjectProvider';
 import { 
-  BarChart3,
+  BarChart3, 
   TrendingUp, 
   TrendingDown, 
   Eye, 
@@ -68,45 +67,19 @@ export default function CampaignReports() {
   const [selectedCampaign, setSelectedCampaign] = useState<string>('all');
   const [dateRange, setDateRange] = useState<string>('30');
   const { toast } = useToast();
-  const { selectedProject } = useSelectedProject();
 
   useEffect(() => {
     fetchReports();
     fetchCampaigns();
-  }, [selectedProject]);
+  }, []);
 
   const fetchReports = async () => {
     try {
-      // First get campaigns for the selected project
-      let campaignQuery = supabase
-        .from('Campaigns')
-        .select('id');
-
-      if (selectedProject?.id) {
-        campaignQuery = campaignQuery.eq('project_id', selectedProject.id);
-      }
-
-      const { data: campaignsData, error: campaignsError } = await campaignQuery;
-      if (campaignsError) throw campaignsError;
-
-      const campaignIds = campaignsData?.map(c => c.id) || [];
-
-      // Then fetch reports for those campaigns
-      let reportsQuery = supabase
+      const { data, error } = await supabase
         .from('CampaignReports')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (campaignIds.length > 0) {
-        reportsQuery = reportsQuery.in('campaign_id', campaignIds);
-      } else if (selectedProject?.id) {
-        // If project selected but no campaigns, return empty
-        setReports([]);
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await reportsQuery;
       if (error) throw error;
       setReports(data || []);
     } catch (error) {
@@ -122,15 +95,11 @@ export default function CampaignReports() {
 
   const fetchCampaigns = async () => {
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('Campaigns')
-        .select('id, name, status');
+        .select('id, name, status')
+        .order('name');
 
-      if (selectedProject?.id) {
-        query = query.eq('project_id', selectedProject.id);
-      }
-
-      const { data, error } = await query.order('name');
       if (error) throw error;
       setCampaigns(data || []);
     } catch (error) {

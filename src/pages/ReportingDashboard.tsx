@@ -1,10 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { useSelectedProject } from '@/providers/ProjectProvider';
-import { useToast } from '@/hooks/use-toast';
 import { 
   BarChart2,
   TrendingUp,
@@ -113,68 +110,8 @@ const timeFilters = [
 ];
 
 export default function ReportingDashboard() {
-  const { selectedProject } = useSelectedProject();
-  const { toast } = useToast();
   const [selectedTimeFilter, setSelectedTimeFilter] = useState('30d');
-  const [metrics, setMetrics] = useState(reportingData.overview);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (selectedProject?.id) {
-      fetchMetrics();
-    }
-  }, [selectedProject?.id, selectedTimeFilter]);
-
-  const fetchMetrics = async () => {
-    if (!selectedProject?.id) return;
-    
-    setLoading(true);
-    try {
-      // Fetch campaigns for the project
-      const { data: campaigns, error: campaignsError } = await supabase
-        .from('Campaigns')
-        .select('id, status, created_at')
-        .eq('project_id', selectedProject.id);
-
-      if (campaignsError) throw campaignsError;
-
-      // Fetch campaign stats
-      const { data: stats, error: statsError } = await supabase
-        .from('CampaignStats')
-        .select('*');
-
-      if (statsError) throw statsError;
-
-      // Calculate metrics
-      const totalCampaigns = campaigns?.length || 0;
-      const activeCampaigns = campaigns?.filter(c => c.status === 'active').length || 0;
-      
-      setMetrics({
-        totalRevenue: reportingData.overview.totalRevenue,
-        totalCampaigns,
-        avgSatisfaction: reportingData.overview.avgSatisfaction,
-        activeProjects: activeCampaigns,
-        monthlyGrowth: reportingData.overview.monthlyGrowth,
-        emailOpenRate: reportingData.overview.emailOpenRate,
-        clickThroughRate: reportingData.overview.clickThroughRate,
-        conversionRate: reportingData.overview.conversionRate
-      });
-
-      toast({
-        title: 'Data aktualizována',
-        description: `Načteno ${totalCampaigns} kampaní pro projekt ${selectedProject.name}`
-      });
-    } catch (error) {
-      console.error('Error fetching metrics:', error);
-      toast({
-        title: 'Chyba',
-        description: 'Nepodařilo se načíst metriky',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [selectedProject, setSelectedProject] = useState('all');
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
@@ -191,25 +128,6 @@ export default function ReportingDashboard() {
       default: return 'text-muted-foreground';
     }
   };
-
-  if (loading) {
-    return (
-      <div className="space-y-6 min-w-[1200px] flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Načítání metrik...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!selectedProject) {
-    return (
-      <div className="space-y-6 min-w-[1200px] flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Vyberte prosím projekt</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 min-w-[1200px]">
@@ -250,11 +168,11 @@ export default function ReportingDashboard() {
               <div>
                 <p className="text-sm text-muted-foreground">Celkové tržby</p>
                 <p className="text-2xl font-bold text-foreground">
-                  {metrics.totalRevenue.toLocaleString()} Kč
+                  {reportingData.overview.totalRevenue.toLocaleString()} Kč
                 </p>
                 <div className="flex items-center space-x-1 mt-1">
                   <ArrowUpRight className="w-3 h-3 text-success" />
-                  <span className="text-xs text-success">+{metrics.monthlyGrowth}%</span>
+                  <span className="text-xs text-success">+{reportingData.overview.monthlyGrowth}%</span>
                 </div>
               </div>
               <DollarSign className="w-8 h-8 text-sofinity-purple" />
@@ -267,7 +185,7 @@ export default function ReportingDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Celkem kampaní</p>
-                <p className="text-2xl font-bold text-foreground">{metrics.totalCampaigns}</p>
+                <p className="text-2xl font-bold text-foreground">{reportingData.overview.totalCampaigns}</p>
                 <div className="flex items-center space-x-1 mt-1">
                   <ArrowUpRight className="w-3 h-3 text-success" />
                   <span className="text-xs text-success">+18% tento měsíc</span>
@@ -283,7 +201,7 @@ export default function ReportingDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Avg. spokojenost</p>
-                <p className="text-2xl font-bold text-foreground">{metrics.avgSatisfaction}/5</p>
+                <p className="text-2xl font-bold text-foreground">{reportingData.overview.avgSatisfaction}/5</p>
                 <div className="flex items-center space-x-1 mt-1">
                   <ArrowUpRight className="w-3 h-3 text-success" />
                   <span className="text-xs text-success">+0.3 pts</span>
@@ -299,7 +217,7 @@ export default function ReportingDashboard() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Konverze</p>
-                <p className="text-2xl font-bold text-foreground">{metrics.conversionRate}%</p>
+                <p className="text-2xl font-bold text-foreground">{reportingData.overview.conversionRate}%</p>
                 <div className="flex items-center space-x-1 mt-1">
                   <ArrowUpRight className="w-3 h-3 text-success" />
                   <span className="text-xs text-success">+2.1% vs. min. měsíc</span>
@@ -466,20 +384,20 @@ export default function ReportingDashboard() {
             <CardTitle className="text-lg">Email výkonnost</CardTitle>
           </CardHeader>
           <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Open rate</span>
-                  <span className="font-medium">{metrics.emailOpenRate}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Click-through rate</span>
-                  <span className="font-medium">{metrics.clickThroughRate}%</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Conversion rate</span>
-                  <span className="font-medium">{metrics.conversionRate}%</span>
-                </div>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Open rate</span>
+                <span className="font-medium">{reportingData.overview.emailOpenRate}%</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Click-through rate</span>
+                <span className="font-medium">{reportingData.overview.clickThroughRate}%</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Conversion rate</span>
+                <span className="font-medium">{reportingData.overview.conversionRate}%</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -488,11 +406,11 @@ export default function ReportingDashboard() {
             <CardTitle className="text-lg">Růstové trendy</CardTitle>
           </CardHeader>
           <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Měsíční růst</span>
-                  <span className="font-medium text-success">+{metrics.monthlyGrowth}%</span>
-                </div>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Měsíční růst</span>
+                <span className="font-medium text-success">+{reportingData.overview.monthlyGrowth}%</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Nové kampaně</span>
                 <span className="font-medium text-success">+18%</span>
@@ -510,11 +428,11 @@ export default function ReportingDashboard() {
             <CardTitle className="text-lg">Aktivita týmu</CardTitle>
           </CardHeader>
           <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Aktivní projekty</span>
-                  <span className="font-medium">{metrics.activeProjects}</span>
-                </div>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Aktivní projekty</span>
+                <span className="font-medium">{reportingData.overview.activeProjects}</span>
+              </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Dokončené úkoly</span>
                 <span className="font-medium">127</span>

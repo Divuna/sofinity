@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { supabase } from '@/integrations/supabase/client';
-import { useSelectedProject } from '@/providers/ProjectProvider';
-import { useToast } from '@/hooks/use-toast';
 import { 
   Star, 
   TrendingUp, 
@@ -139,85 +136,26 @@ const statusConfig = {
 };
 
 export default function Feedback() {
-  const { selectedProject } = useSelectedProject();
-  const { toast } = useToast();
-  const [feedbackList, setFeedbackList] = useState<any[]>([]);
-  const [selectedFeedback, setSelectedFeedback] = useState<any>(null);
+  const [selectedFeedback, setSelectedFeedback] = useState(feedbackData[0]);
   const [filterRating, setFilterRating] = useState<number | 'all'>('all');
   const [filterSentiment, setFilterSentiment] = useState<string>('all');
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (selectedProject?.id) {
-      fetchFeedback();
-    }
-  }, [selectedProject?.id]);
-
-  const fetchFeedback = async () => {
-    if (!selectedProject?.id) return;
-    
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('Feedback')
-        .select('*, Campaigns(name, project_id)')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      
-      // Filter by project through campaign relationship
-      const projectFeedback = data?.filter(f => f.Campaigns?.project_id === selectedProject.id) || [];
-      setFeedbackList(projectFeedback);
-      if (projectFeedback.length > 0 && !selectedFeedback) {
-        setSelectedFeedback(projectFeedback[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching feedback:', error);
-      toast({
-        title: 'Chyba',
-        description: 'Nepodařilo se načíst zpětnou vazbu',
-        variant: 'destructive'
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredFeedback = feedbackList.filter(feedback => {
+  const filteredFeedback = feedbackData.filter(feedback => {
     const matchesRating = filterRating === 'all' || feedback.rating === filterRating;
     const matchesSentiment = filterSentiment === 'all' || feedback.sentiment === filterSentiment;
     return matchesRating && matchesSentiment;
   });
 
-  const averageRating = feedbackList.length > 0 ? feedbackList.reduce((sum, f) => sum + (f.rating || 0), 0) / feedbackList.length : 0;
-  const totalResponses = feedbackList.length;
-  const positiveCount = feedbackList.filter(f => f.sentiment === 'positive').length;
-  const satisfactionRate = totalResponses > 0 ? (positiveCount / totalResponses) * 100 : 0;
+  const averageRating = feedbackData.reduce((sum, f) => sum + f.rating, 0) / feedbackData.length;
+  const totalResponses = feedbackData.length;
+  const positiveCount = feedbackData.filter(f => f.sentiment === 'positive').length;
+  const satisfactionRate = (positiveCount / totalResponses) * 100;
 
   const ratingDistribution = [5, 4, 3, 2, 1].map(rating => ({
     rating,
-    count: feedbackList.filter(f => f.rating === rating).length,
-    percentage: totalResponses > 0 ? (feedbackList.filter(f => f.rating === rating).length / totalResponses) * 100 : 0
+    count: feedbackData.filter(f => f.rating === rating).length,
+    percentage: (feedbackData.filter(f => f.rating === rating).length / totalResponses) * 100
   }));
-
-  if (loading) {
-    return (
-      <div className="space-y-6 flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-2 text-muted-foreground">Načítání zpětné vazby...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!selectedProject) {
-    return (
-      <div className="space-y-6 flex items-center justify-center min-h-[400px]">
-        <p className="text-muted-foreground">Vyberte prosím projekt</p>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -286,9 +224,9 @@ export default function Feedback() {
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Celkem odpovědí</p>
+                <p className="text-sm text-muted-foreground">Průměrná užitečnost</p>
                 <p className="text-2xl font-bold text-foreground">
-                  {totalResponses}
+                  {(feedbackData.reduce((sum, f) => sum + f.helpful, 0) / totalResponses).toFixed(1)}
                 </p>
               </div>
               <Heart className="w-8 h-8 text-destructive" />
@@ -362,16 +300,10 @@ export default function Feedback() {
           </Card>
         </div>
 
-          {/* Feedback List */}
-          <div className="lg:col-span-2">
-            <div className="space-y-4">
-              {filteredFeedback.length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center text-muted-foreground">
-                    Žádná zpětná vazba pro tento projekt
-                  </CardContent>
-                </Card>
-              ) : filteredFeedback.map((feedback) => {
+        {/* Feedback List */}
+        <div className="lg:col-span-2">
+          <div className="space-y-4">
+            {filteredFeedback.map((feedback) => {
               const sentimentConfig_ = sentimentConfig[feedback.sentiment as keyof typeof sentimentConfig];
               const statusConfig_ = statusConfig[feedback.status as keyof typeof statusConfig];
               
@@ -409,11 +341,11 @@ export default function Feedback() {
                         
                         <div className="flex items-center space-x-3 mb-3">
                           <div className="w-8 h-8 rounded-full bg-gradient-primary text-white flex items-center justify-center text-sm font-medium">
-                            {feedback.user_id?.substring(0, 2).toUpperCase() || 'U'}
+                            {feedback.user.avatar}
                           </div>
                           <div>
-                            <div className="font-medium text-foreground">{feedback.Campaigns?.name || 'Neznámá kampaň'}</div>
-                            <div className="text-sm text-muted-foreground">{feedback.feedback_type || 'Obecná zpětná vazba'}</div>
+                            <div className="font-medium text-foreground">{feedback.user.name}</div>
+                            <div className="text-sm text-muted-foreground">{feedback.user.company}</div>
                           </div>
                         </div>
                         
@@ -422,21 +354,29 @@ export default function Feedback() {
                         </p>
                         
                         <div className="flex items-center space-x-4 text-xs text-muted-foreground">
-                          <span>{feedback.Campaigns?.name || 'N/A'}</span>
-                          <span>{new Date(feedback.created_at).toLocaleDateString('cs-CZ')}</span>
+                          <span>{feedback.campaign}</span>
+                          <span>{feedback.campaignType}</span>
+                          <span>{new Date(feedback.timestamp).toLocaleDateString('cs-CZ')}</span>
                         </div>
                         
                         <div className="flex flex-wrap gap-1 mt-3">
-                          <Badge variant="outline" className="text-xs">
-                            {feedback.source || 'N/A'}
-                          </Badge>
+                          {feedback.tags.slice(0, 3).map((tag) => (
+                            <Badge key={tag} variant="outline" className="text-xs">
+                              {tag}
+                            </Badge>
+                          ))}
+                          {feedback.tags.length > 3 && (
+                            <Badge variant="outline" className="text-xs">
+                              +{feedback.tags.length - 3}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       
                       <div className="text-right ml-4">
                         <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-                          <Star className="w-3 h-3 text-warning fill-warning" />
-                          <span>{feedback.rating || 0}</span>
+                          <Heart className="w-3 h-3" />
+                          <span>{feedback.helpful}</span>
                         </div>
                       </div>
                     </div>
@@ -447,77 +387,113 @@ export default function Feedback() {
           </div>
         </div>
 
-          {/* Feedback Details */}
-          <div className="lg:col-span-1">
-            {selectedFeedback ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center space-x-2">
-                    <div className="flex items-center space-x-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star 
-                          key={i} 
-                          className={`w-4 h-4 ${
-                            i < (selectedFeedback.rating || 0)
-                              ? 'text-warning fill-warning' 
-                              : 'text-muted-foreground'
-                          }`} 
-                        />
-                      ))}
-                    </div>
-                    <span className="text-lg font-semibold">{selectedFeedback.rating || 0}/5</span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
+        {/* Feedback Details */}
+        <div className="lg:col-span-1">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1">
+                  {[...Array(5)].map((_, i) => (
+                    <Star 
+                      key={i} 
+                      className={`w-4 h-4 ${
+                        i < selectedFeedback.rating 
+                          ? 'text-warning fill-warning' 
+                          : 'text-muted-foreground'
+                      }`} 
+                    />
+                  ))}
+                </div>
+                <span className="text-lg font-semibold">{selectedFeedback.rating}/5</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <h4 className="font-medium text-foreground mb-2">Zákazník</h4>
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-primary text-white flex items-center justify-center font-medium">
+                    {selectedFeedback.user.avatar}
+                  </div>
                   <div>
-                    <h4 className="font-medium text-foreground mb-2">Kampaň</h4>
-                    <Badge variant="outline" className="text-xs mb-2">
-                      {selectedFeedback.Campaigns?.name || 'Neznámá kampaň'}
-                    </Badge>
-                    <div className="text-sm text-muted-foreground">
-                      Typ: {selectedFeedback.feedback_type || 'N/A'}
+                    <div className="font-medium text-foreground">{selectedFeedback.user.name}</div>
+                    <div className="text-sm text-muted-foreground">{selectedFeedback.user.email}</div>
+                    <div className="text-sm text-muted-foreground">{selectedFeedback.user.company}</div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-medium text-foreground mb-2">Kampaň</h4>
+                <Badge variant="outline" className="text-xs mb-2">
+                  {selectedFeedback.campaign}
+                </Badge>
+                <div className="text-sm text-muted-foreground">
+                  Typ: {selectedFeedback.campaignType}
                 </div>
               </div>
 
               <div>
                 <h4 className="font-medium text-foreground mb-2">Komentář</h4>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {selectedFeedback.comment || 'Žádný komentář'}
+                <p className="text-sm text-foreground leading-relaxed">
+                  {selectedFeedback.comment}
                 </p>
               </div>
 
               <div>
-                <h4 className="font-medium text-foreground mb-2">Datum</h4>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(selectedFeedback.created_at).toLocaleString('cs-CZ')}
-                </p>
+                <h4 className="font-medium text-foreground mb-2">Štítky</h4>
+                <div className="flex flex-wrap gap-1">
+                  {selectedFeedback.tags.map((tag) => (
+                    <Badge key={tag} variant="outline" className="text-xs">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
               </div>
 
               <div>
-                <h4 className="font-medium text-foreground mb-2">Sentiment</h4>
-                <Badge className={`${sentimentConfig[selectedFeedback.sentiment as keyof typeof sentimentConfig]?.color || 'bg-muted'} text-white`}>
-                  {sentimentConfig[selectedFeedback.sentiment as keyof typeof sentimentConfig]?.label || selectedFeedback.sentiment}
-                </Badge>
+                <h4 className="font-medium text-foreground mb-2">Metadata</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Datum</span>
+                    <span className="text-foreground">
+                      {new Date(selectedFeedback.timestamp).toLocaleDateString('cs-CZ')}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Užitečnost</span>
+                    <span className="text-foreground">{selectedFeedback.helpful} označení</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Sentiment</span>
+                    <Badge className={`${sentimentConfig[selectedFeedback.sentiment as keyof typeof sentimentConfig].color} text-white text-xs`}>
+                      {sentimentConfig[selectedFeedback.sentiment as keyof typeof sentimentConfig].label}
+                    </Badge>
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <h4 className="font-medium text-foreground mb-2">Přidat odpověď</h4>
-                <Textarea placeholder="Napište odpověď zákazníkovi..." className="mb-3" />
-                <Button variant="gradient" size="sm" className="w-full">
-                  <MessageSquare className="w-4 h-4 mr-2" />
-                  Odeslat odpověď
-                </Button>
-              </div>
+              {selectedFeedback.responseFromTeam && (
+                <div>
+                  <h4 className="font-medium text-foreground mb-2">Odpověď týmu</h4>
+                  <p className="text-sm text-foreground p-3 rounded-lg bg-surface border border-border leading-relaxed">
+                    {selectedFeedback.responseFromTeam}
+                  </p>
+                </div>
+              )}
+
+              {!selectedFeedback.responseFromTeam && (
+                <div>
+                  <h4 className="font-medium text-foreground mb-2">Přidat odpověď</h4>
+                  <Textarea placeholder="Napište odpověď zákazníkovi..." className="mb-3" />
+                  <Button variant="gradient" size="sm" className="w-full">
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Odeslat odpověď
+                  </Button>
+                </div>
+              )}
             </CardContent>
-            </Card>
-            ) : (
-              <Card>
-                <CardContent className="p-8 text-center text-muted-foreground">
-                  Vyberte zpětnou vazbu pro zobrazení detailů
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          </Card>
+        </div>
       </div>
     </div>
   );
