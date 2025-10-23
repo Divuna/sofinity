@@ -1785,13 +1785,6 @@ export type Database = {
             foreignKeyName: "Reactions_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
-            referencedRelation: "AIRequests_Campaigns_View"
-            referencedColumns: ["eventlog_id"]
-          },
-          {
-            foreignKeyName: "Reactions_event_id_fkey"
-            columns: ["event_id"]
-            isOneToOne: false
             referencedRelation: "EventLogs"
             referencedColumns: ["id"]
           },
@@ -2119,7 +2112,6 @@ export type Database = {
           campaign_status: string | null
           event_name: string | null
           event_timestamp: string | null
-          eventlog_id: string | null
           logged_campaign_name: string | null
           project_id: string | null
         }
