@@ -140,6 +140,105 @@ export type Database = {
           },
         ]
       }
+      AIRequests_AuditArchive: {
+        Row: {
+          airequest_id: string | null
+          archived_at: string | null
+          changed_at: string | null
+          id: string
+          new_status: string | null
+          note: string | null
+          old_status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          airequest_id?: string | null
+          archived_at?: string | null
+          changed_at?: string | null
+          id?: string
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          airequest_id?: string | null
+          archived_at?: string | null
+          changed_at?: string | null
+          id?: string
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      AIRequests_AuditLog: {
+        Row: {
+          airequest_id: string
+          changed_at: string
+          id: string
+          new_status: string | null
+          note: string | null
+          old_status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          airequest_id: string
+          changed_at?: string
+          id?: string
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          airequest_id?: string
+          changed_at?: string
+          id?: string
+          new_status?: string | null
+          note?: string | null
+          old_status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "AIRequests_AuditLog_airequest_id_fkey"
+            columns: ["airequest_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "AIRequests_AuditLog_airequest_id_fkey"
+            columns: ["airequest_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_DashboardView"
+            referencedColumns: ["last_request_id"]
+          },
+          {
+            foreignKeyName: "AIRequests_AuditLog_airequest_id_fkey"
+            columns: ["airequest_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_StatusView"
+            referencedColumns: ["airequest_id"]
+          },
+          {
+            foreignKeyName: "AIRequests_AuditLog_airequest_id_fkey"
+            columns: ["airequest_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_View_Recent"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "AIRequests_AuditLog_airequest_id_fkey"
+            columns: ["airequest_id"]
+            isOneToOne: false
+            referencedRelation: "v_ai_requests_status"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       AISettings: {
         Row: {
           allow_responses: boolean | null
@@ -450,6 +549,27 @@ export type Database = {
             columns: ["ai_request_id"]
             isOneToOne: false
             referencedRelation: "AIRequests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Campaigns_ai_request_id_fkey"
+            columns: ["ai_request_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_DashboardView"
+            referencedColumns: ["last_request_id"]
+          },
+          {
+            foreignKeyName: "Campaigns_ai_request_id_fkey"
+            columns: ["ai_request_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_StatusView"
+            referencedColumns: ["airequest_id"]
+          },
+          {
+            foreignKeyName: "Campaigns_ai_request_id_fkey"
+            columns: ["ai_request_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_View_Recent"
             referencedColumns: ["id"]
           },
           {
@@ -1896,6 +2016,106 @@ export type Database = {
       }
     }
     Views: {
+      AIRequests_DashboardView: {
+        Row: {
+          avg_completion_time_s: number | null
+          completed_count: number | null
+          error_count: number | null
+          last_change_at: string | null
+          last_request_id: string | null
+          last_status: string | null
+          success_rate_pct: number | null
+          total_requests: number | null
+          type: string | null
+        }
+        Relationships: []
+      }
+      AIRequests_PerformanceView: {
+        Row: {
+          avg_completion_time_s: number | null
+          completed_count: number | null
+          day: string | null
+          error_count: number | null
+          first_request_at: string | null
+          last_request_at: string | null
+          request_ids_desc: string | null
+          success_rate_pct: number | null
+          total_requests: number | null
+          type: string | null
+        }
+        Relationships: []
+      }
+      AIRequests_StatsView: {
+        Row: {
+          avg_completion_time_s: number | null
+          completed_count: number | null
+          error_count: number | null
+          first_request_at: string | null
+          last_request_at: string | null
+          request_ids_desc: string | null
+          success_rate_pct: number | null
+          total_requests: number | null
+          type: string | null
+        }
+        Relationships: []
+      }
+      AIRequests_StatusView: {
+        Row: {
+          airequest_id: string | null
+          changed_at: string | null
+          created_at: string | null
+          current_status: string | null
+          new_status: string | null
+          type: string | null
+          user_id: string | null
+          viewer_email: string | null
+        }
+        Relationships: []
+      }
+      AIRequests_TimelineView: {
+        Row: {
+          completed_count: number | null
+          day: string | null
+          error_count: number | null
+          request_ids_desc: string | null
+          success_rate_pct: number | null
+          total_requests: number | null
+          type: string | null
+        }
+        Relationships: []
+      }
+      AIRequests_Trend7dView: {
+        Row: {
+          avg_success_7d_pct: number | null
+          avg_time_7d_s: number | null
+          day: string | null
+          total_requests_7d: number | null
+          type: string | null
+        }
+        Relationships: []
+      }
+      AIRequests_View_Recent: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          project_id: string | null
+          project_name: string | null
+          prompt: string | null
+          response: string | null
+          status: string | null
+          type: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "AIRequests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       filtered_campaigns: {
         Row: {
           created_at: string | null
@@ -2185,6 +2405,7 @@ export type Database = {
       }
       cleanup_old_nonces: { Args: never; Returns: undefined }
       cleanup_old_webhook_requests: { Args: never; Returns: undefined }
+      fn_archive_old_audit_logs: { Args: never; Returns: undefined }
       get_safe_integration_data: {
         Args: { integration_id: string }
         Returns: Json
