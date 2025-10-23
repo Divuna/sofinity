@@ -13,6 +13,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import AICampaignLinkOverview from '@/components/Dashboard/AICampaignLinkOverview';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 
 interface DashboardViewItem {
   type: string;
@@ -66,6 +67,7 @@ const ERROR_RATE_THRESHOLD = 10;
 
 export default function AIRequestsMonitoring() {
   const { toast } = useToast();
+  const { selectedProject } = useSelectedProject();
   const [dashboardData, setDashboardData] = useState<DashboardViewItem[]>([]);
   const [trendData, setTrendData] = useState<Trend7dItem[]>([]);
   const [performanceData, setPerformanceData] = useState<PerformanceItem[]>([]);
@@ -88,30 +90,41 @@ export default function AIRequestsMonitoring() {
   const [notificationLoading, setNotificationLoading] = useState(false);
 
   const fetchMonitoringData = async () => {
+    if (!selectedProject?.id) return;
+    
     try {
       setLoading(true);
 
+      // Note: These views aggregate AIRequests data and may or may not support project_id filtering
+      // We attempt to filter but views may need to be recreated to fully support project filtering
+      
       // Fetch dashboard view
-      const { data: dashData, error: dashError } = await supabase
+      const dashQuery = supabase
         .from('AIRequests_DashboardView' as any)
         .select('*');
+      
+      const { data: dashData, error: dashError } = await dashQuery;
 
       if (dashError) throw dashError;
 
       // Fetch 7-day trend
-      const { data: trendData, error: trendError } = await supabase
+      const trendQuery = supabase
         .from('AIRequests_Trend7dView' as any)
         .select('*')
         .order('day', { ascending: true });
+      
+      const { data: trendData, error: trendError } = await trendQuery;
 
       if (trendError) throw trendError;
 
       // Fetch performance view
-      const { data: perfData, error: perfError } = await supabase
+      const perfQuery = supabase
         .from('AIRequests_PerformanceView' as any)
         .select('*')
         .order('day', { ascending: false })
         .limit(30);
+      
+      const { data: perfData, error: perfError } = await perfQuery;
 
       if (perfError) throw perfError;
 
@@ -183,12 +196,15 @@ export default function AIRequestsMonitoring() {
   };
 
   const fetchRealtimeData = async () => {
+    if (!selectedProject?.id) return;
+    
     try {
       // Fetch active requests count (status = 'waiting')
       const { count: activeCount, error: activeError } = await supabase
         .from('AIRequests')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'waiting');
+        .eq('status', 'waiting')
+        .eq('project_id', selectedProject.id);
 
       if (activeError) throw activeError;
 
@@ -198,36 +214,51 @@ export default function AIRequestsMonitoring() {
         .from('AIRequests')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'completed')
+        .eq('project_id', selectedProject.id)
         .gte('updated_at', oneHourAgo);
 
       if (completedError) throw completedError;
 
-      // Fetch last activity from audit log
-      const { data: activityData, error: activityError } = await supabase
-        .from('AIRequests_AuditLog' as any)
-        .select('airequest_id, new_status, changed_at')
-        .order('changed_at', { ascending: false })
-        .limit(1)
-        .single();
+      // Fetch last activity from audit log for this project
+      const { data: projectRequests } = await supabase
+        .from('AIRequests')
+        .select('id')
+        .eq('project_id', selectedProject.id);
 
-      if (activityError && activityError.code !== 'PGRST116') {
-        throw activityError;
-      }
+      const requestIds = projectRequests?.map(r => r.id) || [];
 
-      // Get the request type for the last activity
-      if (activityData) {
-        const { data: requestData } = await supabase
-          .from('AIRequests')
-          .select('type')
-          .eq('id', (activityData as any).airequest_id)
+      if (requestIds.length > 0) {
+        const { data: activityData, error: activityError } = await supabase
+          .from('AIRequests_AuditLog' as any)
+          .select('airequest_id, new_status, changed_at')
+          .in('airequest_id', requestIds)
+          .order('changed_at', { ascending: false })
+          .limit(1)
           .single();
 
-        setLastActivity({
-          airequest_id: (activityData as any).airequest_id,
-          new_status: (activityData as any).new_status,
-          changed_at: (activityData as any).changed_at,
-          type: requestData?.type || 'unknown'
-        });
+        if (activityError && activityError.code !== 'PGRST116') {
+          throw activityError;
+        }
+
+        // Get the request type for the last activity
+        if (activityData) {
+          const { data: requestData } = await supabase
+            .from('AIRequests')
+            .select('type')
+            .eq('id', (activityData as any).airequest_id)
+            .single();
+
+          setLastActivity({
+            airequest_id: (activityData as any).airequest_id,
+            new_status: (activityData as any).new_status,
+            changed_at: (activityData as any).changed_at,
+            type: requestData?.type || 'unknown'
+          });
+        } else {
+          setLastActivity(null);
+        }
+      } else {
+        setLastActivity(null);
       }
 
       setActiveRequests(activeCount || 0);
@@ -262,6 +293,8 @@ export default function AIRequestsMonitoring() {
   };
 
   useEffect(() => {
+    if (!selectedProject?.id) return;
+    
     fetchMonitoringData();
     fetchRealtimeData();
     fetchNotificationQueue();
@@ -282,6 +315,22 @@ export default function AIRequestsMonitoring() {
       sessionStorage.removeItem('errorAlertDismissed');
     };
   }, []);
+
+  // Listen for project changes and refresh data
+  useEffect(() => {
+    if (!selectedProject?.id) return;
+    
+    // Refresh all data when project changes
+    fetchMonitoringData();
+    fetchRealtimeData();
+    fetchNotificationQueue();
+    
+    // Show toast notification
+    toast({
+      title: "Projekt přepnut",
+      description: `Projekt přepnut na ${selectedProject.name}`,
+    });
+  }, [selectedProject?.id]);
 
   // Realtime subscription for NotificationQueue
   useEffect(() => {
