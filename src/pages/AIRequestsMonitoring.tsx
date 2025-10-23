@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Activity, TrendingUp, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Activity, TrendingUp, Clock, CheckCircle2, AlertCircle, Radio } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, subHours } from 'date-fns';
 import { cs } from 'date-fns/locale/cs';
 
 interface DashboardViewItem {
@@ -38,12 +38,23 @@ interface PerformanceItem {
   avg_completion_time_s: number;
 }
 
+interface LastActivity {
+  airequest_id: string;
+  new_status: string;
+  changed_at: string;
+  type: string;
+}
+
 export default function AIRequestsMonitoring() {
   const { toast } = useToast();
   const [dashboardData, setDashboardData] = useState<DashboardViewItem[]>([]);
   const [trendData, setTrendData] = useState<Trend7dItem[]>([]);
   const [performanceData, setPerformanceData] = useState<PerformanceItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeRequests, setActiveRequests] = useState<number>(0);
+  const [completedLastHour, setCompletedLastHour] = useState<number>(0);
+  const [lastActivity, setLastActivity] = useState<LastActivity | null>(null);
+  const [realtimeLoading, setRealtimeLoading] = useState(true);
 
   const fetchMonitoringData = async () => {
     try {
@@ -88,12 +99,77 @@ export default function AIRequestsMonitoring() {
     }
   };
 
+  const fetchRealtimeData = async () => {
+    try {
+      // Fetch active requests count (status = 'waiting')
+      const { count: activeCount, error: activeError } = await supabase
+        .from('AIRequests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'waiting');
+
+      if (activeError) throw activeError;
+
+      // Fetch completed requests in the last hour
+      const oneHourAgo = subHours(new Date(), 1).toISOString();
+      const { count: completedCount, error: completedError } = await supabase
+        .from('AIRequests')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'completed')
+        .gte('updated_at', oneHourAgo);
+
+      if (completedError) throw completedError;
+
+      // Fetch last activity from audit log
+      const { data: activityData, error: activityError } = await supabase
+        .from('AIRequests_AuditLog' as any)
+        .select('airequest_id, new_status, changed_at')
+        .order('changed_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (activityError && activityError.code !== 'PGRST116') {
+        throw activityError;
+      }
+
+      // Get the request type for the last activity
+      if (activityData) {
+        const { data: requestData } = await supabase
+          .from('AIRequests')
+          .select('type')
+          .eq('id', (activityData as any).airequest_id)
+          .single();
+
+        setLastActivity({
+          airequest_id: (activityData as any).airequest_id,
+          new_status: (activityData as any).new_status,
+          changed_at: (activityData as any).changed_at,
+          type: requestData?.type || 'unknown'
+        });
+      }
+
+      setActiveRequests(activeCount || 0);
+      setCompletedLastHour(completedCount || 0);
+      setRealtimeLoading(false);
+    } catch (error) {
+      console.error('Error fetching realtime data:', error);
+      setRealtimeLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchMonitoringData();
+    fetchRealtimeData();
     
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(fetchMonitoringData, 30000);
-    return () => clearInterval(interval);
+    // Auto-refresh dashboard data every 30 seconds
+    const dashboardInterval = setInterval(fetchMonitoringData, 30000);
+    
+    // Auto-refresh realtime data every 10 seconds
+    const realtimeInterval = setInterval(fetchRealtimeData, 10000);
+    
+    return () => {
+      clearInterval(dashboardInterval);
+      clearInterval(realtimeInterval);
+    };
   }, []);
 
   const getTypeLabel = (type: string) => {
@@ -151,6 +227,75 @@ export default function AIRequestsMonitoring() {
             Monitoring a analýza výkonu AI požadavků
           </p>
         </div>
+      </div>
+
+      {/* Live Counters */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <Card className="border-primary/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Aktivní požadavky</CardTitle>
+            <div className="relative">
+              <Radio className="h-4 w-4 text-primary animate-pulse" />
+              <span className="absolute top-0 right-0 h-2 w-2 bg-primary rounded-full animate-ping"></span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {realtimeLoading ? (
+              <div className="text-2xl font-bold text-muted-foreground">--</div>
+            ) : (
+              <div className="text-2xl font-bold text-primary">{activeRequests}</div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Čekající na zpracování
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-green-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Dokončeno za poslední hodinu</CardTitle>
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            {realtimeLoading ? (
+              <div className="text-2xl font-bold text-muted-foreground">--</div>
+            ) : (
+              <div className="text-2xl font-bold text-green-600">{completedLastHour}</div>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Úspěšně zpracováno
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-blue-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Poslední aktivita AI</CardTitle>
+            <Activity className="h-4 w-4 text-blue-600 animate-pulse" />
+          </CardHeader>
+          <CardContent>
+            {realtimeLoading || !lastActivity ? (
+              <div className="text-sm text-muted-foreground">Načítání...</div>
+            ) : (
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Badge variant={getStatusBadgeVariant(lastActivity.new_status)} className="text-xs">
+                    {lastActivity.new_status}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">
+                    {getTypeLabel(lastActivity.type)}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {formatDistanceToNow(new Date(lastActivity.changed_at), {
+                    addSuffix: true,
+                    locale: cs
+                  })}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Overview Cards */}
