@@ -123,3 +123,6 @@ verify_jwt = false
 
 [functions.sofinity-agent-dispatcher]
 verify_jwt = false
+
+[functions.export-db-snapshot]
+verify_jwt = false
