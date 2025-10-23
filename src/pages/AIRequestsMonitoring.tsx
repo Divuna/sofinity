@@ -95,32 +95,32 @@ export default function AIRequestsMonitoring() {
     try {
       setLoading(true);
 
-      // Note: These views aggregate AIRequests data and may or may not support project_id filtering
-      // We attempt to filter but views may need to be recreated to fully support project filtering
-      
-      // Fetch dashboard view
+      // Fetch dashboard view with project_id filtering
       const dashQuery = supabase
         .from('AIRequests_DashboardView' as any)
-        .select('*');
+        .select('*')
+        .eq('project_id', selectedProject.id);
       
       const { data: dashData, error: dashError } = await dashQuery;
 
       if (dashError) throw dashError;
 
-      // Fetch 7-day trend
+      // Fetch 7-day trend with project_id filtering
       const trendQuery = supabase
         .from('AIRequests_Trend7dView' as any)
         .select('*')
+        .eq('project_id', selectedProject.id)
         .order('day', { ascending: true });
       
       const { data: trendData, error: trendError } = await trendQuery;
 
       if (trendError) throw trendError;
 
-      // Fetch performance view
+      // Fetch performance view with project_id filtering
       const perfQuery = supabase
         .from('AIRequests_PerformanceView' as any)
         .select('*')
+        .eq('project_id', selectedProject.id)
         .order('day', { ascending: false })
         .limit(30);
       

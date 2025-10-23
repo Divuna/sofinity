@@ -2204,11 +2204,20 @@ export type Database = {
           last_change_at: string | null
           last_request_id: string | null
           last_status: string | null
+          project_id: string | null
           success_rate_pct: number | null
           total_requests: number | null
           type: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "AIRequests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       AIRequests_PerformanceView: {
         Row: {
@@ -2218,12 +2227,21 @@ export type Database = {
           error_count: number | null
           first_request_at: string | null
           last_request_at: string | null
+          project_id: string | null
           request_ids_desc: string | null
           success_rate_pct: number | null
           total_requests: number | null
           type: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "AIRequests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       AIRequests_StatsView: {
         Row: {
@@ -2232,12 +2250,21 @@ export type Database = {
           error_count: number | null
           first_request_at: string | null
           last_request_at: string | null
+          project_id: string | null
           request_ids_desc: string | null
           success_rate_pct: number | null
           total_requests: number | null
           type: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "AIRequests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       AIRequests_StatusView: {
         Row: {
@@ -2269,10 +2296,19 @@ export type Database = {
           avg_success_7d_pct: number | null
           avg_time_7d_s: number | null
           day: string | null
+          project_id: string | null
           total_requests_7d: number | null
           type: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "AIRequests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       AIRequests_View_Recent: {
         Row: {
