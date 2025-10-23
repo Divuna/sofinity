@@ -1861,6 +1861,36 @@ export type Database = {
         }
         Relationships: []
       }
+      system_snapshots: {
+        Row: {
+          created_at: string | null
+          functions_sql: string | null
+          id: string
+          policies_sql: string | null
+          schema_sql: string | null
+          snapshot_name: string
+          views_sql: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          functions_sql?: string | null
+          id?: string
+          policies_sql?: string | null
+          schema_sql?: string | null
+          snapshot_name: string
+          views_sql?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          functions_sql?: string | null
+          id?: string
+          policies_sql?: string | null
+          schema_sql?: string | null
+          snapshot_name?: string
+          views_sql?: string | null
+        }
+        Relationships: []
+      }
       Templates: {
         Row: {
           content: string
