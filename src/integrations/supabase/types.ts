@@ -1423,6 +1423,47 @@ export type Database = {
           },
         ]
       }
+      NotificationQueue: {
+        Row: {
+          created_at: string | null
+          event_id: string | null
+          event_name: string
+          id: string
+          payload: Json | null
+          status: string | null
+          target_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id?: string | null
+          event_name: string
+          id?: string
+          payload?: Json | null
+          status?: string | null
+          target_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string | null
+          event_name?: string
+          id?: string
+          payload?: Json | null
+          status?: string | null
+          target_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "NotificationQueue_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "EventLogs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           id: string

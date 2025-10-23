@@ -111,6 +111,9 @@ verify_jwt = false
 [functions.on-project-connection]
 verify_jwt = false
 
+[functions.process-notification-queue]
+verify_jwt = false
+
 # SECURITY: Test functions
 [functions.batch-email-test]
 verify_jwt = false
