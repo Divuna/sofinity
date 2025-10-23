@@ -495,7 +495,7 @@ export default function AIRequestsMonitoring() {
       </div>
 
       {/* Overview Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Celkem požadavků</CardTitle>
@@ -518,6 +518,21 @@ export default function AIRequestsMonitoring() {
             <div className="text-2xl font-bold">{avgSuccessRate.toFixed(1)}%</div>
             <p className="text-xs text-muted-foreground">
               Průměrná míra úspěšnosti
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-red-500/20">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Chybovost</CardTitle>
+            <AlertCircle className="h-4 w-4 text-red-600" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl font-bold ${overallErrorRate > ERROR_RATE_THRESHOLD ? 'text-red-600' : 'text-foreground'}`}>
+              {overallErrorRate.toFixed(1)}%
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {totalErrors} z {totalRequests} požadavků
             </p>
           </CardContent>
         </Card>
@@ -763,7 +778,7 @@ export default function AIRequestsMonitoring() {
                     <h4 className="font-semibold">{getTypeLabel(type)}</h4>
                     <Badge variant="outline">{metrics.total_requests} požadavků</Badge>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div className="grid grid-cols-4 gap-4 text-sm">
                     <div>
                       <p className="text-muted-foreground">Průměrný čas</p>
                       <p className="font-semibold">{formatTime(metrics.total_time / metrics.count)}</p>
@@ -775,6 +790,18 @@ export default function AIRequestsMonitoring() {
                     <div>
                       <p className="text-muted-foreground">Chyby</p>
                       <p className="font-semibold text-red-600">{metrics.error_count}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Chybovost</p>
+                      <p className={`font-semibold ${
+                        (metrics.error_count / metrics.total_requests * 100) > 10 
+                          ? 'text-red-600' 
+                          : (metrics.error_count / metrics.total_requests * 100) > 5 
+                            ? 'text-yellow-600' 
+                            : 'text-green-600'
+                      }`}>
+                        {((metrics.error_count / metrics.total_requests) * 100).toFixed(1)}%
+                      </p>
                     </div>
                   </div>
                 </div>
