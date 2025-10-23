@@ -312,7 +312,7 @@ export default function HealthDashboard() {
             </Alert>
 
             <div className="space-y-3">
-              {lastAudit.details.results.map((result, idx) => (
+              {lastAudit.details?.results?.map((result: AuditResult, idx: number) => (
                 <div key={idx} className="border rounded-lg p-4">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-semibold text-foreground">{result.table}</h4>
