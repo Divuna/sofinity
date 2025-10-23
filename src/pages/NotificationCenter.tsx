@@ -61,7 +61,7 @@ export default function NotificationCenter() {
 
   useEffect(() => {
     fetchNotifications();
-  }, []);
+  }, [selectedProject]);
 
   const fetchNotifications = async () => {
     try {
