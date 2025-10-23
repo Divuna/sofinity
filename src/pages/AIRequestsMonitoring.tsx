@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Activity, TrendingUp, Clock, CheckCircle2, AlertCircle, Radio } from 'lucide-react';
+import { Activity, TrendingUp, Clock, CheckCircle2, AlertCircle, Radio, X, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { formatDistanceToNow, subHours } from 'date-fns';
 import { cs } from 'date-fns/locale/cs';
+import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface DashboardViewItem {
   type: string;
@@ -45,6 +47,9 @@ interface LastActivity {
   type: string;
 }
 
+// Configurable threshold for error rate alert
+const ERROR_RATE_THRESHOLD = 10;
+
 export default function AIRequestsMonitoring() {
   const { toast } = useToast();
   const [dashboardData, setDashboardData] = useState<DashboardViewItem[]>([]);
@@ -55,6 +60,11 @@ export default function AIRequestsMonitoring() {
   const [completedLastHour, setCompletedLastHour] = useState<number>(0);
   const [lastActivity, setLastActivity] = useState<LastActivity | null>(null);
   const [realtimeLoading, setRealtimeLoading] = useState(true);
+  const [showErrorAlert, setShowErrorAlert] = useState(false);
+  const [errorAlertDismissed, setErrorAlertDismissed] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const tableRef = useRef<HTMLDivElement>(null);
+  const hasShownToast = useRef(false);
 
   const fetchMonitoringData = async () => {
     try {
@@ -87,6 +97,9 @@ export default function AIRequestsMonitoring() {
       setDashboardData((dashData as any[]) || []);
       setTrendData((trendData as any[]) || []);
       setPerformanceData((perfData as any[]) || []);
+
+      // Check error rate
+      checkErrorRate((dashData as any[]) || []);
     } catch (error) {
       console.error('Error fetching monitoring data:', error);
       toast({
@@ -97,6 +110,52 @@ export default function AIRequestsMonitoring() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const checkErrorRate = (data: DashboardViewItem[]) => {
+    if (data.length === 0) return;
+
+    const totalRequests = data.reduce((sum, item) => sum + item.total_requests, 0);
+    const totalErrors = data.reduce((sum, item) => sum + item.error_count, 0);
+    const overallErrorRate = totalRequests > 0 ? (totalErrors / totalRequests) * 100 : 0;
+
+    const shouldShowAlert = overallErrorRate > ERROR_RATE_THRESHOLD;
+
+    // Check if we should show alert (not dismissed in session)
+    const dismissed = sessionStorage.getItem('errorAlertDismissed') === 'true';
+    setErrorAlertDismissed(dismissed);
+    setShowErrorAlert(shouldShowAlert && !dismissed);
+
+    // Show toast only once when threshold is crossed
+    if (shouldShowAlert && !hasShownToast.current && !dismissed) {
+      toast({
+        title: "Varování: zvýšená chybovost",
+        description: `Celková chybovost dosáhla ${overallErrorRate.toFixed(1)}%`,
+        variant: "destructive"
+      });
+      hasShownToast.current = true;
+    }
+
+    // Reset toast flag if error rate drops below threshold
+    if (!shouldShowAlert) {
+      hasShownToast.current = false;
+    }
+  };
+
+  const dismissErrorAlert = () => {
+    sessionStorage.setItem('errorAlertDismissed', 'true');
+    setErrorAlertDismissed(true);
+    setShowErrorAlert(false);
+  };
+
+  const handleAlertClick = () => {
+    // Scroll to table
+    tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    
+    // Apply filter to show only types with errors
+    setTimeout(() => {
+      setTypeFilter('errors');
+    }, 500);
   };
 
   const fetchRealtimeData = async () => {
@@ -169,6 +228,7 @@ export default function AIRequestsMonitoring() {
     return () => {
       clearInterval(dashboardInterval);
       clearInterval(realtimeInterval);
+      sessionStorage.removeItem('errorAlertDismissed');
     };
   }, []);
 
@@ -207,6 +267,7 @@ export default function AIRequestsMonitoring() {
   const totalRequests = dashboardData.reduce((sum, item) => sum + item.total_requests, 0);
   const totalCompleted = dashboardData.reduce((sum, item) => sum + item.completed_count, 0);
   const totalErrors = dashboardData.reduce((sum, item) => sum + item.error_count, 0);
+  const overallErrorRate = totalRequests > 0 ? (totalErrors / totalRequests) * 100 : 0;
   const avgSuccessRate = dashboardData.length > 0
     ? dashboardData.reduce((sum, item) => sum + item.success_rate_pct, 0) / dashboardData.length
     : 0;
@@ -214,8 +275,62 @@ export default function AIRequestsMonitoring() {
     ? dashboardData.reduce((sum, item) => sum + item.avg_completion_time_s, 0) / dashboardData.length
     : 0;
 
+  // Get types with high error rates
+  const typesWithErrors = dashboardData.filter(item => {
+    const errorRate = item.total_requests > 0 ? (item.error_count / item.total_requests) * 100 : 0;
+    return errorRate > ERROR_RATE_THRESHOLD;
+  });
+
+  // Filter dashboard data based on filter
+  const filteredDashboardData = typeFilter === 'errors' 
+    ? typesWithErrors 
+    : dashboardData;
+
   return (
     <div className="space-y-6">
+      {/* Error Rate Alert Banner */}
+      {showErrorAlert && (
+        <Alert className="sticky top-0 z-50 border-destructive bg-destructive/10 shadow-lg">
+          <AlertTriangle className="h-5 w-5 text-destructive" />
+          <AlertDescription className="flex items-center justify-between w-full">
+            <div className="flex-1 cursor-pointer" onClick={handleAlertClick}>
+              <div className="flex items-center gap-4 flex-wrap">
+                <span className="font-semibold text-destructive">
+                  Varování: zvýšená chybovost
+                </span>
+                <Badge variant="destructive" className="font-semibold">
+                  Chyby celkem: {overallErrorRate.toFixed(1)}%
+                </Badge>
+                {typesWithErrors.length > 0 && (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm text-muted-foreground">podle typů:</span>
+                    {typesWithErrors.map((item) => {
+                      const errorRate = item.total_requests > 0 ? (item.error_count / item.total_requests) * 100 : 0;
+                      return (
+                        <Badge key={item.type} variant="outline" className="border-destructive text-destructive">
+                          {getTypeLabel(item.type)}: {errorRate.toFixed(1)}%
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="ml-4 h-6 w-6 shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                dismissErrorAlert();
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-4">
         <div className="p-2 rounded-lg bg-primary/10">
@@ -354,24 +469,39 @@ export default function AIRequestsMonitoring() {
       </div>
 
       {/* Current Status Table */}
-      <Card>
+      <Card ref={tableRef}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5" />
-            Aktuální stav požadavků
-          </CardTitle>
-          <CardDescription>
-            Přehled všech typů AI požadavků a jejich metriky
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="h-5 w-5" />
+                Aktuální stav požadavků
+              </CardTitle>
+              <CardDescription>
+                Přehled všech typů AI požadavků a jejich metriky
+              </CardDescription>
+            </div>
+            {typeFilter === 'errors' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setTypeFilter(null)}
+              >
+                Zrušit filtr
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <Activity className="h-6 w-6 animate-spin" />
             </div>
-          ) : dashboardData.length === 0 ? (
+          ) : filteredDashboardData.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              Žádná data k zobrazení
+              {typeFilter === 'errors' 
+                ? 'Žádné typy s vysokou chybovostí'
+                : 'Žádná data k zobrazení'}
             </div>
           ) : (
             <Table>
@@ -388,35 +518,50 @@ export default function AIRequestsMonitoring() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {dashboardData.map((item, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">
-                      {getTypeLabel(item.type)}
-                    </TableCell>
-                    <TableCell className="text-right">{item.total_requests}</TableCell>
-                    <TableCell className="text-right">{item.completed_count}</TableCell>
-                    <TableCell className="text-right">{item.error_count}</TableCell>
-                    <TableCell className="text-right">
-                      <span className={item.success_rate_pct >= 90 ? 'text-green-600' : item.success_rate_pct >= 70 ? 'text-yellow-600' : 'text-red-600'}>
-                        {item.success_rate_pct.toFixed(1)}%
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatTime(item.avg_completion_time_s)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getStatusBadgeVariant(item.last_status)}>
-                        {item.last_status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDistanceToNow(new Date(item.last_change_at), {
-                        addSuffix: true,
-                        locale: cs
-                      })}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredDashboardData.map((item, index) => {
+                  const itemErrorRate = item.total_requests > 0 ? (item.error_count / item.total_requests) * 100 : 0;
+                  const isHighErrorRate = itemErrorRate > ERROR_RATE_THRESHOLD;
+                  
+                  return (
+                    <TableRow 
+                      key={index}
+                      className={isHighErrorRate ? 'bg-destructive/5 border-l-4 border-l-destructive' : ''}
+                    >
+                      <TableCell className="font-medium">
+                        <div className="flex items-center gap-2">
+                          {isHighErrorRate && <AlertTriangle className="h-4 w-4 text-destructive" />}
+                          {getTypeLabel(item.type)}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">{item.total_requests}</TableCell>
+                      <TableCell className="text-right">{item.completed_count}</TableCell>
+                      <TableCell className="text-right">
+                        <span className={isHighErrorRate ? 'font-semibold text-destructive' : ''}>
+                          {item.error_count}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <span className={item.success_rate_pct >= 90 ? 'text-green-600' : item.success_rate_pct >= 70 ? 'text-yellow-600' : 'text-red-600'}>
+                          {item.success_rate_pct.toFixed(1)}%
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {formatTime(item.avg_completion_time_s)}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={getStatusBadgeVariant(item.last_status)}>
+                          {item.last_status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {formatDistanceToNow(new Date(item.last_change_at), {
+                          addSuffix: true,
+                          locale: cs
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           )}
