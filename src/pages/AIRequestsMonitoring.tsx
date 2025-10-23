@@ -271,15 +271,31 @@ export default function AIRequestsMonitoring() {
   };
 
   const fetchNotificationQueue = async () => {
+    if (!selectedProject?.id) return;
+    
     try {
       setNotificationLoading(true);
+      
+      // Join with EventLogs to filter by project_id
       const { data, error } = await supabase
         .from('NotificationQueue')
-        .select('*')
+        .select(`
+          *,
+          event:EventLogs!NotificationQueue_event_id_fkey(project_id)
+        `)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setNotificationQueue(data || []);
+      
+      // Filter notifications that either have no event_id or match the selected project
+      const filteredData = (data || []).filter((notification: any) => {
+        // If there's no event_id, include it (table doesn't have project_id column)
+        if (!notification.event_id || !notification.event) return true;
+        // If event exists, filter by project_id
+        return notification.event.project_id === selectedProject.id;
+      });
+      
+      setNotificationQueue(filteredData);
     } catch (error) {
       console.error('Error fetching notification queue:', error);
       toast({
@@ -327,6 +343,8 @@ export default function AIRequestsMonitoring() {
 
   // Realtime subscription for NotificationQueue
   useEffect(() => {
+    if (!selectedProject?.id) return;
+    
     const channel = supabase
       .channel('notification-queue-changes')
       .on(
@@ -338,6 +356,7 @@ export default function AIRequestsMonitoring() {
         },
         (payload) => {
           console.log('NotificationQueue INSERT:', payload);
+          // Reload to apply project filtering
           fetchNotificationQueue();
           toast({
             title: "Nová notifikace přidána",
@@ -354,6 +373,7 @@ export default function AIRequestsMonitoring() {
         },
         (payload) => {
           console.log('NotificationQueue UPDATE:', payload);
+          // Reload to apply project filtering
           fetchNotificationQueue();
           toast({
             title: "Stav notifikace aktualizován",
@@ -366,7 +386,7 @@ export default function AIRequestsMonitoring() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [toast]);
+  }, [selectedProject?.id, toast]);
 
   const getTypeLabel = (type: string) => {
     const typeMap: Record<string, string> = {
