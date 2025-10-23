@@ -59,6 +59,43 @@ export default function AICampaignLinkOverview({ refreshTrigger, loading: parent
     fetchCampaignLinks();
   }, [refreshTrigger]);
 
+  // Real-time subscription for automatic updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('campaign-links-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Campaigns',
+          filter: 'ai_request_id=neq.null'
+        },
+        () => {
+          console.log('Campaign with AI request detected, refreshing...');
+          fetchCampaignLinks();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'AIRequests',
+          filter: 'type=eq.campaign_generator'
+        },
+        () => {
+          console.log('AI campaign_generator request updated, refreshing...');
+          fetchCampaignLinks();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
   const getTypeLabel = (type: string | null) => {
     if (!type) return 'N/A';
     const typeMap: Record<string, string> = {

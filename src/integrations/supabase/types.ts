@@ -213,6 +213,13 @@ export type Database = {
             foreignKeyName: "AIRequests_AuditLog_airequest_id_fkey"
             columns: ["airequest_id"]
             isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["airequest_id"]
+          },
+          {
+            foreignKeyName: "AIRequests_AuditLog_airequest_id_fkey"
+            columns: ["airequest_id"]
+            isOneToOne: false
             referencedRelation: "AIRequests_DashboardView"
             referencedColumns: ["last_request_id"]
           },
@@ -382,6 +389,13 @@ export type Database = {
             foreignKeyName: "CallToAction_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "CallToAction_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "Campaigns"
             referencedColumns: ["id"]
           },
@@ -417,6 +431,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "fk_campaign_contacts_campaign_id"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "fk_campaign_contacts_campaign_id"
             columns: ["campaign_id"]
@@ -478,6 +499,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "CampaignReports_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "CampaignReports_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -555,6 +583,13 @@ export type Database = {
             foreignKeyName: "Campaigns_ai_request_id_fkey"
             columns: ["ai_request_id"]
             isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["airequest_id"]
+          },
+          {
+            foreignKeyName: "Campaigns_ai_request_id_fkey"
+            columns: ["ai_request_id"]
+            isOneToOne: false
             referencedRelation: "AIRequests_DashboardView"
             referencedColumns: ["last_request_id"]
           },
@@ -627,6 +662,13 @@ export type Database = {
             foreignKeyName: "CampaignSchedule_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "CampaignSchedule_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "Campaigns"
             referencedColumns: ["id"]
           },
@@ -679,6 +721,13 @@ export type Database = {
             foreignKeyName: "CampaignStats_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "CampaignStats_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "Campaigns"
             referencedColumns: ["id"]
           },
@@ -714,6 +763,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "CampaignTags_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "CampaignTags_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -867,6 +923,13 @@ export type Database = {
             foreignKeyName: "EmailEvents_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "EmailEvents_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "Campaigns"
             referencedColumns: ["id"]
           },
@@ -949,6 +1012,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "EmailLogs_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "EmailLogs_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -1298,6 +1368,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "Feedback_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "Feedback_campaign_id_fkey"
             columns: ["campaign_id"]
@@ -1708,6 +1785,13 @@ export type Database = {
             foreignKeyName: "Reactions_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["eventlog_id"]
+          },
+          {
+            foreignKeyName: "Reactions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
             referencedRelation: "EventLogs"
             referencedColumns: ["id"]
           },
@@ -1946,6 +2030,13 @@ export type Database = {
             foreignKeyName: "videos_campaign_id_fkey"
             columns: ["campaign_id"]
             isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["campaign_id"]
+          },
+          {
+            foreignKeyName: "videos_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
             referencedRelation: "Campaigns"
             referencedColumns: ["id"]
           },
@@ -2016,6 +2107,32 @@ export type Database = {
       }
     }
     Views: {
+      AIRequests_Campaigns_View: {
+        Row: {
+          ai_prompt: string | null
+          ai_response: string | null
+          ai_status: string | null
+          ai_type: string | null
+          airequest_id: string | null
+          campaign_id: string | null
+          campaign_name: string | null
+          campaign_status: string | null
+          event_name: string | null
+          event_timestamp: string | null
+          eventlog_id: string | null
+          logged_campaign_name: string | null
+          project_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "AIRequests_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       AIRequests_DashboardView: {
         Row: {
           avg_completion_time_s: number | null
@@ -2305,6 +2422,13 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "CampaignReports_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "AIRequests_Campaigns_View"
+            referencedColumns: ["campaign_id"]
+          },
           {
             foreignKeyName: "CampaignReports_campaign_id_fkey"
             columns: ["campaign_id"]
