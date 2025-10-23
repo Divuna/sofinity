@@ -292,12 +292,20 @@ export default function AIRequestsMonitoring() {
     }
   };
 
+  // Listen for project changes and refresh data with proper interval cleanup
   useEffect(() => {
     if (!selectedProject?.id) return;
     
+    // Fetch all data immediately
     fetchMonitoringData();
     fetchRealtimeData();
     fetchNotificationQueue();
+    
+    // Show toast notification
+    toast({
+      title: "Projekt přepnut",
+      description: `Projekt přepnut na ${selectedProject.name}`,
+    });
     
     // Auto-refresh dashboard data every 30 seconds
     const dashboardInterval = setInterval(fetchMonitoringData, 30000);
@@ -308,28 +316,13 @@ export default function AIRequestsMonitoring() {
     // Auto-refresh notification queue every 30 seconds
     const notificationInterval = setInterval(fetchNotificationQueue, 30000);
     
+    // Cleanup intervals on project change or unmount
     return () => {
       clearInterval(dashboardInterval);
       clearInterval(realtimeInterval);
       clearInterval(notificationInterval);
       sessionStorage.removeItem('errorAlertDismissed');
     };
-  }, []);
-
-  // Listen for project changes and refresh data
-  useEffect(() => {
-    if (!selectedProject?.id) return;
-    
-    // Refresh all data when project changes
-    fetchMonitoringData();
-    fetchRealtimeData();
-    fetchNotificationQueue();
-    
-    // Show toast notification
-    toast({
-      title: "Projekt přepnut",
-      description: `Projekt přepnut na ${selectedProject.name}`,
-    });
   }, [selectedProject?.id]);
 
   // Realtime subscription for NotificationQueue
