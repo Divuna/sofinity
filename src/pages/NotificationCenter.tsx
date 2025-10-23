@@ -60,10 +60,18 @@ export default function NotificationCenter() {
   const { selectedProject } = useSelectedProject();
 
   useEffect(() => {
-    fetchNotifications();
-  }, []);
+    if (selectedProject?.id) {
+      fetchNotifications();
+    }
+  }, [selectedProject?.id]);
 
   const fetchNotifications = async () => {
+    if (!selectedProject?.id) {
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
+    
     try {
       const { data, error } = await supabase
         .from('Notifications')
@@ -71,6 +79,9 @@ export default function NotificationCenter() {
         .order('sent_at', { ascending: false });
 
       if (error) throw error;
+      
+      // Note: Notifications table doesn't have project_id column
+      // Showing all notifications for now, but filtered by user via RLS
       setNotifications(data || []);
     } catch (error) {
       toast({
