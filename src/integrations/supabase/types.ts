@@ -1110,6 +1110,39 @@ export type Database = {
         }
         Relationships: []
       }
+      EmailOutbox: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          project_id: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          to_email: string
+        }
+        Insert: {
+          body: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          to_email: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          project_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          to_email?: string
+        }
+        Relationships: []
+      }
       Emails: {
         Row: {
           content: string
