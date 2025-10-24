@@ -1110,39 +1110,6 @@ export type Database = {
         }
         Relationships: []
       }
-      EmailOutbox: {
-        Row: {
-          body: string
-          created_at: string
-          id: string
-          project_id: string | null
-          sent_at: string | null
-          status: string
-          subject: string
-          to_email: string
-        }
-        Insert: {
-          body: string
-          created_at?: string
-          id?: string
-          project_id?: string | null
-          sent_at?: string | null
-          status?: string
-          subject: string
-          to_email: string
-        }
-        Update: {
-          body?: string
-          created_at?: string
-          id?: string
-          project_id?: string | null
-          sent_at?: string | null
-          status?: string
-          subject?: string
-          to_email?: string
-        }
-        Relationships: []
-      }
       Emails: {
         Row: {
           content: string
@@ -1765,39 +1732,6 @@ export type Database = {
           user_id?: string
           vybrana?: boolean | null
           zakazka_id?: string | null
-        }
-        Relationships: []
-      }
-      Phase4_MigrationLog: {
-        Row: {
-          id: string
-          migrated_at: string | null
-          new_project_id: string | null
-          old_project_id: string | null
-          record_id: string
-          source_system: string | null
-          status: string | null
-          table_name: string
-        }
-        Insert: {
-          id?: string
-          migrated_at?: string | null
-          new_project_id?: string | null
-          old_project_id?: string | null
-          record_id: string
-          source_system?: string | null
-          status?: string | null
-          table_name: string
-        }
-        Update: {
-          id?: string
-          migrated_at?: string | null
-          new_project_id?: string | null
-          old_project_id?: string | null
-          record_id?: string
-          source_system?: string | null
-          status?: string | null
-          table_name?: string
         }
         Relationships: []
       }
@@ -2654,16 +2588,6 @@ export type Database = {
           },
         ]
       }
-      Phase4_MigrationSummary: {
-        Row: {
-          distinct_projects: number | null
-          first_migration: string | null
-          last_migration: string | null
-          records_migrated: number | null
-          table_name: string | null
-        }
-        Relationships: []
-      }
       v_ai_requests_status: {
         Row: {
           agent_id: string | null
@@ -2748,10 +2672,6 @@ export type Database = {
       }
       cleanup_old_nonces: { Args: never; Returns: undefined }
       cleanup_old_webhook_requests: { Args: never; Returns: undefined }
-      find_or_create_user_project: {
-        Args: { p_source_system?: string; p_user_id: string }
-        Returns: string
-      }
       fn_archive_old_audit_logs: { Args: never; Returns: undefined }
       get_safe_integration_data: {
         Args: { integration_id: string }
