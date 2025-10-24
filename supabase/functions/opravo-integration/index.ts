@@ -190,6 +190,45 @@ Deno.serve(async (req) => {
     const sanitizedLokalita = sanitizeString(request.lokalita || request.adresa || '');
     const sanitizedEmail = sanitizeString(user.email, 255);
 
+    // ✅ PHASE 2 FIX: Find or create "Opravo" project BEFORE creating AIRequest
+    let project_id: string | null = null;
+
+    const { data: existingProject } = await supabase
+      .from('Projects')
+      .select('id')
+      .eq('name', 'Opravo')
+      .eq('user_id', sofinity_user_id)
+      .maybeSingle();
+
+    if (existingProject) {
+      project_id = existingProject.id;
+      console.log('Found existing Opravo project:', project_id);
+    } else {
+      // Create "Opravo" project if it doesn't exist
+      const { data: newProject, error: projectError } = await supabase
+        .from('Projects')
+        .insert({
+          name: 'Opravo',
+          description: 'Automaticky vytvořeno z Opravo integrace',
+          user_id: sofinity_user_id,
+          external_connection: 'opravo',
+          is_active: true
+        })
+        .select('id')
+        .single();
+
+      if (newProject) {
+        project_id = newProject.id;
+        console.log('Created new Opravo project:', project_id);
+      } else {
+        console.error('Failed to create Opravo project:', projectError);
+        return new Response(
+          JSON.stringify({ error: 'Cannot create AIRequest: project creation failed' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
+
     // Create detailed prompt based on request data
     const urgencyText = request.urgentni ? ' (URGENTNÍ)' : ''
     const categoryText = sanitizedKategorie ? ` v kategorii ${sanitizedKategorie}` : ''
@@ -197,14 +236,15 @@ Deno.serve(async (req) => {
     
     const prompt = `Create a follow-up email or campaign for a new service request${urgencyText}: "${sanitizedPopis}"${categoryText}${locationText}. The request was created for user ${sanitizedEmail}.`
 
-    // Create AI Request in Sofinity
+    // ✅ Create AI Request with valid project_id
     const { data: aiRequest, error: aiError } = await supabase
       .from('AIRequests')
       .insert({
         type: 'campaign_generator',
         prompt: prompt,
         status: 'waiting',
-        user_id: sofinity_user_id
+        user_id: sofinity_user_id,
+        project_id: project_id  // ✅ Always has value now
       })
       .select()
       .single()
@@ -220,7 +260,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Create OpravoJobs record with external_request_id (sanitized inputs)
+    // ✅ Create OpravoJobs record with valid project_id
     const { data: opravoJob, error: jobError } = await supabase
       .from('opravojobs')
       .insert({
@@ -232,7 +272,7 @@ Deno.serve(async (req) => {
         lokalita: sanitizedLokalita,
         zadavatel_id: request.zadavatel_id,
         status: 'pending',
-        project_id: null, // Will be set below if project creation succeeds
+        project_id: project_id,  // ✅ Use the validated project_id
         user_id: sofinity_user_id
       })
       .select()
@@ -240,27 +280,6 @@ Deno.serve(async (req) => {
 
     if (jobError) {
       console.error('Error creating OpravoJob:', jobError)
-    }
-
-    // Optionally create a Project record for better organization
-    const { data: project, error: projectError } = await supabase
-      .from('Projects')
-      .insert({
-        name: `Zakázka: ${request.popis.substring(0, 50)}...`,
-        description: `Automaticky vytvořeno z Opravo zakázky${categoryText}${locationText}`,
-        user_id: sofinity_user_id
-      })
-      .select()
-      .single()
-
-    if (projectError) {
-      console.warn('Warning: Could not create project record:', projectError)
-    } else if (opravoJob) {
-      // Update OpravoJob with project_id
-      await supabase
-        .from('opravojobs')
-        .update({ project_id: project.id })
-        .eq('id', opravoJob.id)
     }
 
     // Auto-generate campaign schedule
@@ -293,7 +312,7 @@ Deno.serve(async (req) => {
         success: true,
         ai_request_id: aiRequest.id,
         opravo_job_id: opravoJob?.id || null,
-        project_id: project?.id || null,
+        project_id: project_id,  // ✅ Use the validated project_id
         message: 'OpravoJob and AI request created successfully in Sofinity'
       }),
       { 

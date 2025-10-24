@@ -69,6 +69,27 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
+    // ✅ PHASE 2 FIX: Validate that project_id exists in database
+    const { data: projectExists, error: projectCheckError } = await supabase
+      .from('Projects')
+      .select('id')
+      .eq('id', eventData.project_id)
+      .maybeSingle();
+
+    if (!projectExists) {
+      console.error("Invalid project_id:", eventData.project_id);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          error: "Invalid project_id: project does not exist in database" 
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
     // Handle missing user_id with safe placeholder
     const safeUserId = eventData.user_id || '00000000-0000-0000-0000-000000000000';
     const userIdWasPlaceholder = !eventData.user_id;
@@ -76,6 +97,9 @@ const handler = async (req: Request): Promise<Response> => {
     if (userIdWasPlaceholder) {
       console.log("⚠️ Missing user_id - using safe placeholder UUID for event logging");
     }
+
+    // Detect test requests from metadata
+    const isTestRequest = eventData.metadata?.test === true || false;
 
     // Known OneMil events for auto-detection
     const oneMilEvents = [
