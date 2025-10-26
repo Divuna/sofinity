@@ -19,7 +19,9 @@ import {
   AlertCircle,
   Info,
   CheckCircle,
-  X
+  X,
+  Clock,
+  Smartphone
 } from 'lucide-react';
 import { useSelectedProject } from '@/providers/ProjectProvider';
 
@@ -31,6 +33,15 @@ interface Notification {
   read: boolean | null;
   sent_at: string;
   user_id: string | null;
+}
+
+interface PushLog {
+  id: string;
+  user_id: string;
+  event_id: string | null;
+  status: string;
+  response: any;
+  created_at: string;
 }
 
 const notificationIcons = {
@@ -51,10 +62,13 @@ const notificationColors = {
 
 export default function NotificationCenter() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [pushLogs, setPushLogs] = useState<PushLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pushLoading, setPushLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [readFilter, setReadFilter] = useState<string>('all');
+  const [pushStatusFilter, setPushStatusFilter] = useState<string>('all');
   const [selectedNotifications, setSelectedNotifications] = useState<string[]>([]);
   const { toast } = useToast();
   const { selectedProject } = useSelectedProject();
@@ -62,7 +76,9 @@ export default function NotificationCenter() {
   useEffect(() => {
     if (selectedProject?.id) {
       setLoading(true);
+      setPushLoading(true);
       fetchNotifications();
+      fetchPushLogs();
       
       toast({
         title: "Projekt změněn",
@@ -70,7 +86,9 @@ export default function NotificationCenter() {
       });
     } else {
       setNotifications([]);
+      setPushLogs([]);
       setLoading(false);
+      setPushLoading(false);
     }
   }, [selectedProject?.id]);
 
@@ -123,6 +141,35 @@ export default function NotificationCenter() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPushLogs = async () => {
+    setPushLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setPushLogs([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('push_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setPushLogs(data || []);
+    } catch (error) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se načíst push logy",
+        variant: "destructive"
+      });
+    } finally {
+      setPushLoading(false);
     }
   };
 
@@ -302,6 +349,38 @@ export default function NotificationCenter() {
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
+
+  const filteredPushLogs = pushLogs.filter(log => {
+    const matchesStatus = pushStatusFilter === 'all' || log.status === pushStatusFilter;
+    return matchesStatus;
+  });
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'success': return 'Odesláno';
+      case 'failed': return 'Selhalo';
+      case 'pending': return 'Čeká na doručení';
+      default: return status;
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'success': return CheckCircle;
+      case 'failed': return X;
+      case 'pending': return Clock;
+      default: return Bell;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'success': return 'text-success';
+      case 'failed': return 'text-destructive';
+      case 'pending': return 'text-warning';
+      default: return 'text-muted-foreground';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -565,6 +644,100 @@ export default function NotificationCenter() {
             <div className="text-center py-8">
               <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">Žádné notifikace nenalezeny</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Push Notifications Log */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Smartphone className="w-5 h-5" />
+              Push notifikace ({filteredPushLogs.length})
+            </CardTitle>
+            <Select value={pushStatusFilter} onValueChange={setPushStatusFilter}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Filtr podle stavu" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Všechny stavy</SelectItem>
+                <SelectItem value="success">Odesláno</SelectItem>
+                <SelectItem value="failed">Selhalo</SelectItem>
+                <SelectItem value="pending">Čeká na doručení</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {pushLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-muted-foreground">Načítání push logů...</p>
+            </div>
+          ) : filteredPushLogs.length > 0 ? (
+            <div className="space-y-4">
+              {filteredPushLogs.map((log) => {
+                const StatusIcon = getStatusIcon(log.status);
+                const title = log.response?.title || 'Push notifikace';
+                const message = log.response?.message || log.response?.error || 'Bez popisku';
+                
+                return (
+                  <div
+                    key={log.id}
+                    className="p-4 border border-border rounded-lg hover:shadow-soft transition-all duration-300"
+                  >
+                    <div className="flex items-start gap-4">
+                      <StatusIcon 
+                        className={`w-5 h-5 mt-0.5 flex-shrink-0 ${getStatusColor(log.status)}`}
+                      />
+                      
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-medium">{title}</h3>
+                              <Badge 
+                                variant={log.status === 'success' ? 'default' : log.status === 'failed' ? 'destructive' : 'outline'}
+                                className="text-xs"
+                              >
+                                {getStatusLabel(log.status)}
+                              </Badge>
+                            </div>
+                            
+                            <p className="text-sm text-muted-foreground mb-2">
+                              {message}
+                            </p>
+                            
+                            <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                              <span>
+                                {new Date(log.created_at).toLocaleString('cs-CZ')}
+                              </span>
+                              {log.response?.player_id && (
+                                <span className="flex items-center gap-1">
+                                  <Smartphone className="w-3 h-3" />
+                                  ID: {log.response.player_id.slice(0, 8)}...
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8">
+              <Smartphone className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">
+                {pushStatusFilter === 'all' 
+                  ? 'Žádné push notifikace nenalezeny'
+                  : `Žádné push notifikace ve stavu "${getStatusLabel(pushStatusFilter)}"`
+                }
+              </p>
             </div>
           )}
         </CardContent>
