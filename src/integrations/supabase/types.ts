@@ -1903,6 +1903,41 @@ export type Database = {
         }
         Relationships: []
       }
+      push_logs: {
+        Row: {
+          created_at: string
+          event_id: string | null
+          id: string
+          response: Json | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          response?: Json | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          response?: Json | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_logs_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "EventLogs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       Reactions: {
         Row: {
           ai_confidence: number | null
@@ -1940,6 +1975,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      settings: {
+        Row: {
+          key: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          key: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          key?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: []
       }
       Stats: {
         Row: {
@@ -2895,6 +2948,23 @@ export type Database = {
         Returns: boolean
       }
       run_daily_audit: { Args: never; Returns: undefined }
+      send_push_via_onesignal: {
+        Args: {
+          event_id?: string
+          message: string
+          target_user_id: string
+          title: string
+        }
+        Returns: string
+      }
+      test_push_notification: {
+        Args: { test_user_id: string }
+        Returns: {
+          log_id: string
+          message: string
+          test_status: string
+        }[]
+      }
       text_to_bytea: { Args: { data: string }; Returns: string }
       trigger_ai_evaluation: { Args: { event_id: string }; Returns: undefined }
       urlencode:
