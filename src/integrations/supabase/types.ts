@@ -1317,15 +1317,7 @@ export type Database = {
           timestamp?: string | null
           user_id?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "eventlogs_user_id_profiles_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
-        ]
+        Relationships: []
       }
       EventTypes: {
         Row: {
@@ -1848,6 +1840,7 @@ export type Database = {
           id: string
           name: string
           onboarding_complete: boolean
+          onesignal_player_id: string | null
           updated_at: string
           user_id: string
         }
@@ -1858,6 +1851,7 @@ export type Database = {
           id?: string
           name: string
           onboarding_complete?: boolean
+          onesignal_player_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1868,6 +1862,7 @@ export type Database = {
           id?: string
           name?: string
           onboarding_complete?: boolean
+          onesignal_player_id?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1930,20 +1925,40 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "push_logs_event_id_eventlogs_fkey"
+            foreignKeyName: "push_logs_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "EventLogs"
             referencedColumns: ["id"]
           },
-          {
-            foreignKeyName: "push_logs_user_id_profiles_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["user_id"]
-          },
         ]
+      }
+      push_logs_backup_20250126: {
+        Row: {
+          created_at: string | null
+          event_id: string | null
+          id: string | null
+          response: Json | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id?: string | null
+          id?: string | null
+          response?: Json | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string | null
+          id?: string | null
+          response?: Json | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       Reactions: {
         Row: {
@@ -2968,14 +2983,25 @@ export type Database = {
         }
         Returns: string
       }
-      test_push_notification: {
-        Args: { test_user_id?: string }
-        Returns: {
-          log_id: string
-          message: string
-          test_status: string
-        }[]
-      }
+      test_push_notification:
+        | {
+            Args: { test_user_id?: string }
+            Returns: {
+              log_id: string
+              message: string
+              test_status: string
+            }[]
+          }
+        | {
+            Args: { test_email?: string }
+            Returns: {
+              log_id: string
+              message: string
+              player_id: string
+              test_status: string
+              user_id_used: string
+            }[]
+          }
       text_to_bytea: { Args: { data: string }; Returns: string }
       trigger_ai_evaluation: { Args: { event_id: string }; Returns: undefined }
       urlencode:
