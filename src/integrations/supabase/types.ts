@@ -1319,7 +1319,7 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "eventlogs_user_id_fkey"
+            foreignKeyName: "eventlogs_user_id_profiles_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -1930,11 +1930,18 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "push_logs_event_id_fkey"
+            foreignKeyName: "push_logs_event_id_eventlogs_fkey"
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "EventLogs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "push_logs_user_id_profiles_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -2801,6 +2808,10 @@ export type Database = {
       }
       cleanup_old_nonces: { Args: never; Returns: undefined }
       cleanup_old_webhook_requests: { Args: never; Returns: undefined }
+      ensure_profile_exists: {
+        Args: { target_user_id: string }
+        Returns: string
+      }
       find_or_create_user_project:
         | {
             Args: { p_source_system?: string; p_user_id: string }
@@ -2958,7 +2969,7 @@ export type Database = {
         Returns: string
       }
       test_push_notification: {
-        Args: { test_user_id: string }
+        Args: { test_user_id?: string }
         Returns: {
           log_id: string
           message: string
