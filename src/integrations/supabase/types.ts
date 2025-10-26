@@ -2823,8 +2823,13 @@ export type Database = {
       }
       cleanup_old_nonces: { Args: never; Returns: undefined }
       cleanup_old_webhook_requests: { Args: never; Returns: undefined }
+      create_system_user_support: { Args: never; Returns: string }
       ensure_profile_exists: {
         Args: { target_user_id: string }
+        Returns: string
+      }
+      ensure_profile_for_public_user: {
+        Args: { target_email: string }
         Returns: string
       }
       find_or_create_user_project:
