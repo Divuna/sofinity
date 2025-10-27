@@ -25,11 +25,20 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
-    if (!resendApiKey) {
-      throw new Error("RESEND_API_KEY not configured");
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Fetch OneSignal credentials from settings table
+    const { data: settingsData, error: settingsError } = await supabase
+      .from("settings")
+      .select("key, value")
+      .in("key", ["onesignal_app_id", "onesignal_rest_api_key"]);
+
+    if (settingsError) {
+      console.error("Error fetching OneSignal settings:", settingsError);
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const onesignalAppId = settingsData?.find(s => s.key === "onesignal_app_id")?.value;
+    const onesignalApiKey = settingsData?.find(s => s.key === "onesignal_rest_api_key")?.value;
 
     // Fetch pending notifications from queue
     const { data: notifications, error: fetchError } = await supabase
@@ -55,26 +64,97 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const notification of notifications as NotificationRecord[]) {
       try {
-        // Get user email if not provided
+        // Get user email and OneSignal player_id if not provided
         let recipientEmail = notification.target_email;
+        let playerIdForPush = null;
 
         if (!recipientEmail && notification.user_id) {
           const { data: profile } = await supabase
             .from("profiles")
-            .select("email")
+            .select("email, onesignal_player_id")
             .eq("user_id", notification.user_id)
             .single();
 
           recipientEmail = profile?.email;
+          playerIdForPush = profile?.onesignal_player_id;
         }
 
-        if (!recipientEmail) {
-          console.error(`No email found for notification ${notification.id}`);
-          // Mark as failed
-          await supabase
-            .from("NotificationQueue")
-            .update({ status: "failed" })
-            .eq("id", notification.id);
+        // Send OneSignal push notification if credentials are available and user has player_id
+        if (onesignalAppId && onesignalApiKey && playerIdForPush) {
+          try {
+            const pushTitle = notification.payload?.title || "Oznámení";
+            const pushMessage = notification.payload?.message || "Máte nové oznámení";
+
+            const pushResponse = await fetch("https://onesignal.com/api/v1/notifications", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Basic ${onesignalApiKey}`,
+              },
+              body: JSON.stringify({
+                app_id: onesignalAppId,
+                include_player_ids: [playerIdForPush],
+                headings: { en: pushTitle, cs: pushTitle },
+                contents: { en: pushMessage, cs: pushMessage },
+                data: {
+                  notification_id: notification.id,
+                  event_id: notification.event_id,
+                },
+              }),
+            });
+
+            if (pushResponse.ok) {
+              const pushResult = await pushResponse.json();
+              console.log(`Push notification sent for ${notification.id}:`, pushResult);
+              
+              // Log to push_logs if table exists
+              try {
+                await supabase.from("push_logs").insert({
+                  user_id: notification.user_id,
+                  event_id: notification.event_id,
+                  status: "success",
+                  response: pushResult,
+                });
+              } catch (logError) {
+                console.error("Error logging push notification:", logError);
+              }
+            } else {
+              const errorText = await pushResponse.text();
+              console.error(`Push notification failed for ${notification.id}:`, errorText);
+            }
+          } catch (pushError: any) {
+            console.error(`Error sending push notification for ${notification.id}:`, pushError);
+          }
+        }
+
+        // Skip email if no email address and no RESEND_API_KEY
+        if (!recipientEmail || !resendApiKey) {
+          console.log(`Skipping email for notification ${notification.id} (no email or RESEND_API_KEY)`);
+          // Mark as sent if push was sent
+          if (playerIdForPush && onesignalAppId) {
+            await supabase
+              .from("NotificationQueue")
+              .update({ 
+                status: "sent",
+                payload: {
+                  ...notification.payload,
+                  sent_at: new Date().toISOString(),
+                  sent_via: "push_only"
+                }
+              })
+              .eq("id", notification.id);
+            
+            results.push({
+              notification_id: notification.id,
+              status: "sent",
+              method: "push_only",
+            });
+          } else {
+            await supabase
+              .from("NotificationQueue")
+              .update({ status: "failed" })
+              .eq("id", notification.id);
+          }
           continue;
         }
 
@@ -142,7 +222,8 @@ const handler = async (req: Request): Promise<Response> => {
             payload: {
               ...notification.payload,
               sent_at: new Date().toISOString(),
-              email_response: emailResult
+              email_response: emailResult,
+              sent_via: playerIdForPush ? "email_and_push" : "email_only"
             }
           })
           .eq("id", notification.id);
@@ -151,6 +232,7 @@ const handler = async (req: Request): Promise<Response> => {
           notification_id: notification.id,
           status: "sent",
           email_id: emailResult.id,
+          sent_via: playerIdForPush ? "email_and_push" : "email_only",
         });
 
       } catch (error: any) {

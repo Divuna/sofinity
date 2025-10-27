@@ -1243,6 +1243,81 @@ export type Database = {
       }
       eventlogs: {
         Row: {
+          created_at: string | null
+          event_name: string
+          id: string
+          message: string | null
+          metadata: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_name: string
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_name?: string
+          id?: string
+          message?: string | null
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "eventlogs_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users_backup"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventlogs_user_id_fkey1"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users_view"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      EventLogs: {
+        Row: {
+          contest_id: string | null
+          event_name: string
+          id: string
+          metadata: Json | null
+          project_id: string
+          source_system: string | null
+          timestamp: string | null
+          user_id: string
+        }
+        Insert: {
+          contest_id?: string | null
+          event_name: string
+          id?: string
+          metadata?: Json | null
+          project_id: string
+          source_system?: string | null
+          timestamp?: string | null
+          user_id: string
+        }
+        Update: {
+          contest_id?: string | null
+          event_name?: string
+          id?: string
+          metadata?: Json | null
+          project_id?: string
+          source_system?: string | null
+          timestamp?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      eventlogs_old_backup: {
+        Row: {
           contest_id: string | null
           created_at: string | null
           event_name: string
@@ -1284,40 +1359,56 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "eventlogs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_for_notifications"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "eventlogs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_notifications"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "eventlogs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_proxy"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "eventlogs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_unified"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "eventlogs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_view"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "eventlogs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "eventlogs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
         ]
-      }
-      EventLogs: {
-        Row: {
-          contest_id: string | null
-          event_name: string
-          id: string
-          metadata: Json | null
-          project_id: string
-          source_system: string | null
-          timestamp: string | null
-          user_id: string
-        }
-        Insert: {
-          contest_id?: string | null
-          event_name: string
-          id?: string
-          metadata?: Json | null
-          project_id: string
-          source_system?: string | null
-          timestamp?: string | null
-          user_id: string
-        }
-        Update: {
-          contest_id?: string | null
-          event_name?: string
-          id?: string
-          metadata?: Json | null
-          project_id?: string
-          source_system?: string | null
-          timestamp?: string | null
-          user_id?: string
-        }
-        Relationships: []
       }
       EventTypes: {
         Row: {
@@ -1853,7 +1944,7 @@ export type Database = {
           onboarding_complete?: boolean
           onesignal_player_id?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string
         }
         Update: {
           created_at?: string
@@ -1865,6 +1956,42 @@ export type Database = {
           onesignal_player_id?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      profiles_backup: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          favorite_project: string | null
+          id: string | null
+          name: string | null
+          onboarding_complete: boolean | null
+          onesignal_player_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          favorite_project?: string | null
+          id?: string | null
+          name?: string | null
+          onboarding_complete?: boolean | null
+          onesignal_player_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          favorite_project?: string | null
+          id?: string | null
+          name?: string | null
+          onboarding_complete?: boolean | null
+          onesignal_player_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -2137,7 +2264,80 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_for_notifications"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_notifications"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_proxy"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_unified"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_view"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tickets_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
         ]
+      }
+      user_devices: {
+        Row: {
+          created_at: string | null
+          device_type: string | null
+          id: string
+          player_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          device_type?: string | null
+          id?: string
+          player_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          device_type?: string | null
+          id?: string
+          player_id?: string
+          user_id?: string | null
+        }
+        Relationships: []
       }
       user_preferences: {
         Row: {
@@ -2207,12 +2407,13 @@ export type Database = {
         }
         Relationships: []
       }
-      users: {
+      users_backup: {
         Row: {
           created_at: string | null
           email: string
           full_name: string | null
           id: string
+          onesignal_id: string | null
           role: string | null
         }
         Insert: {
@@ -2220,6 +2421,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id?: string
+          onesignal_id?: string | null
           role?: string | null
         }
         Update: {
@@ -2227,6 +2429,7 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          onesignal_id?: string | null
           role?: string | null
         }
         Relationships: []
@@ -2324,6 +2527,55 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vouchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_for_notifications"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vouchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_notifications"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vouchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_proxy"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vouchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_unified"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vouchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles_view"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "vouchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vouchers_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -2668,6 +2920,15 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_stats: {
+        Row: {
+          count: number | null
+          date: string | null
+          status: string | null
+          success_rate: number | null
+        }
+        Relationships: []
+      }
       onemill_reporting: {
         Row: {
           campaign_id: string | null
@@ -2736,6 +2997,153 @@ export type Database = {
           last_migration: string | null
           records_migrated: number | null
           table_name: string | null
+        }
+        Relationships: []
+      }
+      profiles_for_notifications: {
+        Row: {
+          is_active: boolean | null
+          onesignal_player_id: string | null
+          source_app: string | null
+          user_id: string | null
+        }
+        Insert: {
+          is_active?: never
+          onesignal_player_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Update: {
+          is_active?: never
+          onesignal_player_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles_notifications: {
+        Row: {
+          is_active: boolean | null
+          onesignal_player_id: string | null
+          source_app: string | null
+          user_id: string | null
+        }
+        Insert: {
+          is_active?: never
+          onesignal_player_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Update: {
+          is_active?: never
+          onesignal_player_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles_proxy: {
+        Row: {
+          is_active: boolean | null
+          onesignal_player_id: string | null
+          source_app: string | null
+          user_id: string | null
+        }
+        Insert: {
+          is_active?: never
+          onesignal_player_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Update: {
+          is_active?: never
+          onesignal_player_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles_unified: {
+        Row: {
+          is_active: boolean | null
+          onesignal_player_id: string | null
+          source_app: string | null
+          user_id: string | null
+        }
+        Insert: {
+          is_active?: never
+          onesignal_player_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Update: {
+          is_active?: never
+          onesignal_player_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      profiles_view: {
+        Row: {
+          is_active: boolean | null
+          onesignal_player_id: string | null
+          source_app: string | null
+          user_id: string | null
+        }
+        Insert: {
+          is_active?: never
+          onesignal_player_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Update: {
+          is_active?: never
+          onesignal_player_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          id: string | null
+          is_active: boolean | null
+          onesignal_id: string | null
+          source_app: string | null
+          user_id: string | null
+        }
+        Insert: {
+          id?: string | null
+          is_active?: never
+          onesignal_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Update: {
+          id?: string | null
+          is_active?: never
+          onesignal_id?: string | null
+          source_app?: never
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      users_view: {
+        Row: {
+          email: string | null
+          onesignal_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          email?: string | null
+          onesignal_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          email?: string | null
+          onesignal_id?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -2842,6 +3250,10 @@ export type Database = {
             Returns: string
           }
       fn_archive_old_audit_logs: { Args: never; Returns: undefined }
+      fn_send_push_test: {
+        Args: { p_message: string; p_player_id: string; p_title: string }
+        Returns: Json
+      }
       get_safe_integration_data: {
         Args: { integration_id: string }
         Returns: Json
@@ -2978,7 +3390,20 @@ export type Database = {
         Args: { curlopt: string; value: string }
         Returns: boolean
       }
+      notify_sofinity_event: {
+        Args: {
+          p_event_name: string
+          p_payload?: Json
+          p_project?: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       run_daily_audit: { Args: never; Returns: undefined }
+      save_player_id: {
+        Args: { p_device_type?: string; p_player_id: string; p_user_id: string }
+        Returns: undefined
+      }
       send_push_via_onesignal: {
         Args: {
           event_id?: string
