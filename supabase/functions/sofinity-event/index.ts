@@ -252,6 +252,47 @@ const handler = async (req: Request): Promise<Response> => {
       source_system: sourceSystem
     });
 
+    // Process player_id for push notifications if present in metadata
+    if (eventData.metadata?.player_id && safeUserId !== '00000000-0000-0000-0000-000000000000') {
+      console.log("🔑 Detected player_id in event metadata, saving to user_devices", {
+        user_id: safeUserId,
+        player_id: eventData.metadata.player_id,
+        device_type: eventData.metadata.device_type || 'mobile'
+      });
+      
+      try {
+        // Save to user_devices via RPC
+        const { error: playerIdError } = await supabase.rpc('save_player_id', {
+          p_user_id: safeUserId,
+          p_player_id: eventData.metadata.player_id,
+          p_device_type: eventData.metadata.device_type || 'mobile'
+        });
+        
+        if (playerIdError) {
+          console.error("❌ Failed to save player_id to user_devices:", playerIdError);
+        } else {
+          console.log("✅ player_id saved successfully to user_devices");
+          
+          // Also update profiles.onesignal_player_id for backward compatibility
+          const { error: profileUpdateError } = await supabase
+            .from('profiles')
+            .update({ onesignal_player_id: eventData.metadata.player_id })
+            .eq('user_id', safeUserId);
+          
+          if (profileUpdateError) {
+            console.error("❌ Failed to update profiles.onesignal_player_id:", profileUpdateError);
+          } else {
+            console.log("✅ profiles.onesignal_player_id updated successfully");
+          }
+        }
+      } catch (playerError) {
+        console.error("❌ Error processing player_id:", playerError);
+        // Continue processing - don't fail the entire event
+      }
+    } else if (eventData.metadata?.player_id && safeUserId === '00000000-0000-0000-0000-000000000000') {
+      console.warn("⚠️ player_id detected but user_id is placeholder - cannot save to user_devices");
+    }
+
     // Insert into AIRequests table for campaign analysis with standardized event name
     // Set type to 'evaluator' to comply with AIRequests_type_check constraint
     

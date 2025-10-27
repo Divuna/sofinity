@@ -48,6 +48,37 @@ Authorization: Bearer YOUR_SOFINITY_API_KEY
 
 - **user_id**: UUID of the user who triggered the event
 - **metadata**: Object containing any additional event data
+  - **player_id**: OneSignal player_id for push notifications (recommended for user events)
+  - **device_type**: Device type for push notifications ('mobile' | 'web' | 'tablet')
+
+## Player ID for Push Notifications
+
+To enable push notification delivery via OneSignal, include the `player_id` in event metadata:
+
+```json
+{
+  "project_id": "uuid",
+  "event_name": "user_registered",
+  "source_system": "onemill",
+  "user_id": "uuid",
+  "metadata": {
+    "player_id": "abc123-def456-ghi789",
+    "device_type": "mobile",
+    "email": "user@example.com"
+  }
+}
+```
+
+**Automatic Processing:**
+When a `player_id` is detected in event metadata:
+1. ✅ Saved to `user_devices` table via `save_player_id()` RPC
+2. ✅ Updated in `profiles.onesignal_player_id` for backward compatibility
+3. ✅ Enables push notification delivery through the `create_notification` trigger
+
+**Important Notes:**
+- `player_id` is only processed when a valid `user_id` is provided
+- Events without `player_id` will still be logged normally
+- Missing `player_id` will trigger a warning in function logs
 
 ## Source Systems
 
