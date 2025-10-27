@@ -91,8 +91,10 @@ serve(async (req) => {
     // Process each user
     for (const user of users) {
       try {
-        // Insert notification into database
-        const { data: notificationData, error: notificationError } = await supabase
+        let notificationData = null;
+
+        // Try to insert notification with user_id first
+        const { data: primaryInsert, error: primaryError } = await supabase
           .from('Notifications')
           .insert({
             user_id: user.user_id,
@@ -105,33 +107,68 @@ serve(async (req) => {
           .select()
           .single();
 
-        if (notificationError) {
-          console.error(`Error inserting notification for user ${user.user_id}:`, notificationError);
-          continue;
+        if (primaryError) {
+          // Check if it's a FK violation (user_id not in auth.users)
+          if (primaryError.code === '23503') {
+            console.warn(`⚠️ FK violation for user ${user.user_id}, retrying with user_id = null`);
+            
+            // Fallback: insert without user_id (anonymous notification)
+            const { data: fallbackInsert, error: fallbackError } = await supabase
+              .from('Notifications')
+              .insert({
+                user_id: null,
+                type: type,
+                title: title,
+                message: message,
+                read: false,
+                sent_at: new Date().toISOString(),
+              })
+              .select()
+              .single();
+
+            if (fallbackError) {
+              console.error(`Error inserting anonymous notification for user ${user.user_id}:`, fallbackError);
+              // Continue to try sending push even if DB insert failed
+            } else {
+              notificationData = fallbackInsert;
+              notifications.push(notificationData);
+            }
+          } else {
+            console.error(`Error inserting notification for user ${user.user_id}:`, primaryError);
+            // Continue to try sending push even if DB insert failed
+          }
+        } else {
+          notificationData = primaryInsert;
+          notifications.push(notificationData);
         }
 
-        notifications.push(notificationData);
-
         // Send push notification via OneSignal if player_id exists
+        // This happens regardless of whether DB insert succeeded
         if (user.onesignal_player_id) {
           try {
+            const pushPayload: any = {
+              app_id: oneSignalAppId,
+              include_player_ids: [user.onesignal_player_id],
+              headings: { en: title },
+              contents: { en: message },
+              data: {
+                type: type,
+                source_app: source_app,
+              },
+            };
+
+            // Include notification_id only if we successfully created a DB record
+            if (notificationData?.id) {
+              pushPayload.data.notification_id = notificationData.id;
+            }
+
             const oneSignalResponse = await fetch('https://onesignal.com/api/v1/notifications', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': `Basic ${oneSignalApiKey}`,
               },
-              body: JSON.stringify({
-                app_id: oneSignalAppId,
-                include_player_ids: [user.onesignal_player_id],
-                headings: { en: title },
-                contents: { en: message },
-                data: {
-                  notification_id: notificationData.id,
-                  type: type,
-                  source_app: source_app,
-                },
-              }),
+              body: JSON.stringify(pushPayload),
             });
 
             if (oneSignalResponse.ok) {
