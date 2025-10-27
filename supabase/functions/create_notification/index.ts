@@ -58,21 +58,25 @@ serve(async (req) => {
       );
     }
 
-    // Fetch active users matching source_app
+    // Fetch active users matching source_app from profiles_notifications view
+    console.log(`Fetching users for source_app: ${source_app}`);
     const { data: users, error: usersError } = await supabase
-      .from('profiles')
+      .from('profiles_notifications')
       .select('user_id, onesignal_player_id')
       .eq('is_active', true)
       .eq('source_app', source_app);
 
     if (usersError) {
       console.error('Error fetching users:', usersError);
+      console.error('Supabase error details:', JSON.stringify(usersError));
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch users' }),
+        JSON.stringify({ error: 'Failed to fetch users', details: usersError }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
+    console.log(`Found ${users?.length || 0} users`);
+    
     if (!users || users.length === 0) {
       console.log(`No active users found for source_app: ${source_app}`);
       return new Response(

@@ -127,5 +127,5 @@ verify_jwt = false
 [functions.export-db-snapshot]
 verify_jwt = false
 
-[functions.create-notification]
-verify_jwt = true
+[functions.create_notification]
+verify_jwt = false
