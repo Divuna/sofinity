@@ -129,3 +129,6 @@ verify_jwt = false
 
 [functions.create_notification]
 verify_jwt = false
+
+[functions.sofinity-player-sync]
+verify_jwt = false
