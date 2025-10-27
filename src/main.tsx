@@ -9,7 +9,7 @@ const initializeOneSignal = async () => {
   try {
     await window.OneSignalDeferred?.push(async (OneSignal) => {
       await OneSignal.init({
-        appId: "357be038-dbaf-4551-9a16-96d9897197a3",
+        appId: "5e5539e1-fc71-4c4d-9fef-414293d83dbb",
         allowLocalhostAsSecureOrigin: true,
       });
 
