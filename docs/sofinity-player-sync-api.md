@@ -4,6 +4,8 @@
 
 The `sofinity-player-sync` Edge Function allows external applications (like OneMil) to send OneSignal `player_id` data directly to Sofinity. This enables push notification delivery without requiring modifications to existing event flows.
 
+**Key Feature:** The API now supports **anonymous entries** for users who don't exist in Sofinity yet. If an email is not registered in Sofinity's auth system, the API will automatically create an anonymous entry in `user_devices` with `user_id = NULL`, allowing future push notifications when they register.
+
 ---
 
 ## Endpoint
@@ -38,7 +40,7 @@ Content-Type: application/json
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `email` | string | ✅ Yes | User's email address (must exist in Sofinity) |
+| `email` | string | ✅ Yes | User's email address (creates anonymous entry if not registered) |
 | `player_id` | string | ✅ Yes | OneSignal player/subscription ID |
 | `device_type` | string | ❌ No | Device type: `web`, `mobile`, or `tablet` (default: `web`) |
 
@@ -47,11 +49,24 @@ Content-Type: application/json
 ## Response Format
 
 ### Success Response (200 OK)
+
+**Authenticated User (email exists in Sofinity):**
 ```json
 {
   "status": "success",
   "user_id": "123e4567-e89b-12d3-a456-426614174000",
-  "player_id": "abc123-def456-ghi789"
+  "player_id": "abc123-def456-ghi789",
+  "anonymous": false
+}
+```
+
+**Anonymous User (email not in Sofinity):**
+```json
+{
+  "status": "success",
+  "user_id": null,
+  "player_id": "abc123-def456-ghi789",
+  "anonymous": true
 }
 ```
 
@@ -72,13 +87,8 @@ Content-Type: application/json
 - `"Invalid 'device_type'. Must be one of: web, mobile, tablet"`
 - `"Invalid JSON payload"`
 
-#### 404 Not Found - User Not Found
-```json
-{
-  "status": "error",
-  "error": "User not found with email: user@example.com"
-}
-```
+#### ~~404 Not Found - User Not Found~~ (REMOVED)
+**This error has been removed.** The API now creates anonymous entries instead of returning 404 for unregistered emails.
 
 #### 429 Too Many Requests - Rate Limit Exceeded
 ```json
@@ -176,11 +186,14 @@ else:
 - Email addresses are validated but not sanitized for SQL injection (handled by Supabase client)
 - Rate limit is per IP address (may affect users behind shared IPs)
 - All requests are logged with IP address and user agent for auditing
+- **Anonymous entries** are created for unregistered emails with `user_id = NULL`
+- Anonymous entries can be linked to users when they register with the same email
 
 ---
 
 ## Data Flow
 
+### Authenticated User Flow
 ```
 OneMil App
     ↓
@@ -188,15 +201,32 @@ POST /sofinity-player-sync
     ↓
 Validate email + player_id
     ↓
-Lookup user in profiles table
+Lookup user in profiles table → ✅ FOUND
     ↓
-Call save_player_id(user_id, player_id, device_type)
+Call save_player_id(user_id, player_id, device_type) RPC
     ↓
 Update user_devices + profiles.onesignal_player_id
     ↓
-Log to audit_logs
+Log to audit_logs (anonymous: false)
     ↓
-Return success/error response
+Return success (user_id, anonymous: false)
+```
+
+### Anonymous User Flow
+```
+OneMil App
+    ↓
+POST /sofinity-player-sync
+    ↓
+Validate email + player_id
+    ↓
+Lookup user in profiles table → ❌ NOT FOUND
+    ↓
+INSERT into user_devices (user_id = NULL, email, player_id, device_type)
+    ↓
+Log to audit_logs (anonymous: true)
+    ↓
+Return success (user_id: null, anonymous: true)
 ```
 
 ---
@@ -251,19 +281,27 @@ curl -X POST https://rrmvxsldrjgbdxluklka.supabase.co/functions/v1/sofinity-play
 ```
 **Expected:** `400 Bad Request` with validation error
 
-### Test 3: User Not Found
+### Test 3: Anonymous User (Not Registered)
 ```bash
 curl -X POST https://rrmvxsldrjgbdxluklka.supabase.co/functions/v1/sofinity-player-sync \
   -H "Content-Type: application/json" \
-  -d '{"email":"nonexistent@example.com","player_id":"test-123","device_type":"web"}'
+  -d '{"email":"nonexistent@example.com","player_id":"test-anon-123","device_type":"web"}'
 ```
-**Expected:** `404 Not Found` with user not found error
+**Expected:** `200 OK` with `user_id: null` and `anonymous: true`
 
 ### Test 4: Verify Data Persistence
-After a successful sync, check the database:
+
+**Authenticated User:**
 ```sql
 SELECT * FROM user_devices WHERE player_id = 'test-123';
 SELECT onesignal_player_id FROM profiles WHERE email = 'support@opravo.cz';
+```
+
+**Anonymous User:**
+```sql
+SELECT user_id, email, player_id, device_type, created_at 
+FROM user_devices 
+WHERE player_id = 'test-anon-123' AND user_id IS NULL;
 ```
 
 ---
@@ -304,8 +342,21 @@ WHERE event_name IN ('player_id_sync', 'player_id_sync_failed')
 
 ## Troubleshooting
 
-### Problem: "User not found" error
-**Solution:** Verify the user exists in `profiles` table with the correct email
+### Problem: ~~"User not found" error~~ (No longer occurs)
+**This has been fixed.** The API now creates anonymous entries for unregistered users instead of returning errors.
+
+### Problem: Anonymous entries not being linked after user registration
+**Solution:** 
+1. Check if anonymous entry exists:
+   ```sql
+   SELECT * FROM user_devices WHERE email = 'user@example.com' AND user_id IS NULL;
+   ```
+2. Manually link to new user:
+   ```sql
+   UPDATE user_devices 
+   SET user_id = (SELECT user_id FROM profiles WHERE email = 'user@example.com')
+   WHERE email = 'user@example.com' AND user_id IS NULL;
+   ```
 
 ### Problem: Rate limit exceeded
 **Solution:** Wait 1 minute or implement exponential backoff in client
