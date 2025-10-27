@@ -282,6 +282,7 @@ export type Database = {
       audit_logs: {
         Row: {
           created_at: string
+          details: string | null
           event_data: Json | null
           event_name: string
           id: string
@@ -292,6 +293,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          details?: string | null
           event_data?: Json | null
           event_name: string
           id?: string
@@ -302,6 +304,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          details?: string | null
           event_data?: Json | null
           event_name?: string
           id?: string
@@ -2319,6 +2322,7 @@ export type Database = {
         Row: {
           created_at: string | null
           device_type: string | null
+          email: string | null
           id: string
           player_id: string
           user_id: string | null
@@ -2326,6 +2330,7 @@ export type Database = {
         Insert: {
           created_at?: string | null
           device_type?: string | null
+          email?: string | null
           id?: string
           player_id: string
           user_id?: string | null
@@ -2333,6 +2338,7 @@ export type Database = {
         Update: {
           created_at?: string | null
           device_type?: string | null
+          email?: string | null
           id?: string
           player_id?: string
           user_id?: string | null
@@ -3400,10 +3406,24 @@ export type Database = {
         Returns: undefined
       }
       run_daily_audit: { Args: never; Returns: undefined }
-      save_player_id: {
-        Args: { p_device_type?: string; p_player_id: string; p_user_id: string }
-        Returns: undefined
-      }
+      save_player_id:
+        | {
+            Args: {
+              p_device_type?: string
+              p_player_id: string
+              p_user_id: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_device_type?: string
+              p_email?: string
+              p_player_id: string
+              p_user_id: string
+            }
+            Returns: undefined
+          }
       send_push_via_onesignal: {
         Args: {
           event_id?: string
@@ -3448,6 +3468,14 @@ export type Database = {
               error: true
             } & "Could not choose the best candidate function between: public.urlencode(string => bytea), public.urlencode(string => varchar). Try renaming the parameters or the function itself in the database so function overloading can be resolved"
           }
+      verify_onesignal_setup: {
+        Args: never
+        Returns: {
+          check_name: string
+          details: string
+          status: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

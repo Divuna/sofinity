@@ -162,12 +162,13 @@ serve(async (req) => {
     const userId = profile.user_id;
     console.log("✅ User found:", userId);
 
-    // Save player_id using RPC function
+    // Save player_id using RPC function (now with email)
     console.log("💾 Saving player_id via RPC...");
     const { error: rpcError } = await supabase.rpc('save_player_id', {
       p_user_id: userId,
       p_player_id: player_id,
-      p_device_type: device_type
+      p_device_type: device_type,
+      p_email: email
     });
 
     if (rpcError) {
@@ -202,7 +203,7 @@ serve(async (req) => {
 
     console.log("✅ player_id saved successfully");
 
-    // Log successful sync to audit_logs
+    // Log successful sync to audit_logs with details
     await supabase
       .from('audit_logs')
       .insert({
@@ -216,8 +217,22 @@ serve(async (req) => {
           timestamp: new Date().toISOString(),
           ip_address: clientIp,
           user_agent: userAgent
-        }
+        },
+        details: `✅ Sofinity ↔ OneMil Push Sync: ${email} → ${player_id} (${device_type})`
       });
+
+    // Log verification report to console
+    console.log(`
+╔═══════════════════════════════════════════════════════════════╗
+║  ✅ Sofinity ↔ OneMil Push Sync aktivní                      ║
+╠═══════════════════════════════════════════════════════════════╣
+║  Email:       ${email.padEnd(43)} ║
+║  Player ID:   ${player_id.substring(0, 43).padEnd(43)} ║
+║  Device:      ${device_type.padEnd(43)} ║
+║  User ID:     ${userId.substring(0, 43).padEnd(43)} ║
+║  Timestamp:   ${new Date().toISOString().padEnd(43)} ║
+╚═══════════════════════════════════════════════════════════════╝
+    `);
 
     return new Response(
       JSON.stringify({ 
