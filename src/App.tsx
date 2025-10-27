@@ -51,6 +51,7 @@ import ProjectDetail from "./pages/ProjectDetail";
 import Prispevky from "./pages/Prispevky";
 import EmailFeedback from "./pages/EmailFeedback";
 import Settings from "./pages/Settings";
+import SofinityPushSender from "./pages/SofinityPushSender";
 
 
 const queryClient = new QueryClient();
@@ -121,6 +122,7 @@ const App = () => {
                 <Route path="/opravo-api-debug" element={<AuthGuard><MainLayout><OpravoAPIDebug /></MainLayout></AuthGuard>} />
                 <Route path="/prispevky" element={<AuthGuard><MainLayout><Prispevky /></MainLayout></AuthGuard>} />
                 <Route path="/settings" element={<AuthGuard><MainLayout><Settings /></MainLayout></AuthGuard>} />
+                <Route path="/sofinity-push-sender" element={<AuthGuard><MainLayout><SofinityPushSender /></MainLayout></AuthGuard>} />
                 
                 {/* Existing routes */}
                 <Route path="/team-feedback" element={<AuthGuard><MainLayout><TeamFeedback /></MainLayout></AuthGuard>} />
