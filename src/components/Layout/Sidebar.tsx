@@ -31,7 +31,8 @@ import {
   CheckCircle,
   BookOpen,
   Bug,
-  TestTube
+  TestTube,
+  Send
 } from 'lucide-react';
 
 const navigation = [
@@ -56,6 +57,7 @@ const advancedNavigation = [
   { name: 'OneMil E-mail Generátor', href: '/onemill-email-generator', icon: Mail },
   { name: 'OneMil E2E Test', href: '/onemill-end-to-end-test', icon: TestTube },
   
+  { name: 'Push Notifikace', href: '/sofinity-push-sender', icon: Send },
   { name: 'Notifikace', href: '/notifications', icon: Bell },
   { name: 'Týmová zpětná vazba', href: '/team-feedback', icon: MessageSquare },
   { name: 'Historie verzí', href: '/version-tracker', icon: FileText },
