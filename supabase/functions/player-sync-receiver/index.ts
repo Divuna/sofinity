@@ -216,7 +216,22 @@ serve(async (req) => {
         }
 
         profileCreated = true;
-      }
+    }
+    }
+
+    // Bezpečnostní kontrola: musíme mít platné userId před propojováním
+    if (!userId) {
+      console.error("❌ Nepodařilo se určit user_id pro e‑mail:", email);
+      await supabaseService
+        .from('audit_logs')
+        .insert({
+          event_name: 'player_sync_receiver_missing_user_id',
+          event_data: { email, player_id, device_type, note: 'userId je NULL před claim_anonymous_device', timestamp: new Date().toISOString() }
+        });
+      return new Response(
+        JSON.stringify({ status: 'error', error: 'Nepodařilo se určit user_id pro zadaný e‑mail' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     // Volání claim_anonymous_device pro propojení anonymních zařízení
@@ -254,6 +269,42 @@ serve(async (req) => {
 
     console.log(`✅ Propojeno ${devicesUpdated} anonymních zařízení`);
 
+    // Ověření: načtu zařízení po claimu a zkontroluji user_id
+    const { data: devicesAfterClaim, error: verifyClaimError } = await supabaseService
+      .from('user_devices')
+      .select('player_id, user_id, email, device_type, updated_at')
+      .eq('email', email);
+
+    if (verifyClaimError) {
+      console.warn('⚠️ Chyba při ověřování claimu:', verifyClaimError);
+    }
+
+    const totalForEmail = devicesAfterClaim?.length ?? 0;
+    const linkedToUser = (devicesAfterClaim || []).filter(d => d.user_id === userId).length;
+    const stillNull = (devicesAfterClaim || []).filter(d => !d.user_id).length;
+
+    await supabaseService
+      .from('audit_logs')
+      .insert({
+        event_name: 'player_sync_receiver_verification',
+        user_id: userId,
+        event_data: {
+          email,
+          player_id,
+          device_type,
+          profile_created: profileCreated,
+          devices_claimed: devicesUpdated,
+          verify_total_for_email: totalForEmail,
+          verify_linked_to_user: linkedToUser,
+          verify_still_null: stillNull,
+          timestamp: new Date().toISOString()
+        }
+      });
+
+    if (stillNull > 0 && devicesUpdated > 0) {
+      console.warn(`⚠️ Po claimu zůstává ${stillNull} zařízení s NULL user_id pro ${email}`);
+    }
+
     // Uložit aktuální player_id pomocí save_player_id RPC
     console.log("💾 Ukládám player_id pomocí save_player_id...");
     const { error: saveError } = await supabaseService.rpc(
@@ -286,6 +337,34 @@ serve(async (req) => {
         });
       
       throw new Error(`Nepodařilo se uložit player_id: ${saveError.message}`);
+    }
+
+    // Ověření: kontrola záznamu user_devices pro aktuální player_id
+    const { data: savedDeviceRow, error: fetchSavedErr } = await supabaseService
+      .from('user_devices')
+      .select('player_id, user_id, email, device_type, updated_at')
+      .eq('player_id', player_id)
+      .maybeSingle();
+
+    if (fetchSavedErr) {
+      console.warn('⚠️ Chyba při načtení uloženého zařízení:', fetchSavedErr);
+    }
+
+    if (!savedDeviceRow || savedDeviceRow.user_id !== userId) {
+      console.warn('⚠️ Verifikace selhala: user_id u uloženého zařízení neodpovídá', {
+        expected: userId,
+        actual: savedDeviceRow?.user_id,
+        row: savedDeviceRow
+      });
+      await supabaseService
+        .from('audit_logs')
+        .insert({
+          event_name: 'player_sync_receiver_verification_mismatch',
+          user_id: userId,
+          event_data: { email, player_id, device_type, expected_user_id: userId, actual_user_id: savedDeviceRow?.user_id ?? null, timestamp: new Date().toISOString() }
+        });
+    } else {
+      console.log('✅ Verifikace OK: user_id u zařízení odpovídá');
     }
 
     console.info("✅ Player ID úspěšně uložen")
