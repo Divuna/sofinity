@@ -134,3 +134,7 @@ verify_jwt = false
 # verify_jwt = false because function implements custom JWT verification with detailed error messages
 [functions.sofinity-player-sync]
 verify_jwt = false
+
+# ✅ SECURED: player-sync-receiver with auto-profile creation
+[functions.player-sync-receiver]
+verify_jwt = false
