@@ -219,100 +219,76 @@ serve(async (req) => {
       }
     }
 
-    // Zkontrolovat jestli existuje anonymní zařízení s tímto player_id nebo emailem
-    console.log("🔍 Kontroluji existující anonymní zařízení...");
-    const { data: existingDevice, error: deviceCheckError } = await supabaseService
-      .from('user_devices')
-      .select('id, player_id, email, user_id')
-      .or(`player_id.eq.${player_id},email.eq.${email}`)
-      .is('user_id', null)
-      .maybeSingle();
-
-    if (deviceCheckError) {
-      console.error("❌ Chyba při kontrole zařízení:", deviceCheckError);
-      throw new Error(`Nepodařilo se zkontrolovat zařízení: ${deviceCheckError.message}`);
-    }
-
-    let devicesUpdated = 0;
-
-    if (existingDevice) {
-      console.log("📱 Nalezeno anonymní zařízení, přiřazuji k uživateli:", existingDevice.id);
-      
-      // Aktualizovat existující anonymní zařízení
-      const { error: updateError } = await supabaseService
-        .from('user_devices')
-        .update({
-          user_id: userId,
-          email: email,
-          player_id: player_id,
-          device_type: device_type,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', existingDevice.id);
-
-      if (updateError) {
-        console.error("❌ Chyba při aktualizaci zařízení:", updateError);
-        
-        await supabaseService
-          .from('audit_logs')
-          .insert({
-            event_name: 'player_sync_receiver_failed',
-            user_id: userId,
-            event_data: {
-              email,
-              player_id,
-              device_type,
-              profile_created: profileCreated,
-              error: updateError.message,
-              timestamp: new Date().toISOString()
-            }
-          });
-
-        throw new Error(`Nepodařilo se aktualizovat zařízení: ${updateError.message}`);
+    // Volání claim_anonymous_device pro propojení anonymních zařízení
+    console.log("🔗 Volám claim_anonymous_device pro propojení anonymních zařízení...");
+    const { data: claimResult, error: claimError } = await supabaseService.rpc(
+      'claim_anonymous_device',
+      { 
+        p_email: email, 
+        p_new_user_id: userId 
       }
+    );
 
-      devicesUpdated = 1;
-      console.info("✅ Player ID přiřazen k uživateli");
-    } else {
-      console.log("📱 Žádné anonymní zařízení nenalezeno, vytvářím nový záznam");
+    const devicesUpdated = claimResult || 0;
+    
+    if (claimError) {
+      console.error("❌ Chyba při volání claim_anonymous_device:", claimError);
       
-      // Vložit nové zařízení
-      const { error: insertError } = await supabaseService
-        .from('user_devices')
+      await supabaseService
+        .from('audit_logs')
         .insert({
+          event_name: 'player_sync_receiver_claim_failed',
           user_id: userId,
-          email: email,
-          player_id: player_id,
-          device_type: device_type,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          event_data: {
+            email,
+            player_id,
+            device_type,
+            profile_created: profileCreated,
+            error: claimError.message,
+            timestamp: new Date().toISOString()
+          }
         });
-
-      if (insertError) {
-        console.error("❌ Chyba při vkládání zařízení:", insertError);
-        
-        await supabaseService
-          .from('audit_logs')
-          .insert({
-            event_name: 'player_sync_receiver_failed',
-            user_id: userId,
-            event_data: {
-              email,
-              player_id,
-              device_type,
-              profile_created: profileCreated,
-              error: insertError.message,
-              timestamp: new Date().toISOString()
-            }
-          });
-
-        throw new Error(`Nepodařilo se vložit zařízení: ${insertError.message}`);
-      }
-
-      console.info("✅ Player ID přiřazen k uživateli");
+      
+      throw new Error(`Nepodařilo se propojit anonymní zařízení: ${claimError.message}`);
     }
 
-    console.log("✅ Player_id úspěšně uložen", profileCreated ? "(nový profil vytvořen)" : "");
+    console.log(`✅ Propojeno ${devicesUpdated} anonymních zařízení`);
+
+    // Uložit aktuální player_id pomocí save_player_id RPC
+    console.log("💾 Ukládám player_id pomocí save_player_id...");
+    const { error: saveError } = await supabaseService.rpc(
+      'save_player_id',
+      {
+        p_user_id: userId,
+        p_player_id: player_id,
+        p_device_type: device_type,
+        p_email: email
+      }
+    );
+
+    if (saveError) {
+      console.error("❌ Chyba při ukládání player_id:", saveError);
+      
+      await supabaseService
+        .from('audit_logs')
+        .insert({
+          event_name: 'player_sync_receiver_save_failed',
+          user_id: userId,
+          event_data: {
+            email,
+            player_id,
+            device_type,
+            profile_created: profileCreated,
+            devices_claimed: devicesUpdated,
+            error: saveError.message,
+            timestamp: new Date().toISOString()
+          }
+        });
+      
+      throw new Error(`Nepodařilo se uložit player_id: ${saveError.message}`);
+    }
+
+    console.info("✅ Player ID úspěšně uložen")
 
     // Log do audit_logs
     await supabaseService
@@ -325,10 +301,10 @@ serve(async (req) => {
           player_id,
           device_type,
           profile_created: profileCreated,
-          devices_updated: devicesUpdated,
+          devices_claimed: devicesUpdated,
           timestamp: new Date().toISOString()
         },
-        details: `✅ Player sync přijat: ${email} → ${player_id} (${device_type})${profileCreated ? ' [NOVÝ PROFIL]' : ''}${devicesUpdated > 0 ? ' [ZAŘÍZENÍ PŘIŘAZENO]' : ' [NOVÉ ZAŘÍZENÍ]'}`
+        details: `✅ Player sync přijat: ${email} → ${player_id} (${device_type})${profileCreated ? ' [NOVÝ PROFIL]' : ''}${devicesUpdated > 0 ? ` [${devicesUpdated} ZAŘÍZENÍ PROPOJENO]` : ' [NOVÉ ZAŘÍZENÍ]'}`
       });
 
     console.log(`
@@ -338,9 +314,9 @@ serve(async (req) => {
 ║  Email:       ${email.padEnd(43)} ║
 ║  Player ID:   ${player_id.substring(0, 43).padEnd(43)} ║
 ║  Device:      ${device_type.padEnd(43)} ║
-║  User ID:     ${userId.substring(0, 43).padEnd(43)} ║
+║  User ID:     ${userId?.substring(0, 43).padEnd(43)} ║
 ║  Nový profil: ${(profileCreated ? 'ANO' : 'NE').padEnd(43)} ║
-║  Aktualizováno: ${devicesUpdated.toString().padEnd(43)} ║
+║  Propojeno:   ${devicesUpdated.toString().padEnd(43)} ║
 ║  Timestamp:   ${new Date().toISOString().padEnd(43)} ║
 ╚═══════════════════════════════════════════════════════════════╝
     `);
@@ -351,7 +327,7 @@ serve(async (req) => {
         user_id: userId,
         player_id: player_id,
         profile_created: profileCreated,
-        devices_updated: devicesUpdated
+        devices_claimed: devicesUpdated
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
