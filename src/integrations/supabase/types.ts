@@ -3255,6 +3255,7 @@ export type Database = {
       cleanup_old_nonces: { Args: never; Returns: undefined }
       cleanup_old_webhook_requests: { Args: never; Returns: undefined }
       create_system_user_support: { Args: never; Returns: string }
+      each: { Args: { hs: unknown }; Returns: Record<string, unknown>[] }
       ensure_profile_exists: {
         Args: { target_user_id: string }
         Returns: string
@@ -3449,6 +3450,20 @@ export type Database = {
           title: string
         }
         Returns: string
+      }
+      test_onemil_player_sync: {
+        Args: {
+          test_device_type?: string
+          test_email?: string
+          test_player_id?: string
+        }
+        Returns: {
+          headers: string
+          method: string
+          response_body: string
+          status_code: number
+          test_timestamp: string
+        }[]
       }
       test_push_notification:
         | {
