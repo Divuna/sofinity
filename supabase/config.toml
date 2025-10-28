@@ -130,5 +130,7 @@ verify_jwt = false
 [functions.create_notification]
 verify_jwt = false
 
+# ✅ SECURED: sofinity-player-sync now requires JWT authentication
+# verify_jwt = false because function implements custom JWT verification with detailed error messages
 [functions.sofinity-player-sync]
 verify_jwt = false

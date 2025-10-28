@@ -2325,6 +2325,7 @@ export type Database = {
           email: string | null
           id: string
           player_id: string
+          updated_at: string | null
           user_id: string | null
         }
         Insert: {
@@ -2333,6 +2334,7 @@ export type Database = {
           email?: string | null
           id?: string
           player_id: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Update: {
@@ -2341,6 +2343,7 @@ export type Database = {
           email?: string | null
           id?: string
           player_id?: string
+          updated_at?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -3111,6 +3114,16 @@ export type Database = {
         }
         Relationships: []
       }
+      user_devices_active: {
+        Row: {
+          device_type: string | null
+          email: string | null
+          player_id: string | null
+          profile_email: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       users: {
         Row: {
           id: string | null
@@ -3234,6 +3247,10 @@ export type Database = {
           table_name: string
           valid_count: number
         }[]
+      }
+      claim_anonymous_device: {
+        Args: { p_email: string; p_new_user_id: string }
+        Returns: number
       }
       cleanup_old_nonces: { Args: never; Returns: undefined }
       cleanup_old_webhook_requests: { Args: never; Returns: undefined }

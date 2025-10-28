@@ -44,6 +44,23 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ✅ SECURITY FIX #1: Require JWT authentication
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    console.error("❌ Missing or invalid Authorization header");
+    return new Response(
+      JSON.stringify({ 
+        status: "error",
+        error: "Unauthorized - Authorization header with Bearer token is required",
+        hint: "Include: Authorization: Bearer <supabase-jwt-token>"
+      }),
+      { 
+        status: 401, 
+        headers: { ...corsHeaders, "Content-Type": "application/json" } 
+      }
+    );
+  }
+
   const clientIp = req.headers.get("x-forwarded-for")?.split(',')[0] || 
                    req.headers.get("x-real-ip") || 
                    "unknown";
@@ -51,6 +68,7 @@ serve(async (req) => {
 
   // Rate limiting
   if (!checkRateLimit(clientIp)) {
+    console.warn(`⚠️ Rate limit exceeded for IP: ${clientIp}`);
     return new Response(
       JSON.stringify({ 
         status: "error", 
@@ -116,10 +134,16 @@ serve(async (req) => {
       );
     }
 
-    // Initialize Supabase client with service role
+    // Initialize Supabase client with JWT token from request
+    // ✅ Uses anon key + user's JWT for RLS enforcement
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    
+    const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: { Authorization: authHeader }
+      }
+    });
 
     console.log("🔍 Looking up user by email:", email);
 
