@@ -8,6 +8,7 @@ interface WebhookVerificationResult {
   error?: string;
   shouldLog?: boolean;
   rawBody?: string; // Return the raw body so it can be reused
+  apiKeyUsed?: string; // API key provided by caller (if any), used for HMAC
 }
 
 /**
@@ -189,16 +190,22 @@ export async function verifyWebhookRequest(
     if (!validateTimestamp(timestamp)) {
       return { valid: false, error: 'Unauthorized', shouldLog: false };
     }
+    // Determine API key from headers (if provided)
+    const headerApiKey = req.headers.get('x-api-key') ||
+                         req.headers.get('x-sofinity-key') ||
+                         (req.headers.get('authorization')?.replace(/^[Bb]earer\s+/, '') ?? undefined);
+    const providedKey = headerApiKey?.trim();
     
     // Get raw body for signature verification
     const rawBody = await req.text();
     
-    // Verify HMAC signature
+    // Verify HMAC signature using provided key if present, otherwise the configured secret
+    const effectiveSecret = providedKey || secret;
     const signatureValid = await verifyWebhookSignature(
       rawBody,
       timestamp,
       signature,
-      secret
+      effectiveSecret
     );
     
     if (!signatureValid) {
@@ -236,7 +243,7 @@ export async function verifyWebhookRequest(
     }
     
     // All checks passed - return body for reuse
-    return { valid: true, rawBody };
+    return { valid: true, rawBody, ...(providedKey ? { apiKeyUsed: providedKey } : {}) };
   } catch (error) {
     console.error('Webhook verification error:', error);
     return { valid: false, error: 'Unauthorized', shouldLog: false };
