@@ -7,6 +7,7 @@ interface WebhookVerificationResult {
   valid: boolean;
   error?: string;
   shouldLog?: boolean;
+  rawBody?: string; // Return the raw body so it can be reused
 }
 
 /**
@@ -234,8 +235,8 @@ export async function verifyWebhookRequest(
       return { valid: false, error: 'Unauthorized', shouldLog: false };
     }
     
-    // All checks passed - parse and return body
-    return { valid: true };
+    // All checks passed - return body for reuse
+    return { valid: true, rawBody };
   } catch (error) {
     console.error('Webhook verification error:', error);
     return { valid: false, error: 'Unauthorized', shouldLog: false };

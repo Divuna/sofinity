@@ -52,7 +52,8 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const eventData: SofinityEventRequest = await JSON.parse(await req.text());
+    // Use the rawBody returned from verification (body already consumed during signature check)
+    const eventData: SofinityEventRequest = JSON.parse(verification.rawBody || '{}');
 
     // Validate required fields
     if (!eventData.project_id || !eventData.event_name) {
