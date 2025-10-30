@@ -77,6 +77,9 @@ const handler = async (req: Request): Promise<Response> => {
       console.log("⚠️ Missing user_id - using safe placeholder UUID for event logging");
     }
 
+    // Check if this is a test request
+    const isTestRequest = req.headers.get('x-test-request') === 'true';
+
     // Known OneMil events for auto-detection
     const oneMilEvents = [
       'prize_won', 
