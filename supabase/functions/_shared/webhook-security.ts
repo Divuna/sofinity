@@ -23,8 +23,8 @@ export async function verifyWebhookSignature(
   secret: string
 ): Promise<boolean> {
   try {
-    // Construct the signed payload: timestamp + raw body
-    const signedPayload = `${timestamp}.${rawBody}`;
+    // Construct the signed payload: timestamp + raw body (no separator, matching OneMil)
+    const signedPayload = `${timestamp}${rawBody}`;
     
     // Import Web Crypto API key
     const encoder = new TextEncoder();
