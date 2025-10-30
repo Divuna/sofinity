@@ -169,11 +169,16 @@ export async function checkRateLimit(
 /**
  * Complete webhook request verification
  * Performs signature, timestamp, replay, and rate limit checks
+ * @param req - Request object
+ * @param endpoint - Endpoint name for rate limiting
+ * @param secret - Fallback secret if no API key in header or database
+ * @param supabase - Optional Supabase client for database fallback
  */
 export async function verifyWebhookRequest(
   req: Request,
   endpoint: string,
-  secret: string
+  secret: string,
+  supabase?: SupabaseClient
 ): Promise<WebhookVerificationResult> {
   try {
     // Extract headers
@@ -194,13 +199,33 @@ export async function verifyWebhookRequest(
     const headerApiKey = req.headers.get('x-api-key') ||
                          req.headers.get('x-sofinity-key') ||
                          (req.headers.get('authorization')?.replace(/^[Bb]earer\s+/, '') ?? undefined);
-    const providedKey = headerApiKey?.trim();
+    let providedKey = headerApiKey?.trim();
+    
+    // If no API key in headers and supabase client available, fetch from database
+    if (!providedKey && supabase) {
+      try {
+        const { data: settingsData, error: settingsError } = await supabase
+          .from('settings')
+          .select('value')
+          .eq('key', 'sofinity_api_key')
+          .maybeSingle();
+        
+        if (!settingsError && settingsData?.value) {
+          providedKey = settingsData.value;
+          console.log('🔑 Using sofinity_api_key from database for HMAC validation');
+        }
+      } catch (dbError) {
+        console.warn('Failed to fetch sofinity_api_key from database:', dbError);
+      }
+    }
     
     // Get raw body for signature verification
     const rawBody = await req.text();
     
-    // Verify HMAC signature using provided key if present, otherwise the configured secret
+    // Use provided key (from header or database) or fall back to secret parameter
     const effectiveSecret = providedKey || secret;
+    
+    // Strict HMAC validation - signature must match exactly
     const signatureValid = await verifyWebhookSignature(
       rawBody,
       timestamp,
@@ -209,6 +234,12 @@ export async function verifyWebhookRequest(
     );
     
     if (!signatureValid) {
+      console.error('HMAC signature validation failed', {
+        endpoint,
+        hasProvidedKey: !!providedKey,
+        signatureLength: signature.length,
+        timestampValid: validateTimestamp(timestamp)
+      });
       return { valid: false, error: 'Unauthorized', shouldLog: false };
     }
     

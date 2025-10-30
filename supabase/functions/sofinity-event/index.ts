@@ -45,7 +45,7 @@ const handler = async (req: Request): Promise<Response> => {
 
   // Verify webhook signature and security checks
   const secret = Deno.env.get('SOFINITY_WEBHOOK_SECRET') ?? '';
-  const verification = await verifyWebhookRequest(req, 'sofinity-event', secret);
+  const verification = await verifyWebhookRequest(req, 'sofinity-event', secret, supabase);
   
   if (!verification.valid) {
     return createUnauthorizedResponse(corsHeaders);
