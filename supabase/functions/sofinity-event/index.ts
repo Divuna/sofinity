@@ -166,9 +166,9 @@ const handler = async (req: Request): Promise<Response> => {
       project_id: eventData.project_id,
       user_id: safeUserId,
       event_name: standardizedEventName,
+      source_system: sourceSystem, // Direct column, not in metadata
       metadata: {
         ...eventData.metadata || {},
-        source_system: sourceSystem,
         original_event_name: eventData.event_name !== standardizedEventName ? eventData.event_name : undefined,
         was_mapped: wasMapped,
         ...(isTestRequest && {
