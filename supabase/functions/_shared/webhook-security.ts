@@ -198,24 +198,52 @@ export async function verifyWebhookRequest(
     const timestamp = req.headers.get('x-timestamp');
     const idempotencyKey = req.headers.get('x-idempotency-key');
     
+    // Log received headers for debugging
+    console.log('🔍 Webhook request headers:', {
+      has_signature: !!signature,
+      has_timestamp: !!timestamp,
+      has_idempotency: !!idempotencyKey,
+      has_x_api_key: !!req.headers.get('x-api-key'),
+      has_apikey: !!req.headers.get('apikey'),
+      has_authorization: !!req.headers.get('authorization')
+    });
+    
     // Validate required headers
     if (!signature || !timestamp || !idempotencyKey) {
+      console.error('❌ Missing required headers:', {
+        signature: !!signature,
+        timestamp: !!timestamp,
+        idempotencyKey: !!idempotencyKey
+      });
       return { valid: false, error: 'Unauthorized', shouldLog: false };
     }
     
     // Validate timestamp window
     if (!validateTimestamp(timestamp)) {
+      console.error('❌ Invalid timestamp:', timestamp);
       return { valid: false, error: 'Unauthorized', shouldLog: false };
     }
+    
     // Determine API key from headers (if provided)
-    const headerApiKey = req.headers.get('x-api-key') ||
-                         req.headers.get('x-sofinity-key') ||
-                         req.headers.get('apikey') ||
-                         (req.headers.get('authorization')?.replace(/^[Bb]earer\s+/, '') ?? undefined);
+    const xApiKey = req.headers.get('x-api-key');
+    const sofinityKey = req.headers.get('x-sofinity-key');
+    const apikey = req.headers.get('apikey');
+    const authorization = req.headers.get('authorization');
+    
+    console.log('🔑 API key detection:', {
+      x_api_key: xApiKey ? `${xApiKey.substring(0, 8)}...` : 'none',
+      x_sofinity_key: sofinityKey ? `${sofinityKey.substring(0, 8)}...` : 'none',
+      apikey: apikey ? `${apikey.substring(0, 8)}...` : 'none',
+      authorization: authorization ? `${authorization.substring(0, 15)}...` : 'none'
+    });
+    
+    const headerApiKey = xApiKey || sofinityKey || apikey || 
+                         (authorization?.replace(/^[Bb]earer\s+/, '') ?? undefined);
     let providedKey = headerApiKey?.trim();
     
     // If no API key in headers and supabase client available, fetch from database
     if (!providedKey && supabase) {
+      console.log('📊 No API key in headers, attempting database fallback...');
       try {
         const { data: settingsData, error: settingsError } = await supabase
           .from('settings')
@@ -225,24 +253,47 @@ export async function verifyWebhookRequest(
         
         if (!settingsError && settingsData?.value) {
           providedKey = String(settingsData.value).trim();
-          console.log('🔑 Using sofinity_api_key from database for HMAC validation');
+          console.log('✅ Using sofinity_api_key from database for HMAC validation');
+        } else {
+          console.log('⚠️ No sofinity_api_key found in database');
         }
       } catch (dbError) {
-        console.warn('Failed to fetch sofinity_api_key from database:', dbError);
+        console.warn('❌ Failed to fetch sofinity_api_key from database:', dbError);
       }
     }
 
     // If still missing, try environment SOFINITY_API_KEY
     if (!providedKey) {
+      console.log('🔄 Trying environment variable SOFINITY_API_KEY...');
       const envApiKey = Deno.env.get('SOFINITY_API_KEY');
       if (envApiKey) {
         providedKey = envApiKey.trim();
-        console.log('🔑 Using SOFINITY_API_KEY from environment for HMAC validation');
+        console.log('✅ Using SOFINITY_API_KEY from environment for HMAC validation');
+      } else {
+        console.log('⚠️ SOFINITY_API_KEY not found in environment');
       }
     }
     
+    // Final check - if still no key, use fallback secret
+    if (!providedKey && secret) {
+      console.log('🔄 Using fallback secret parameter');
+      providedKey = secret;
+    }
+    
+    if (!providedKey) {
+      console.error('❌ No API key available from any source (headers, database, environment, fallback)');
+      return { valid: false, error: 'Unauthorized', shouldLog: false };
+    }
+    
+    console.log('🔐 Final key source:', {
+      from_header: !!headerApiKey,
+      key_length: providedKey.length,
+      key_preview: `${providedKey.substring(0, 8)}...`
+    });
+    
     // Get raw body for signature verification
     const rawBody = await req.text();
+    console.log('📝 Request body length:', rawBody.length);
 
     // Use provided key (from header or database) or fall back to secret parameter
     const effectiveSecret = providedKey || secret;
@@ -254,9 +305,10 @@ export async function verifyWebhookRequest(
       signature,
       effectiveSecret
     );
+    console.log('🔐 HMAC validation result:', signatureValid ? '✅ VALID' : '❌ INVALID');
     
     if (!signatureValid) {
-      console.error('HMAC signature validation failed', {
+      console.error('❌ HMAC signature validation failed', {
         endpoint,
         hasProvidedKey: !!providedKey,
         signatureLength: signature.length,
