@@ -45,13 +45,25 @@ export async function verifyWebhookSignature(
       encoder.encode(signedPayload)
     );
     
-    // Convert to hex string
-    const computedSignature = Array.from(new Uint8Array(signatureBytes))
-      .map(b => b.toString(16).padStart(2, '0'))
-      .join('');
-    
+    // Convert signatures to comparable formats
+    const bytes = new Uint8Array(signatureBytes);
+    const computedHex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    const computedBase64 = btoa(String.fromCharCode(...bytes));
+
+    // Normalize incoming signature
+    let incoming = signature.trim();
+    if (/^sha256=/i.test(incoming)) {
+      incoming = incoming.split('=')[1];
+    }
+    const incomingHex = incoming.toLowerCase();
+    const isHex64 = /^[0-9a-f]{64}$/.test(incomingHex);
+
     // Constant-time comparison to prevent timing attacks
-    return constantTimeCompare(signature, computedSignature);
+    if (isHex64) {
+      return constantTimeCompare(incomingHex, computedHex);
+    } else {
+      return constantTimeCompare(incoming, computedBase64);
+    }
   } catch (error) {
     console.error('Signature verification failed:', error);
     return false;
@@ -198,6 +210,7 @@ export async function verifyWebhookRequest(
     // Determine API key from headers (if provided)
     const headerApiKey = req.headers.get('x-api-key') ||
                          req.headers.get('x-sofinity-key') ||
+                         req.headers.get('apikey') ||
                          (req.headers.get('authorization')?.replace(/^[Bb]earer\s+/, '') ?? undefined);
     let providedKey = headerApiKey?.trim();
     
@@ -211,17 +224,26 @@ export async function verifyWebhookRequest(
           .maybeSingle();
         
         if (!settingsError && settingsData?.value) {
-          providedKey = settingsData.value;
+          providedKey = String(settingsData.value).trim();
           console.log('🔑 Using sofinity_api_key from database for HMAC validation');
         }
       } catch (dbError) {
         console.warn('Failed to fetch sofinity_api_key from database:', dbError);
       }
     }
+
+    // If still missing, try environment SOFINITY_API_KEY
+    if (!providedKey) {
+      const envApiKey = Deno.env.get('SOFINITY_API_KEY');
+      if (envApiKey) {
+        providedKey = envApiKey.trim();
+        console.log('🔑 Using SOFINITY_API_KEY from environment for HMAC validation');
+      }
+    }
     
     // Get raw body for signature verification
     const rawBody = await req.text();
-    
+
     // Use provided key (from header or database) or fall back to secret parameter
     const effectiveSecret = providedKey || secret;
     
