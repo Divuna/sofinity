@@ -22,6 +22,7 @@ interface SofinityEventRequest {
 
 const handler = async (req: Request): Promise<Response> => {
   console.log('🚀 sofinity-event function started - verify_jwt=false config active');
+  console.log('🔓 JWT verification disabled');
   
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
