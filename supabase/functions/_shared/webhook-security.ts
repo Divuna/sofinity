@@ -251,11 +251,29 @@ export async function verifyWebhookRequest(
     
     // Choose first non-JWT candidate, or the first available if all look like JWTs
     const selected = candidates.find(c => !isLikelyJwt(c.value)) ?? candidates[0];
-    const selected_source = selected?.source;
+    let selected_source = selected?.source;
     const headerApiKey = selected?.value;
     let providedKey = headerApiKey;
     
-    // If no API key in headers and supabase client available, fetch from database
+    // Get raw body early for both API key detection and signature verification
+    const rawBody = await req.text();
+    console.log('📝 Request body length:', rawBody.length);
+    
+    // If no API key in headers, try to read from request body
+    if (!providedKey && rawBody) {
+      try {
+        const bodyData = JSON.parse(rawBody);
+        if (bodyData.sofinity_api_key) {
+          providedKey = bodyData.sofinity_api_key.trim();
+          selected_source = 'body';
+          console.log('✅ Using sofinity_api_key from request body');
+        }
+      } catch (e) {
+        console.log('⚠️ Could not parse body as JSON for API key extraction');
+      }
+    }
+    
+    // If no API key in headers/body and supabase client available, fetch from database
     if (!providedKey && supabase) {
       console.log('📊 No API key in headers, attempting database fallback...');
       try {
@@ -300,15 +318,10 @@ export async function verifyWebhookRequest(
     }
     
     console.log('🔐 Final key selection:', {
-      from_header: !!headerApiKey,
-      selected_source,
+      from_source: selected_source || 'fallback',
       key_length: providedKey.length,
       key_preview: `${providedKey.substring(0, 8)}...`
     });
-    
-    // Get raw body for signature verification
-    const rawBody = await req.text();
-    console.log('📝 Request body length:', rawBody.length);
 
     // Use provided key (from header or database) or fall back to secret parameter
     const effectiveSecret = providedKey || secret;
