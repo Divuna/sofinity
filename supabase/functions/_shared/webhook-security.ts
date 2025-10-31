@@ -229,6 +229,7 @@ export async function verifyWebhookRequest(
     const sofinityKey = req.headers.get('x-sofinity-key');
     const apikey = req.headers.get('apikey');
     const authorization = req.headers.get('authorization');
+    const bearer = authorization?.replace(/^[Bb]earer\s+/, '');
     
     console.log('🔑 API key detection:', {
       x_api_key: xApiKey ? `${xApiKey.substring(0, 8)}...` : 'none',
@@ -237,9 +238,22 @@ export async function verifyWebhookRequest(
       authorization: authorization ? `${authorization.substring(0, 15)}...` : 'none'
     });
     
-    const headerApiKey = xApiKey || sofinityKey || apikey || 
-                         (authorization?.replace(/^[Bb]earer\s+/, '') ?? undefined);
-    let providedKey = headerApiKey?.trim();
+    // Prefer explicit Sofinity key, then Bearer token, then X-API-KEY, then apikey.
+    // Skip values that look like JWTs when other options exist (HMAC secrets are not JWTs).
+    const isLikelyJwt = (val?: string) => !!val && val.split('.').length === 3;
+    
+    const candidates = [
+      { source: 'x-sofinity-key', value: sofinityKey?.trim() },
+      { source: 'authorization', value: bearer?.trim() },
+      { source: 'x-api-key', value: xApiKey?.trim() },
+      { source: 'apikey', value: apikey?.trim() },
+    ].filter(c => !!c.value);
+    
+    // Choose first non-JWT candidate, or the first available if all look like JWTs
+    const selected = candidates.find(c => !isLikelyJwt(c.value)) ?? candidates[0];
+    const selected_source = selected?.source;
+    const headerApiKey = selected?.value;
+    let providedKey = headerApiKey;
     
     // If no API key in headers and supabase client available, fetch from database
     if (!providedKey && supabase) {
@@ -285,8 +299,9 @@ export async function verifyWebhookRequest(
       return { valid: false, error: 'Unauthorized', shouldLog: false };
     }
     
-    console.log('🔐 Final key source:', {
+    console.log('🔐 Final key selection:', {
       from_header: !!headerApiKey,
+      selected_source,
       key_length: providedKey.length,
       key_preview: `${providedKey.substring(0, 8)}...`
     });
