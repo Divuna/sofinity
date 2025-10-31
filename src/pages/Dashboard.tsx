@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { StatsCard } from '@/components/Dashboard/StatsCard';
 import { OneMilOverview } from '@/components/Dashboard/OneMilOverview';
 import { AIEvaluationOverview } from '@/components/Dashboard/AIEvaluationOverview';
+import { RealtimeNotificationFeed } from '@/components/RealtimeNotificationFeed';
 
 import PostForm from '@/components/PostForm';
 import { supabase } from '@/integrations/supabase/client';
@@ -657,6 +658,11 @@ export default function Dashboard() {
           changeType={stats.offersSuccessRate > 50 ? "positive" : stats.offersSuccessRate >= 25 ? "neutral" : "negative"}
           icon={TrendingUp}
         />
+      </div>
+
+      {/* Notification Feed */}
+      <div className="mt-6">
+        <RealtimeNotificationFeed />
       </div>
 
       {/* AI Requests Section */}
