@@ -90,6 +90,35 @@ const setupOneSignal = async (userId: string) => {
       console.log('✅ OneSignal initialized with App ID:', appId);
       console.log('✅ OneSignal worker forced to CDN mode');
 
+      // Log current Player ID if available
+      const currentPlayerId = OneSignal.User.PushSubscription.id;
+      if (currentPlayerId) {
+        console.log('🆔 OneSignal Player ID detected:', currentPlayerId);
+        
+        // Save immediately to database
+        try {
+          const { data: { user } } = await supabase.auth.getUser();
+          const userEmail = user?.email;
+
+          const { error } = await supabase
+            .from('user_devices')
+            .upsert({
+              user_id: userId,
+              player_id: currentPlayerId,
+              device_type: 'web',
+              email: userEmail,
+              last_seen: new Date().toISOString()
+            }, {
+              onConflict: 'player_id'
+            });
+          
+          if (error) throw error;
+          console.log('✅ OneSignal player_id uložen do user_devices');
+        } catch (error) {
+          console.error('❌ Chyba při ukládání player_id:', error);
+        }
+      }
+
       // Check if notifications are already allowed
       const permission = await OneSignal.Notifications.permission;
       
@@ -103,12 +132,6 @@ const setupOneSignal = async (userId: string) => {
         } catch (error) {
           console.warn('Slidedown prompt nelze zobrazit:', error);
         }
-      }
-
-      // Log current Player ID if available
-      const currentPlayerId = OneSignal.User.PushSubscription.id;
-      if (currentPlayerId) {
-        console.log('🆔 OneSignal Player ID:', currentPlayerId);
       }
 
       // Listen for subscription changes to save player_id
