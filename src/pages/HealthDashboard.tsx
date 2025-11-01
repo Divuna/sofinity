@@ -157,7 +157,7 @@ export default function HealthDashboard() {
   };
 
   const healthScore = getHealthScore();
-  const errorRate = systemStatus 
+  const errorRate = systemStatus && systemStatus.eventLogs.total > 0
     ? ((systemStatus.eventLogs.errors / systemStatus.eventLogs.total) * 100).toFixed(2)
     : '0.00';
 
@@ -200,7 +200,7 @@ export default function HealthDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {lastAudit ? (
+            {lastAudit && lastAudit.valid_ratio != null ? (
               <>
                 <div className="text-2xl font-bold text-foreground">
                   {lastAudit.valid_ratio.toFixed(1)}%
@@ -373,9 +373,11 @@ export default function HealthDashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <Badge variant={audit.valid_ratio >= 95 ? 'default' : 'secondary'}>
-                        {audit.valid_ratio.toFixed(1)}% OK
-                      </Badge>
+                      {audit.valid_ratio != null && (
+                        <Badge variant={audit.valid_ratio >= 95 ? 'default' : 'secondary'}>
+                          {audit.valid_ratio.toFixed(1)}% OK
+                        </Badge>
+                      )}
                       <Badge variant="outline">{audit.total_tables} tabulek</Badge>
                     </div>
                   </div>
