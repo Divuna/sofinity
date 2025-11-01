@@ -49,9 +49,16 @@ const setupOneSignal = async (userId: string) => {
       await OneSignal.init({
         appId: appId,
         allowLocalhostAsSecureOrigin: true,
+        promptOptions: {
+          slidedown: {
+            actionMessage: "Chcete dostávat oznámení o důležitých událostech?",
+            acceptButton: "Povolit",
+            cancelButton: "Ne, děkuji"
+          }
+        }
       });
 
-      console.log('✅ OneSignal SDK inicializován');
+      console.log('✅ OneSignal SDK inicializován s českými texty');
 
       // Show permission prompt
       try {
