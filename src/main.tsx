@@ -73,6 +73,7 @@ const setupOneSignal = async (userId: string) => {
       });
 
       console.log('✅ OneSignal initialized with App ID:', appId);
+      console.log('✅ OneSignal ServiceWorker registered from CDN');
 
       // Check if notifications are already allowed
       const permission = await OneSignal.Notifications.permission;
