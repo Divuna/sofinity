@@ -30,9 +30,20 @@ const initializeOneSignal = async () => {
 // Setup OneSignal with user context
 const setupOneSignal = async (userId: string) => {
   try {
-    // TODO: Fetch onesignal_app_id from Supabase settings table
-    // For now using existing app ID
-    const appId = "5e5539e1-fc71-4c4d-9fef-414293d83dbb";
+    // Fetch onesignal_app_id from settings table
+    const { data: settingsData, error: settingsError } = await supabase
+      .from('settings')
+      .select('value')
+      .eq('key', 'onesignal_app_id')
+      .single();
+
+    if (settingsError || !settingsData?.value) {
+      console.error('OneSignal App ID not found in settings:', settingsError);
+      return;
+    }
+
+    const appId = settingsData.value;
+    console.log('🔔 Inicializuji OneSignal s App ID:', appId);
 
     await window.OneSignalDeferred?.push(async (OneSignal) => {
       await OneSignal.init({
@@ -40,12 +51,30 @@ const setupOneSignal = async (userId: string) => {
         allowLocalhostAsSecureOrigin: true,
       });
 
+      console.log('✅ OneSignal SDK inicializován');
+
+      // Show permission prompt
+      try {
+        await OneSignal.Slidedown.promptPush();
+        console.log('🔔 Slidedown prompt zobrazen');
+      } catch (error) {
+        console.warn('Slidedown prompt nelze zobrazit:', error);
+      }
+
+      // Log current Player ID if available
+      const currentPlayerId = OneSignal.User.PushSubscription.id;
+      if (currentPlayerId) {
+        console.log('🆔 OneSignal Player ID:', currentPlayerId);
+      }
+
       // Listen for subscription changes to save player_id
       OneSignal.User.PushSubscription.addEventListener('change', async (event: any) => {
         if (event.current.optedIn) {
           const playerId = OneSignal.User.PushSubscription.id;
           
           if (playerId) {
+            console.log('🆔 Nový OneSignal Player ID:', playerId);
+            
             try {
               // Insert or update record in user_devices table
               const { error } = await supabase.rpc('save_player_id' as any, {
@@ -55,16 +84,16 @@ const setupOneSignal = async (userId: string) => {
               });
               
               if (error) throw error;
-              console.log('✅ OneSignal player_id registered in user_devices');
+              console.log('✅ OneSignal player_id uložen do user_devices');
             } catch (error) {
-              console.error('Failed to save player_id to user_devices:', error);
+              console.error('❌ Chyba při ukládání player_id:', error);
             }
           }
         }
       });
     });
   } catch (error) {
-    console.error('OneSignal setup error:', error);
+    console.error('❌ Chyba při inicializaci OneSignal:', error);
   }
 };
 
