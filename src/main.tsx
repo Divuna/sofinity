@@ -52,7 +52,6 @@ const setupOneSignal = async (userId: string) => {
         allowLocalhostAsSecureOrigin: true,
         serviceWorkerPath: 'https://cdn.onesignal.com/sdks/OneSignalSDKWorker.js',
         serviceWorkerUpdaterPath: 'https://cdn.onesignal.com/sdks/OneSignalSDKUpdaterWorker.js',
-        serviceWorkerParam: { scope: '/' },
         promptOptions: {
           slidedown: {
             prompts: [
@@ -73,7 +72,7 @@ const setupOneSignal = async (userId: string) => {
       });
 
       console.log('✅ OneSignal initialized with App ID:', appId);
-      console.log('✅ OneSignal ServiceWorker registered from CDN');
+      console.log('✅ OneSignal worker forced to CDN mode');
 
       // Check if notifications are already allowed
       const permission = await OneSignal.Notifications.permission;
