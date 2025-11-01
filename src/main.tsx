@@ -103,12 +103,22 @@ const setupOneSignal = async (userId: string) => {
             console.log('🆔 Nový OneSignal Player ID:', playerId);
             
             try {
+              // Get user email from auth
+              const { data: { user } } = await supabase.auth.getUser();
+              const userEmail = user?.email;
+
               // Insert or update record in user_devices table
-              const { error } = await supabase.rpc('save_player_id' as any, {
-                p_user_id: userId,
-                p_player_id: playerId,
-                p_device_type: 'web'
-              });
+              const { error } = await supabase
+                .from('user_devices')
+                .upsert({
+                  user_id: userId,
+                  player_id: playerId,
+                  device_type: 'web',
+                  email: userEmail,
+                  last_seen: new Date().toISOString()
+                }, {
+                  onConflict: 'player_id'
+                });
               
               if (error) throw error;
               console.log('✅ OneSignal player_id uložen do user_devices');
