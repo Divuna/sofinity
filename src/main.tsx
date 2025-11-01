@@ -43,8 +43,9 @@ const setupOneSignal = async (userId: string) => {
     }
 
     const appId = settingsData.value;
-    console.log('🔔 Inicializuji OneSignal s App ID:', appId);
+    console.log('🔔 Načítám OneSignal s App ID:', appId);
 
+    // Wait for OneSignal SDK to be ready and initialize
     await window.OneSignalDeferred?.push(async (OneSignal) => {
       await OneSignal.init({
         appId: appId,
@@ -71,7 +72,7 @@ const setupOneSignal = async (userId: string) => {
         }
       });
 
-      console.log('✅ OneSignal SDK inicializován s českými texty');
+      console.log('✅ OneSignal initialized with App ID:', appId);
 
       // Check if notifications are already allowed
       const permission = await OneSignal.Notifications.permission;
