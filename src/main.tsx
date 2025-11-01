@@ -45,20 +45,54 @@ const setupOneSignal = async (userId: string) => {
     const appId = settingsData.value;
     console.log('🔔 Načítám OneSignal s App ID:', appId);
 
-    // Wait for OneSignal SDK to be fully loaded
-    const waitForOneSignal = (): Promise<void> => {
-      return new Promise((resolve) => {
-        const checkInterval = setInterval(() => {
-          if (window.OneSignalDeferred) {
-            clearInterval(checkInterval);
-            console.log('🟢 OneSignal SDK detected, initializing...');
-            resolve();
-          }
-        }, 100);
+    // Ensure OneSignal SDK script is loaded
+    const ensureOneSignalScript = (): Promise<void> => {
+      return new Promise((resolve, reject) => {
+        // Check if already loaded
+        if (window.OneSignalDeferred) {
+          console.log('🟢 OneSignal SDK already available');
+          resolve();
+          return;
+        }
+
+        // Check if script tag exists
+        const existingScript = document.querySelector('script[src*="OneSignalSDK"]');
+        if (existingScript) {
+          // Script tag exists, wait for it to load
+          const checkInterval = setInterval(() => {
+            if (window.OneSignalDeferred) {
+              clearInterval(checkInterval);
+              console.log('🟢 OneSignal SDK detected, initializing...');
+              resolve();
+            }
+          }, 100);
+          return;
+        }
+
+        // Dynamically inject script if not present
+        console.log('📦 Loading OneSignal SDK from CDN...');
+        const script = document.createElement('script');
+        script.src = 'https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js';
+        script.defer = true;
+        script.onload = () => {
+          console.log('🧩 OneSignal SDK script loaded from CDN');
+          // Wait a bit for SDK to initialize
+          const checkInterval = setInterval(() => {
+            if (window.OneSignalDeferred) {
+              clearInterval(checkInterval);
+              resolve();
+            }
+          }, 50);
+        };
+        script.onerror = () => {
+          console.error('❌ Failed to load OneSignal SDK from CDN');
+          reject(new Error('Failed to load OneSignal SDK'));
+        };
+        document.head.appendChild(script);
       });
     };
 
-    await waitForOneSignal();
+    await ensureOneSignalScript();
 
     // Initialize OneSignal after SDK is ready
     console.log('🛠️ Using OneSignal CDN service worker');
