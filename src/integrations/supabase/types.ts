@@ -1251,6 +1251,7 @@ export type Database = {
           id: string
           message: string | null
           metadata: Json | null
+          source_system: string | null
           user_id: string | null
         }
         Insert: {
@@ -1259,6 +1260,7 @@ export type Database = {
           id?: string
           message?: string | null
           metadata?: Json | null
+          source_system?: string | null
           user_id?: string | null
         }
         Update: {
@@ -1267,6 +1269,7 @@ export type Database = {
           id?: string
           message?: string | null
           metadata?: Json | null
+          source_system?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -1581,7 +1584,9 @@ export type Database = {
           event_id: string | null
           event_name: string
           id: string
+          message_text: string | null
           payload: Json | null
+          project_id: string | null
           status: string | null
           target_email: string | null
           user_id: string | null
@@ -1591,7 +1596,9 @@ export type Database = {
           event_id?: string | null
           event_name: string
           id?: string
+          message_text?: string | null
           payload?: Json | null
+          project_id?: string | null
           status?: string | null
           target_email?: string | null
           user_id?: string | null
@@ -1601,7 +1608,9 @@ export type Database = {
           event_id?: string | null
           event_name?: string
           id?: string
+          message_text?: string | null
           payload?: Json | null
+          project_id?: string | null
           status?: string | null
           target_email?: string | null
           user_id?: string | null
@@ -2027,6 +2036,50 @@ export type Database = {
           user_id?: string | null
         }
         Relationships: []
+      }
+      push_log: {
+        Row: {
+          created_at: string | null
+          event_name: string | null
+          id: string
+          notification_id: string | null
+          player_id: string | null
+          project_id: string | null
+          response: Json | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_name?: string | null
+          id?: string
+          notification_id?: string | null
+          player_id?: string | null
+          project_id?: string | null
+          response?: Json | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_name?: string | null
+          id?: string
+          notification_id?: string | null
+          player_id?: string | null
+          project_id?: string | null
+          response?: Json | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_log_notification_id_fkey"
+            columns: ["notification_id"]
+            isOneToOne: false
+            referencedRelation: "NotificationQueue"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       push_logs: {
         Row: {
@@ -3282,6 +3335,7 @@ export type Database = {
         Args: { integration_id: string }
         Returns: Json
       }
+      handle_event_from_onemil: { Args: never; Returns: Json }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -3442,15 +3496,20 @@ export type Database = {
             }
             Returns: undefined
           }
-      send_push_via_onesignal: {
-        Args: {
-          event_id?: string
-          message: string
-          target_user_id: string
-          title: string
-        }
-        Returns: string
-      }
+      save_player_id_fallback: { Args: never; Returns: undefined }
+      send_push_via_onesignal:
+        | { Args: never; Returns: undefined }
+        | {
+            Args: {
+              event_id?: string
+              message: string
+              target_user_id: string
+              title: string
+            }
+            Returns: undefined
+          }
+      sofinity_event: { Args: never; Returns: undefined }
+      "sofinity-event": { Args: never; Returns: Json }
       test_onemil_player_sync: {
         Args: {
           test_device_type?: string
