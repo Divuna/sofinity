@@ -45,8 +45,23 @@ const setupOneSignal = async (userId: string) => {
     const appId = settingsData.value;
     console.log('🔔 Načítám OneSignal s App ID:', appId);
 
-    // Wait for OneSignal SDK to be ready and initialize
-    await window.OneSignalDeferred?.push(async (OneSignal) => {
+    // Wait for OneSignal SDK to be fully loaded
+    const waitForOneSignal = (): Promise<void> => {
+      return new Promise((resolve) => {
+        const checkInterval = setInterval(() => {
+          if (window.OneSignalDeferred) {
+            clearInterval(checkInterval);
+            console.log('🟢 OneSignal SDK detected, initializing...');
+            resolve();
+          }
+        }, 100);
+      });
+    };
+
+    await waitForOneSignal();
+
+    // Initialize OneSignal after SDK is ready
+    await window.OneSignalDeferred.push(async (OneSignal) => {
       await OneSignal.init({
         appId: appId,
         allowLocalhostAsSecureOrigin: true,
