@@ -61,6 +61,7 @@ const setupOneSignal = async (userId: string) => {
     await waitForOneSignal();
 
     // Initialize OneSignal after SDK is ready
+    console.log('🛠️ Using OneSignal CDN service worker');
     await window.OneSignalDeferred.push(async (OneSignal) => {
       await OneSignal.init({
         appId: appId,
