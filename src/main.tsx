@@ -54,11 +54,13 @@ const setupOneSignal = async (userId: string) => {
             prompts: [
               {
                 type: "push",
-                autoPrompt: true,
+                autoPrompt: false,
                 text: {
-                  actionMessage: "Chcete dostávat oznámení o důležitých událostech?",
-                  acceptButton: "Povolit",
-                  cancelButton: "Ne, děkuji"
+                  action: {
+                    message: "Chcete dostávat oznámení o důležitých událostech?",
+                    accept: "Povolit",
+                    cancel: "Ne, děkuji"
+                  }
                 }
               }
             ]
@@ -68,12 +70,19 @@ const setupOneSignal = async (userId: string) => {
 
       console.log('✅ OneSignal SDK inicializován s českými texty');
 
-      // Show permission prompt
-      try {
-        await OneSignal.Slidedown.promptPush();
-        console.log('🔔 Slidedown prompt zobrazen');
-      } catch (error) {
-        console.warn('Slidedown prompt nelze zobrazit:', error);
+      // Check if notifications are already allowed
+      const permission = await OneSignal.Notifications.permission;
+      
+      if (permission) {
+        console.log('🔔 Už máš zapnuté notifikace');
+      } else {
+        // Show permission prompt
+        try {
+          await OneSignal.Slidedown.promptPush();
+          console.log('🔔 Slidedown prompt zobrazen');
+        } catch (error) {
+          console.warn('Slidedown prompt nelze zobrazit:', error);
+        }
       }
 
       // Log current Player ID if available
