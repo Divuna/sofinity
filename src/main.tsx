@@ -51,9 +51,17 @@ const setupOneSignal = async (userId: string) => {
         allowLocalhostAsSecureOrigin: true,
         promptOptions: {
           slidedown: {
-            actionMessage: "Chcete dostávat oznámení o důležitých událostech?",
-            acceptButton: "Povolit",
-            cancelButton: "Ne, děkuji"
+            prompts: [
+              {
+                type: "push",
+                autoPrompt: true,
+                text: {
+                  actionMessage: "Chcete dostávat oznámení o důležitých událostech?",
+                  acceptButton: "Povolit",
+                  cancelButton: "Ne, děkuji"
+                }
+              }
+            ]
           }
         }
       });
