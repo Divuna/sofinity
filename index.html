@@ -15,18 +15,67 @@
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:site" content="@lovable_dev" />
     <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-    
-    <!-- OneSignal SDK -->
-    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+
+    <!-- OneSignal v16 SDK -->
+    <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.js" async></script>
+
     <script>
-      window.OneSignalDeferred = window.OneSignalDeferred || [];
-      OneSignalDeferred.push(async function(OneSignal) {
-        await OneSignal.init({
-          appId: "5e5539e1-fc71-4c4d-9fef-414293d83dbb",
-          notifyButton: { enable: true },
-          allowLocalhostAsSecureOrigin: true,
+      const SAVE_PLAYER_ENDPOINT = '/api/save_player';
+
+      (async () => {
+        window.OneSignal = window.OneSignal || [];
+
+        // 1️⃣ Registrace service workerů před inicializací
+        try {
+          await navigator.serviceWorker.register('/OneSignalSDKWorker.js');
+          await navigator.serviceWorker.register('/OneSignalSDKUpdaterWorker.js');
+          console.log('OneSignal service workers registered');
+        } catch (err) {
+          console.warn('Service worker registration failed:', err);
+        }
+
+        // 2️⃣ Inicializace OneSignal
+        OneSignal.push(async () => {
+          try {
+            await OneSignal.init({
+              appId: "5e5539e1-fc71-4c4d-9fef-414293d83dbb",
+              allowLocalhostAsSecureOrigin: true,
+              notifyButton: { enable: true },
+            });
+            console.log('✅ OneSignal initialized, version:', OneSignal.VERSION);
+
+            // 3️⃣ Vyžádej povolení pro notifikace
+            try {
+              await OneSignal.showNativePrompt();
+            } catch (e) {
+              console.info('showNativePrompt skipped or already granted:', e);
+            }
+
+            // 4️⃣ Zkontroluj subscription
+            await new Promise((r) => setTimeout(r, 800));
+            const enabled = await OneSignal.isPushNotificationsEnabled();
+            const playerId = await OneSignal.getUserId();
+            console.log('Push enabled:', enabled, 'Player ID:', playerId);
+
+            if (enabled && playerId) {
+              try {
+                await fetch(SAVE_PLAYER_ENDPOINT, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ player_id: playerId }),
+                });
+                console.log('Player ID sent to backend');
+              } catch (err) {
+                console.warn('Failed to send player ID to backend:', err);
+              }
+            } else {
+              console.warn('Push not enabled or no playerId yet');
+            }
+          } catch (initErr) {
+            console.error('OneSignal init error:', initErr);
+          }
         });
-      });
+      })();
     </script>
   </head>
 
