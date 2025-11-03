@@ -18,6 +18,16 @@
     
     <!-- OneSignal SDK -->
     <script src="https://cdn.onesignal.com/sdks/web/v16/OneSignalSDK.page.js" defer></script>
+    <script>
+      window.OneSignalDeferred = window.OneSignalDeferred || [];
+      OneSignalDeferred.push(async function(OneSignal) {
+        await OneSignal.init({
+          appId: "5e5539e1-fc71-4c4d-9fef-414293d83dbb",
+          notifyButton: { enable: true },
+          allowLocalhostAsSecureOrigin: true,
+        });
+      });
+    </script>
   </head>
 
   <body>
