@@ -89,6 +89,7 @@ const setupOneSignal = async (userId: string) => {
         allowLocalhostAsSecureOrigin: true,
         serviceWorkerPath: 'https://cdn.onesignal.com/sdks/OneSignalSDKWorker.js',
         serviceWorkerUpdaterPath: 'https://cdn.onesignal.com/sdks/OneSignalSDKUpdaterWorker.js',
+        serviceWorkerParam: { scope: '/' },
         promptOptions: {
           slidedown: {
             prompts: [
