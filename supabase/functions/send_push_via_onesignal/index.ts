@@ -82,6 +82,7 @@ serve(async (req) => {
     }
 
     console.log('✅ OneSignal credentials retrieved');
+    console.log('🔐 Using OneSignal auth scheme:', 'Key *****' + apiKey.slice(-6));
 
     // Prepare notification payload
     const notificationPayload = {
@@ -95,13 +96,14 @@ serve(async (req) => {
 
     // Use OneSignal API host directly (avoid redirects that drop Authorization)
     const onesignalUrl = 'https://api.onesignal.com/notifications';
+    console.log('➡️  URL:', onesignalUrl);
 
-    // Send notification using REST API key directly (no Basic prefix for REST API)
+    // Send notification using REST API key with "Key" prefix
     const response = await fetch(onesignalUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': apiKey,
+        'Authorization': `Key ${apiKey}`,
       },
       body: JSON.stringify(notificationPayload),
     });

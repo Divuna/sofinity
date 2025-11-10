@@ -60,9 +60,12 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Processing ${notifications.length} notifications`);
 
-    const results = [];
+    const results = { sent: 0, failed: 0, details: [] as any[] };
 
     for (const notification of notifications as NotificationRecord[]) {
+      let pushSent = false;
+      let emailSent = false;
+      
       try {
         // Get user email and OneSignal player_ids from user_devices (multi-device support)
         let recipientEmail = notification.target_email;
@@ -95,14 +98,18 @@ const handler = async (req: Request): Promise<Response> => {
             const pushTitle = notification.payload?.title || "Oznámení";
             const pushMessage = notification.payload?.message || "Máte nové oznámení";
 
+            console.log(`🔔 Sending push to ${playerIdsForPush.length} device(s) for notification ${notification.id}...`);
+            console.log('🔐 Using OneSignal auth scheme:', 'Key *****' + onesignalApiKey.slice(-6));
+
             // Use OneSignal API host directly (avoid redirects that drop Authorization)
             const onesignalUrl = "https://api.onesignal.com/notifications";
+            console.log('➡️  URL:', onesignalUrl);
 
             const pushResponse = await fetch(onesignalUrl, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": onesignalApiKey,
+                "Authorization": `Key ${onesignalApiKey}`,
               },
               body: JSON.stringify({
                 app_id: onesignalAppId,
@@ -116,140 +123,154 @@ const handler = async (req: Request): Promise<Response> => {
               }),
             });
 
+            const pushStatusCode = pushResponse.status;
+            console.log(`📊 Push response status: ${pushStatusCode}`);
+
             if (pushResponse.ok) {
               const pushResult = await pushResponse.json();
-              console.log(`Push notification sent for ${notification.id}:`, pushResult);
+              console.log(`✅ Push notification sent for ${notification.id}:`, pushResult);
+              pushSent = true;
               
-              // Log to push_logs if table exists
+              // Log to push_log table
               try {
-                await supabase.from("push_logs").insert({
-                  user_id: notification.user_id,
-                  event_id: notification.event_id,
-                  status: "success",
-                  response: pushResult,
+                await supabase.from("push_log").insert({
+                  player_id: playerIdsForPush[0], // Log first player_id
+                  status_code: pushStatusCode,
+                  response_body: JSON.stringify(pushResult),
+                  status: "sent",
                 });
               } catch (logError) {
-                console.error("Error logging push notification:", logError);
+                console.error("⚠️  Error logging to push_log:", logError);
               }
             } else {
               const errorText = await pushResponse.text();
-              console.error(`Push notification failed for ${notification.id}:`, errorText);
+              console.error(`❌ Push notification failed for ${notification.id}: ${errorText}`);
+              pushSent = false;
+              
+              // Log failed push
+              try {
+                await supabase.from("push_log").insert({
+                  player_id: playerIdsForPush[0],
+                  status_code: pushStatusCode,
+                  response_body: errorText,
+                  status: "failed",
+                });
+              } catch (logError) {
+                console.error("⚠️  Error logging failed push:", logError);
+              }
             }
           } catch (pushError: any) {
-            console.error(`Error sending push notification for ${notification.id}:`, pushError);
+            console.error(`💥 Error sending push notification for ${notification.id}:`, pushError);
+            pushSent = false;
           }
+        } else {
+          console.log(`⚠️  Push not sent for ${notification.id}: no devices or OneSignal not configured`);
         }
 
-        // Skip email if no email address and no RESEND_API_KEY
-        if (!recipientEmail || !resendApiKey) {
-          console.log(`Skipping email for notification ${notification.id} (no email or RESEND_API_KEY)`);
-          // Mark as sent if push was sent
-          if (playerIdsForPush.length > 0 && onesignalAppId) {
-            await supabase
-              .from("NotificationQueue")
-              .update({ 
-                status: "sent",
-                payload: {
-                  ...notification.payload,
-                  sent_at: new Date().toISOString(),
-                  sent_via: "push_only"
-                }
-              })
-              .eq("id", notification.id);
-            
-            results.push({
-              notification_id: notification.id,
-              status: "sent",
-              method: "push_only",
+        // Send email if configured
+        if (recipientEmail && resendApiKey) {
+          console.log(`📧 Sending email to ${recipientEmail} for notification ${notification.id}...`);
+
+          // Prepare email content based on event type
+          let subject = "";
+          let htmlContent = "";
+
+          switch (notification.event_name) {
+            case "campaign_published":
+              subject = "Kampaň byla publikována";
+              htmlContent = `
+                <h1>Vaše kampaň byla úspěšně publikována</h1>
+                <p>Kampaň byla publikována a je nyní aktivní.</p>
+                <p><strong>Detaily:</strong></p>
+                <pre>${JSON.stringify(notification.payload, null, 2)}</pre>
+              `;
+              break;
+            case "campaign_deleted":
+              subject = "Kampaň byla smazána";
+              htmlContent = `
+                <h1>Kampaň byla smazána</h1>
+                <p>Kampaň byla trvale odstraněna ze systému.</p>
+                <p><strong>Detaily:</strong></p>
+                <pre>${JSON.stringify(notification.payload, null, 2)}</pre>
+              `;
+              break;
+            default:
+              subject = `Notifikace: ${notification.event_name}`;
+              htmlContent = `
+                <h1>Systémová notifikace</h1>
+                <p><strong>Událost:</strong> ${notification.event_name}</p>
+                <p><strong>Detaily:</strong></p>
+                <pre>${JSON.stringify(notification.payload, null, 2)}</pre>
+              `;
+          }
+
+          try {
+            // Send email via Resend
+            const resendResponse = await fetch("https://api.resend.com/emails", {
+              method: "POST",
+              headers: {
+                "Authorization": `Bearer ${resendApiKey}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                from: "OneMil <noreply@opravo.cz>",
+                to: [recipientEmail],
+                subject: subject,
+                html: htmlContent,
+              }),
             });
-          } else {
-            await supabase
-              .from("NotificationQueue")
-              .update({ status: "failed" })
-              .eq("id", notification.id);
+
+            if (resendResponse.ok) {
+              const emailResult = await resendResponse.json();
+              console.log(`✅ Email sent successfully for ${notification.id}:`, emailResult);
+              emailSent = true;
+            } else {
+              const errorText = await resendResponse.text();
+              console.error(`❌ Email failed for ${notification.id}: ${errorText}`);
+              emailSent = false;
+            }
+          } catch (emailError: any) {
+            console.error(`💥 Error sending email for ${notification.id}:`, emailError);
+            emailSent = false;
           }
-          continue;
+        } else {
+          console.log(`⚠️  Email not sent for ${notification.id}: no email or RESEND_API_KEY`);
         }
 
-        // Prepare email content based on event type
-        let subject = "";
-        let htmlContent = "";
+        // Update notification status based on what was successfully sent
+        const finalStatus = (pushSent || emailSent) ? "sent" : "failed";
+        const sentVia = pushSent && emailSent ? "email_and_push" : 
+                        pushSent ? "push_only" : 
+                        emailSent ? "email_only" : "none";
 
-        switch (notification.event_name) {
-          case "campaign_published":
-            subject = "Kampaň byla publikována";
-            htmlContent = `
-              <h1>Vaše kampaň byla úspěšně publikována</h1>
-              <p>Kampaň byla publikována a je nyní aktivní.</p>
-              <p><strong>Detaily:</strong></p>
-              <pre>${JSON.stringify(notification.payload, null, 2)}</pre>
-            `;
-            break;
-          case "campaign_deleted":
-            subject = "Kampaň byla smazána";
-            htmlContent = `
-              <h1>Kampaň byla smazána</h1>
-              <p>Kampaň byla trvale odstraněna ze systému.</p>
-              <p><strong>Detaily:</strong></p>
-              <pre>${JSON.stringify(notification.payload, null, 2)}</pre>
-            `;
-            break;
-          default:
-            subject = `Notifikace: ${notification.event_name}`;
-            htmlContent = `
-              <h1>Systémová notifikace</h1>
-              <p><strong>Událost:</strong> ${notification.event_name}</p>
-              <p><strong>Detaily:</strong></p>
-              <pre>${JSON.stringify(notification.payload, null, 2)}</pre>
-            `;
-        }
-
-        // Send email via Resend
-        const resendResponse = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${resendApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            from: "OneMil <noreply@opravo.cz>",
-            to: [recipientEmail],
-            subject: subject,
-            html: htmlContent,
-          }),
-        });
-
-        if (!resendResponse.ok) {
-          const errorText = await resendResponse.text();
-          throw new Error(`Resend API error: ${resendResponse.status} - ${errorText}`);
-        }
-
-        const emailResult = await resendResponse.json();
-        console.log(`Email sent successfully for notification ${notification.id}:`, emailResult);
-
-        // Update notification status to sent
         await supabase
           .from("NotificationQueue")
           .update({ 
-            status: "sent",
+            status: finalStatus,
             payload: {
               ...notification.payload,
               sent_at: new Date().toISOString(),
-              email_response: emailResult,
-              sent_via: playerIdsForPush.length > 0 ? "email_and_push" : "email_only"
+              sent_via: sentVia
             }
           })
           .eq("id", notification.id);
 
-        results.push({
+        console.log(`✅ Notification ${notification.id} marked as ${finalStatus} (${sentVia})`);
+
+        if (finalStatus === "sent") {
+          results.sent++;
+        } else {
+          results.failed++;
+        }
+
+        results.details.push({
           notification_id: notification.id,
-          status: "sent",
-          email_id: emailResult.id,
-          sent_via: playerIdsForPush.length > 0 ? "email_and_push" : "email_only",
+          status: finalStatus,
+          sent_via: sentVia,
         });
 
       } catch (error: any) {
-        console.error(`Error processing notification ${notification.id}:`, error);
+        console.error(`💥 Error processing notification ${notification.id}:`, error);
         
         // Update notification status to failed
         await supabase
@@ -264,7 +285,8 @@ const handler = async (req: Request): Promise<Response> => {
           })
           .eq("id", notification.id);
 
-        results.push({
+        results.failed++;
+        results.details.push({
           notification_id: notification.id,
           status: "failed",
           error: error.message,
@@ -275,7 +297,9 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(
       JSON.stringify({ 
         processed: notifications.length,
-        results 
+        sent: results.sent,
+        failed: results.failed,
+        details: results.details
       }),
       {
         status: 200,
