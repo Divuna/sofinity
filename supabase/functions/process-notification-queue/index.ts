@@ -96,14 +96,14 @@ const handler = async (req: Request): Promise<Response> => {
             const pushTitle = notification.payload?.title || "Oznámení";
             const pushMessage = notification.payload?.message || "Máte nové oznámení";
 
-            // Encode API key properly: base64(REST_API_KEY + ":")
-            const encodedApiKey = btoa(onesignalApiKey + ":");
+            // Use OneSignal API host directly (avoid redirects that drop Authorization)
+            const onesignalUrl = "https://api.onesignal.com/notifications";
 
-            const pushResponse = await fetch("https://onesignal.com/api/v1/notifications", {
+            const pushResponse = await fetch(onesignalUrl, {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Basic ${encodedApiKey}`,
+                "Authorization": `Basic ${onesignalApiKey}`,
               },
               body: JSON.stringify({
                 app_id: onesignalAppId,
