@@ -69,12 +69,11 @@ const handler = async (req: Request): Promise<Response> => {
         let playerIdsForPush: string[] = [];
 
         if (notification.user_id) {
-          // Fetch all active devices for this user
+          // Fetch all devices for this user
           const { data: devices } = await supabase
             .from("user_devices")
             .select("player_id")
-            .eq("user_id", notification.user_id)
-            .eq("is_active", true);
+            .eq("user_id", notification.user_id);
 
           playerIdsForPush = devices?.map(d => d.player_id).filter(Boolean) || [];
 
