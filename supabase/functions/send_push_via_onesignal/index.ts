@@ -93,12 +93,15 @@ serve(async (req) => {
 
     console.log('📤 Sending notification to OneSignal...');
 
+    // Encode API key properly: base64(REST_API_KEY + ":")
+    const encodedApiKey = btoa(apiKey + ":");
+
     // Send notification using Basic authentication (OneSignal REST API requirement)
     const response = await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Basic ${apiKey}`,
+        'Authorization': `Basic ${encodedApiKey}`,
       },
       body: JSON.stringify(notificationPayload),
     });

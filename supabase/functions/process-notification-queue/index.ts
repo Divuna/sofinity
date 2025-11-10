@@ -64,36 +64,50 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const notification of notifications as NotificationRecord[]) {
       try {
-        // Get user email and OneSignal player_id if not provided
+        // Get user email and OneSignal player_ids from user_devices (multi-device support)
         let recipientEmail = notification.target_email;
-        let playerIdForPush = null;
+        let playerIdsForPush: string[] = [];
 
-        if (!recipientEmail && notification.user_id) {
-          const { data: profile } = await supabase
-            .from("profiles")
-            .select("email, onesignal_player_id")
+        if (notification.user_id) {
+          // Fetch all active devices for this user
+          const { data: devices } = await supabase
+            .from("user_devices")
+            .select("player_id")
             .eq("user_id", notification.user_id)
-            .single();
+            .eq("is_active", true);
 
-          recipientEmail = profile?.email;
-          playerIdForPush = profile?.onesignal_player_id;
+          playerIdsForPush = devices?.map(d => d.player_id).filter(Boolean) || [];
+
+          // Get email from profiles if not provided
+          if (!recipientEmail) {
+            const { data: profile } = await supabase
+              .from("profiles")
+              .select("email")
+              .eq("user_id", notification.user_id)
+              .single();
+            
+            recipientEmail = profile?.email;
+          }
         }
 
-        // Send OneSignal push notification if credentials are available and user has player_id
-        if (onesignalAppId && onesignalApiKey && playerIdForPush) {
+        // Send OneSignal push notification if credentials are available and user has player_ids
+        if (onesignalAppId && onesignalApiKey && playerIdsForPush.length > 0) {
           try {
             const pushTitle = notification.payload?.title || "Oznámení";
             const pushMessage = notification.payload?.message || "Máte nové oznámení";
+
+            // Encode API key properly: base64(REST_API_KEY + ":")
+            const encodedApiKey = btoa(onesignalApiKey + ":");
 
             const pushResponse = await fetch("https://onesignal.com/api/v1/notifications", {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Basic ${onesignalApiKey}`,
+                "Authorization": `Basic ${encodedApiKey}`,
               },
               body: JSON.stringify({
                 app_id: onesignalAppId,
-                include_player_ids: [playerIdForPush],
+                include_player_ids: playerIdsForPush,
                 headings: { en: pushTitle, cs: pushTitle },
                 contents: { en: pushMessage, cs: pushMessage },
                 data: {
@@ -131,7 +145,7 @@ const handler = async (req: Request): Promise<Response> => {
         if (!recipientEmail || !resendApiKey) {
           console.log(`Skipping email for notification ${notification.id} (no email or RESEND_API_KEY)`);
           // Mark as sent if push was sent
-          if (playerIdForPush && onesignalAppId) {
+          if (playerIdsForPush.length > 0 && onesignalAppId) {
             await supabase
               .from("NotificationQueue")
               .update({ 
@@ -223,7 +237,7 @@ const handler = async (req: Request): Promise<Response> => {
               ...notification.payload,
               sent_at: new Date().toISOString(),
               email_response: emailResult,
-              sent_via: playerIdForPush ? "email_and_push" : "email_only"
+              sent_via: playerIdsForPush.length > 0 ? "email_and_push" : "email_only"
             }
           })
           .eq("id", notification.id);
@@ -232,7 +246,7 @@ const handler = async (req: Request): Promise<Response> => {
           notification_id: notification.id,
           status: "sent",
           email_id: emailResult.id,
-          sent_via: playerIdForPush ? "email_and_push" : "email_only",
+          sent_via: playerIdsForPush.length > 0 ? "email_and_push" : "email_only",
         });
 
       } catch (error: any) {
