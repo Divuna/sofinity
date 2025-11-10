@@ -102,7 +102,7 @@ const handler = async (req: Request): Promise<Response> => {
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "Authorization": `Basic ${onesignalApiKey}`,
+                "Authorization": onesignalApiKey,
               },
               body: JSON.stringify({
                 app_id: onesignalAppId,
