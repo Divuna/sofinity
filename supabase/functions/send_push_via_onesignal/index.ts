@@ -93,12 +93,12 @@ serve(async (req) => {
 
     console.log('📤 Sending notification to OneSignal...');
 
-    // Send notification using Bearer authentication
+    // Send notification using Basic authentication (OneSignal REST API requirement)
     const response = await fetch('https://onesignal.com/api/v1/notifications', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Basic ${apiKey}`,
       },
       body: JSON.stringify(notificationPayload),
     });
