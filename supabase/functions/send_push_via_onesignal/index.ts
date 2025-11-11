@@ -44,38 +44,17 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch OneSignal credentials from settings
-    console.log('🔑 Fetching OneSignal credentials from database...');
-    const { data: settingsData, error: settingsError } = await supabase
-      .from('settings')
-      .select('key, value')
-      .in('key', ['onesignal_app_id', 'onesignal_rest_api_key']);
-
-    if (settingsError) {
-      console.error('❌ Error fetching settings:', settingsError);
-      return new Response(
-        JSON.stringify({ 
-          success: false, 
-          error: 'Failed to fetch OneSignal credentials' 
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
-      );
-    }
-
-    const settings = settingsData.reduce((acc, row) => {
-      acc[row.key] = row.value;
-      return acc;
-    }, {} as Record<string, string>);
-
-    const appId = settings.onesignal_app_id;
-    const apiKey = settings.onesignal_rest_api_key;
+    // Get OneSignal credentials from Edge Function secrets
+    console.log('🔑 Loading OneSignal credentials from environment...');
+    const appId = Deno.env.get('ONESIGNAL_APP_ID');
+    const apiKey = Deno.env.get('ONESIGNAL_REST_API_KEY');
 
     if (!appId || !apiKey) {
       console.error('❌ OneSignal credentials not configured');
       return new Response(
         JSON.stringify({ 
           success: false, 
-          error: 'OneSignal credentials not configured in settings table' 
+          error: 'OneSignal credentials not configured in Edge Function secrets' 
         }),
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
       );

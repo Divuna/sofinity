@@ -27,18 +27,9 @@ const handler = async (req: Request): Promise<Response> => {
 
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Fetch OneSignal credentials from settings table
-    const { data: settingsData, error: settingsError } = await supabase
-      .from("settings")
-      .select("key, value")
-      .in("key", ["onesignal_app_id", "onesignal_rest_api_key"]);
-
-    if (settingsError) {
-      console.error("Error fetching OneSignal settings:", settingsError);
-    }
-
-    const onesignalAppId = settingsData?.find(s => s.key === "onesignal_app_id")?.value;
-    const onesignalApiKey = settingsData?.find(s => s.key === "onesignal_rest_api_key")?.value;
+    // Get OneSignal credentials from Edge Function secrets
+    const onesignalAppId = Deno.env.get("ONESIGNAL_APP_ID");
+    const onesignalApiKey = Deno.env.get("ONESIGNAL_REST_API_KEY");
 
     // Fetch pending notifications from queue
     const { data: notifications, error: fetchError } = await supabase
