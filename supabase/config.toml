@@ -142,3 +142,6 @@ verify_jwt = false
 # DIAGNOSTIC: OneSignal push notification tester
 [functions.send_push_via_onesignal]
 verify_jwt = false
+
+[functions.test-push-notification]
+verify_jwt = false
