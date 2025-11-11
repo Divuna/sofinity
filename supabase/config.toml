@@ -145,3 +145,7 @@ verify_jwt = false
 
 [functions.test-push-notification]
 verify_jwt = false
+
+# OneSignal configuration endpoint (public - returns only App ID)
+[functions.get-onesignal-config]
+verify_jwt = false

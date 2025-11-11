@@ -38,18 +38,15 @@ const initializeOneSignal = async () => {
 // ✅ 3. Funkce pro nastavení OneSignal a uložení player_id
 const setupOneSignal = async (userId: string) => {
   try {
-    const { data: settingsData, error: settingsError } = await supabase
-      .from('settings')
-      .select('value')
-      .eq('key', 'onesignal_app_id')
-      .single()
+    // Fetch OneSignal App ID from Edge Function (reads from Edge Function secrets)
+    const { data, error } = await supabase.functions.invoke('get-onesignal-config')
 
-    if (settingsError || !settingsData?.value) {
-      console.error('OneSignal App ID not found in settings:', settingsError)
+    if (error || !data?.success || !data?.appId) {
+      console.error('OneSignal App ID not found in Edge Function secrets:', error)
       return
     }
 
-    const appId = settingsData.value
+    const appId = data.appId
     console.log('🔔 Načítám OneSignal s App ID:', appId)
 
     // Zajištění, že SDK je načtené
