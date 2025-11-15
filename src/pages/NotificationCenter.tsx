@@ -37,11 +37,18 @@ interface Notification {
 
 interface PushLog {
   id: string;
-  user_id: string;
-  event_id: string | null;
-  status: string;
+  user_id: string | null;
+  player_id: string | null;
+  event_name: string | null;
+  status: string | null;
+  status_code: number | null;
   response: any;
-  created_at: string;
+  response_body: string | null;
+  response_headers: any;
+  notification_id: string | null;
+  project_id: string | null;
+  marker: string | null;
+  created_at: string | null;
 }
 
 const notificationIcons = {
@@ -155,7 +162,7 @@ export default function NotificationCenter() {
       }
 
       const { data, error } = await supabase
-        .from('push_logs')
+        .from('push_log')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });

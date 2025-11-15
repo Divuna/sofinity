@@ -1584,11 +1584,13 @@ export type Database = {
           event_id: string | null
           event_name: string
           id: string
+          marker: string | null
           message_text: string | null
           payload: Json | null
           project_id: string | null
           status: string | null
           target_email: string | null
+          title: string | null
           user_id: string | null
         }
         Insert: {
@@ -1596,11 +1598,13 @@ export type Database = {
           event_id?: string | null
           event_name: string
           id?: string
+          marker?: string | null
           message_text?: string | null
           payload?: Json | null
           project_id?: string | null
           status?: string | null
           target_email?: string | null
+          title?: string | null
           user_id?: string | null
         }
         Update: {
@@ -1608,11 +1612,13 @@ export type Database = {
           event_id?: string | null
           event_name?: string
           id?: string
+          marker?: string | null
           message_text?: string | null
           payload?: Json | null
           project_id?: string | null
           status?: string | null
           target_email?: string | null
+          title?: string | null
           user_id?: string | null
         }
         Relationships: [
@@ -2042,33 +2048,45 @@ export type Database = {
           created_at: string | null
           event_name: string | null
           id: string
+          marker: string | null
           notification_id: string | null
           player_id: string | null
           project_id: string | null
           response: Json | null
+          response_body: string | null
+          response_headers: Json | null
           status: string | null
+          status_code: number | null
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
           event_name?: string | null
           id?: string
+          marker?: string | null
           notification_id?: string | null
           player_id?: string | null
           project_id?: string | null
           response?: Json | null
+          response_body?: string | null
+          response_headers?: Json | null
           status?: string | null
+          status_code?: number | null
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
           event_name?: string | null
           id?: string
+          marker?: string | null
           notification_id?: string | null
           player_id?: string | null
           project_id?: string | null
           response?: Json | null
+          response_body?: string | null
+          response_headers?: Json | null
           status?: string | null
+          status_code?: number | null
           user_id?: string | null
         }
         Relationships: [
@@ -2081,7 +2099,133 @@ export type Database = {
           },
         ]
       }
-      push_logs: {
+      push_log_backup: {
+        Row: {
+          created_at: string | null
+          event_name: string | null
+          id: string | null
+          marker: string | null
+          notification_id: string | null
+          player_id: string | null
+          project_id: string | null
+          response: Json | null
+          response_body: string | null
+          response_headers: Json | null
+          status: string | null
+          status_code: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_name?: string | null
+          id?: string | null
+          marker?: string | null
+          notification_id?: string | null
+          player_id?: string | null
+          project_id?: string | null
+          response?: Json | null
+          response_body?: string | null
+          response_headers?: Json | null
+          status?: string | null
+          status_code?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_name?: string | null
+          id?: string | null
+          marker?: string | null
+          notification_id?: string | null
+          player_id?: string | null
+          project_id?: string | null
+          response?: Json | null
+          response_body?: string | null
+          response_headers?: Json | null
+          status?: string | null
+          status_code?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      push_logs_backup: {
+        Row: {
+          created_at: string | null
+          event_id: string | null
+          event_name: string | null
+          id: string | null
+          marker: string | null
+          notification_id: string | null
+          player_id: string | null
+          project_id: string | null
+          response: Json | null
+          response_body: string | null
+          response_headers: Json | null
+          status: string | null
+          status_code: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id?: string | null
+          event_name?: string | null
+          id?: string | null
+          marker?: string | null
+          notification_id?: string | null
+          player_id?: string | null
+          project_id?: string | null
+          response?: Json | null
+          response_body?: string | null
+          response_headers?: Json | null
+          status?: string | null
+          status_code?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string | null
+          event_name?: string | null
+          id?: string | null
+          marker?: string | null
+          notification_id?: string | null
+          player_id?: string | null
+          project_id?: string | null
+          response?: Json | null
+          response_body?: string | null
+          response_headers?: Json | null
+          status?: string | null
+          status_code?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      push_logs_backup_20250126: {
+        Row: {
+          created_at: string | null
+          event_id: string | null
+          id: string | null
+          response: Json | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_id?: string | null
+          id?: string | null
+          response?: Json | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_id?: string | null
+          id?: string | null
+          response?: Json | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      push_logs_bak: {
         Row: {
           created_at: string
           event_id: string | null
@@ -2116,30 +2260,21 @@ export type Database = {
           },
         ]
       }
-      push_logs_backup_20250126: {
+      push_rate_limits: {
         Row: {
-          created_at: string | null
-          event_id: string | null
-          id: string | null
-          response: Json | null
-          status: string | null
-          user_id: string | null
+          count: number
+          user_id: string
+          window_start: string
         }
         Insert: {
-          created_at?: string | null
-          event_id?: string | null
-          id?: string | null
-          response?: Json | null
-          status?: string | null
-          user_id?: string | null
+          count?: number
+          user_id: string
+          window_start: string
         }
         Update: {
-          created_at?: string | null
-          event_id?: string | null
-          id?: string | null
-          response?: Json | null
-          status?: string | null
-          user_id?: string | null
+          count?: number
+          user_id?: string
+          window_start?: string
         }
         Relationships: []
       }
@@ -2377,7 +2512,9 @@ export type Database = {
           device_type: string | null
           email: string | null
           id: string
-          player_id: string
+          last_seen: string | null
+          onesignal_player_id: string | null
+          player_id: string | null
           updated_at: string | null
           user_id: string | null
         }
@@ -2386,7 +2523,9 @@ export type Database = {
           device_type?: string | null
           email?: string | null
           id?: string
-          player_id: string
+          last_seen?: string | null
+          onesignal_player_id?: string | null
+          player_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -2395,7 +2534,9 @@ export type Database = {
           device_type?: string | null
           email?: string | null
           id?: string
-          player_id?: string
+          last_seen?: string | null
+          onesignal_player_id?: string | null
+          player_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
@@ -2493,6 +2634,33 @@ export type Database = {
           id?: string
           onesignal_id?: string | null
           role?: string | null
+        }
+        Relationships: []
+      }
+      verification_audit: {
+        Row: {
+          checked_at: string | null
+          device_type: string | null
+          id: string
+          note: string | null
+          player_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          checked_at?: string | null
+          device_type?: string | null
+          id?: string
+          note?: string | null
+          player_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          checked_at?: string | null
+          device_type?: string | null
+          id?: string
+          note?: string | null
+          player_id?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -3468,6 +3636,10 @@ export type Database = {
         Args: { curlopt: string; value: string }
         Returns: boolean
       }
+      increment_push_count: {
+        Args: { p_max_count: number; p_user_id: string; p_window_start: string }
+        Returns: number
+      }
       notify_sofinity_event: {
         Args: {
           p_event_name: string
@@ -3476,6 +3648,21 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      proxy_post_to_onesignal: {
+        Args: {
+          event_name: string
+          message: string
+          notification_id: string
+          player_id: string
+          title: string
+        }
+        Returns: {
+          raw_response: Json
+          response_body: string
+          response_headers: Json
+          status_code: number
+        }[]
       }
       run_daily_audit: { Args: never; Returns: undefined }
       save_player_id:
@@ -3497,19 +3684,21 @@ export type Database = {
             Returns: undefined
           }
       save_player_id_fallback: { Args: never; Returns: undefined }
-      send_push_via_onesignal:
-        | { Args: never; Returns: undefined }
-        | {
-            Args: {
-              event_id?: string
-              message: string
-              target_user_id: string
-              title: string
-            }
-            Returns: undefined
-          }
+      send_onesignal_notification: {
+        Args: { message: string; player_ids: string[] }
+        Returns: undefined
+      }
+      send_push_via_onesignal: {
+        Args: {
+          event_id?: string
+          message: string
+          target_user_id: string
+          title: string
+        }
+        Returns: undefined
+      }
       sofinity_event: { Args: never; Returns: undefined }
-      "sofinity-event": { Args: never; Returns: Json }
+      "sofinity-event": { Args: { request: Json }; Returns: Json }
       test_onemil_player_sync: {
         Args: {
           test_device_type?: string
