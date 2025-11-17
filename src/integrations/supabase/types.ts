@@ -926,6 +926,90 @@ export type Database = {
         }
         Relationships: []
       }
+      customer_conversations: {
+        Row: {
+          ai_first_response: boolean | null
+          ai_last_classification: string | null
+          assigned_admin: string | null
+          created_at: string | null
+          id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          status: string | null
+          unread_count: number | null
+          user_id: string
+        }
+        Insert: {
+          ai_first_response?: boolean | null
+          ai_last_classification?: string | null
+          assigned_admin?: string | null
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          status?: string | null
+          unread_count?: number | null
+          user_id: string
+        }
+        Update: {
+          ai_first_response?: boolean | null
+          ai_last_classification?: string | null
+          assigned_admin?: string | null
+          created_at?: string | null
+          id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          status?: string | null
+          unread_count?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      customer_messages: {
+        Row: {
+          ai_classification: string | null
+          ai_confidence: number | null
+          content: string
+          created_at: string | null
+          id: string
+          is_ai: boolean | null
+          read: boolean | null
+          related_message_id: string | null
+          sender: string
+          source_system: string
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_classification?: string | null
+          ai_confidence?: number | null
+          content: string
+          created_at?: string | null
+          id?: string
+          is_ai?: boolean | null
+          read?: boolean | null
+          related_message_id?: string | null
+          sender: string
+          source_system: string
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_classification?: string | null
+          ai_confidence?: number | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_ai?: boolean | null
+          read?: boolean | null
+          related_message_id?: string | null
+          sender?: string
+          source_system?: string
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       EmailEvents: {
         Row: {
           campaign_id: string | null
