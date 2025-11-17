@@ -148,6 +148,7 @@ const CustomerInbox = () => {
       in_progress: { label: 'Probíhá', variant: 'secondary' },
       resolved: { label: 'Vyřešená', variant: 'outline' },
       closed: { label: 'Uzavřená', variant: 'secondary' },
+      requires_admin: { label: 'Vyžaduje správce', variant: 'destructive' },
     };
 
     const config = statusMap[status || 'open'];
@@ -281,8 +282,13 @@ const CustomerInbox = () => {
                           </span>
                           {message.is_ai && (
                             <Badge variant="secondary" className="text-xs px-1 py-0">
-                              AI
+                              🤖 AI
                             </Badge>
+                          )}
+                          {message.ai_confidence && (
+                            <span className="text-xs opacity-70">
+                              Jistota: {(message.ai_confidence * 100).toFixed(0)}%
+                            </span>
                           )}
                         </div>
                         <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
