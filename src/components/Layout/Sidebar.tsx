@@ -72,6 +72,7 @@ const businessNavigation = [
   { name: 'Partneři', href: '/partners', icon: Handshake },
   { name: 'Fakturace', href: '/invoices', icon: Receipt },
   { name: 'Zákaznická péče', href: '/customer-service', icon: HeadphonesIcon },
+  { name: 'Zákaznická schránka', href: '/customer-inbox', icon: MessageSquare },
   { name: 'Zpětná vazba', href: '/feedback', icon: Star },
 ];
 
