@@ -10,9 +10,10 @@ Deno.serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+  const sofinitySharedKey = Deno.env.get('SOFINITY_SHARED_KEY');
   const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
 
   console.log('🤖 [auto-reply-customer] Starting AI auto-reply processing');
@@ -124,6 +125,68 @@ Příklad formátu odpovědi: "Zde je vaše odpověď na dotaz.||0.85"`;
 
       console.log('✅ [auto-reply-customer] Reply message inserted:', replyMessage.id);
 
+      // Send reply to OneMil
+      let sentToOneMil = false;
+      if (sofinitySharedKey) {
+        try {
+          console.log('📤 [auto-reply-customer] Sending reply to OneMil...');
+          
+          const oneMillResponse = await fetch(`${supabaseUrl}/functions/v1/sofinity-message-intake`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-webhook-token': sofinitySharedKey,
+            },
+            body: JSON.stringify({
+              user_id: aiRequest.user_id,
+              content: replyContent,
+              sender: 'admin',
+              created_at: replyMessage.created_at,
+            }),
+          });
+
+          if (oneMillResponse.ok) {
+            sentToOneMil = true;
+            console.log('✅ [auto-reply-customer] Reply sent to OneMil successfully');
+          } else {
+            const errorText = await oneMillResponse.text();
+            console.error('❌ [auto-reply-customer] Failed to send to OneMil:', errorText);
+            
+            // Log error to sofinity_error_log
+            await supabase.from('sofinity_error_log').insert({
+              type: 'onemil_delivery_error',
+              payload: {
+                user_id: aiRequest.user_id,
+                message_id: replyMessage.id,
+                ai_request_id: aiRequest.id,
+              },
+              error: JSON.stringify({
+                status: oneMillResponse.status,
+                message: errorText,
+              }),
+            });
+          }
+        } catch (deliveryError: any) {
+          console.error('❌ [auto-reply-customer] OneMil delivery exception:', deliveryError);
+          
+          // Log error to sofinity_error_log
+          await supabase.from('sofinity_error_log').insert({
+            type: 'onemil_delivery_error',
+            payload: {
+              user_id: aiRequest.user_id,
+              message_id: replyMessage.id,
+              ai_request_id: aiRequest.id,
+            },
+            error: JSON.stringify({
+              message: deliveryError.message,
+              stack: deliveryError.stack,
+            }),
+          });
+        }
+      } else {
+        console.warn('⚠️ [auto-reply-customer] SOFINITY_SHARED_KEY not configured, skipping OneMil delivery');
+      }
+
       // Update conversation
       if (conversationId) {
         const { error: updateError } = await supabase
@@ -149,7 +212,13 @@ Příklad formátu odpovědi: "Zde je vaše odpověď na dotaz.||0.85"`;
         .update({
           status: 'completed',
           response: replyContent,
-          metadata: { ...metadata, confidence_score: confidenceScore, auto_sent: true }
+          metadata: { 
+            ...metadata, 
+            confidence_score: confidenceScore, 
+            auto_sent: true,
+            auto_sent_to_onemil: sentToOneMil,
+            requires_admin: !sentToOneMil,
+          }
         })
         .eq('id', aiRequest.id);
 
@@ -193,12 +262,13 @@ Příklad formátu odpovědi: "Zde je vaše odpověď na dotaz.||0.85"`;
       console.log('📝 [auto-reply-customer] AIRequest marked for admin review');
     }
 
-    return new Response(
+      return new Response(
       JSON.stringify({ 
         success: true, 
         ai_request_id: aiRequest.id,
         confidence_score: confidenceScore,
-        auto_sent: confidenceScore >= 0.70
+        auto_sent: confidenceScore >= 0.70,
+        sent_to_onemil: confidenceScore >= 0.70 ? sentToOneMil : false,
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
