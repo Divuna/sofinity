@@ -154,56 +154,6 @@ Deno.serve(async (req) => {
 
     console.log('🎉 [sofinity-message-intake] Message intake completed successfully');
     
-    // If message is from OneMil and sender is user, create AIRequest for auto-reply
-    if (sender === 'user') {
-      console.log('👤 [sofinity-message-intake] User message detected, creating AIRequest for auto-reply');
-      
-      try {
-        const { data: aiRequest, error: aiRequestError } = await supabase
-          .from('AIRequests')
-          .insert({
-            type: 'customer_auto_reply',
-            status: 'pending',
-            prompt: content,
-            user_id: user_id,
-            metadata: {
-              message_id: messageData.id,
-              conversation_id: existingConversation?.id || newConversation?.id,
-              source_system: 'onemill'
-            }
-          })
-          .select()
-          .single();
-
-        if (aiRequestError) {
-          console.error('❌ [sofinity-message-intake] AIRequest creation error:', aiRequestError);
-        } else {
-          console.log('✅ [sofinity-message-intake] AIRequest created:', aiRequest.id);
-          
-          // Trigger background processing with 2-5 second delay
-          EdgeRuntime.waitUntil(
-            (async () => {
-              const delay = Math.floor(Math.random() * 3000) + 2000; // 2-5 seconds
-              console.log(`⏳ [sofinity-message-intake] Waiting ${delay}ms before processing AI reply`);
-              await new Promise(resolve => setTimeout(resolve, delay));
-              
-              // Call the auto-reply function
-              await fetch(`${supabaseUrl}/functions/v1/auto-reply-customer`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${supabaseServiceRoleKey}`,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ ai_request_id: aiRequest.id })
-              });
-            })()
-          );
-        }
-      } catch (aiError) {
-        console.error('💥 [sofinity-message-intake] Failed to create AIRequest:', aiError);
-      }
-    }
-    
     return new Response(
       JSON.stringify({ status: 'ok' }),
       { 

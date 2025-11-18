@@ -153,6 +153,3 @@ verify_jwt = false
 # Customer message intake webhook from OneMil (custom token auth)
 [functions.sofinity-message-intake]
 verify_jwt = false
-
-[functions.auto-reply-customer]
-verify_jwt = false
