@@ -114,6 +114,22 @@ const CustomerInbox = () => {
         .eq('id', selectedConversationId);
 
       if (conversationError) throw conversationError;
+
+      // Send webhook to OneMil
+      try {
+        await supabase.functions.invoke('send-to-onemill', {
+          body: {
+            user_id: conversation.user_id,
+            content: replyText,
+            sender: 'admin',
+            is_ai: false,
+            ai_confidence: null,
+          },
+        });
+      } catch (webhookError) {
+        console.error('Failed to send webhook to OneMil:', webhookError);
+        // Don't throw - message was saved successfully in Sofinity
+      }
     },
     onSuccess: () => {
       setReplyText('');
