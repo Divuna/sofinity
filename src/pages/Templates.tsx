@@ -61,16 +61,30 @@ export default function Templates() {
     content: ''
   });
   const { toast } = useToast();
+  const { selectedProject } = useSelectedProject();
 
   useEffect(() => {
-    fetchTemplates();
-  }, []);
+    if (selectedProject?.id) {
+      setLoading(true);
+      fetchTemplates();
+    } else {
+      setTemplates([]);
+      setLoading(false);
+    }
+  }, [selectedProject?.id]);
 
   const fetchTemplates = async () => {
+    if (!selectedProject?.id) {
+      setTemplates([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('Templates')
         .select('*')
+        .eq('project_id', selectedProject.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
