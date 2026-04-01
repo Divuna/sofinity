@@ -1331,28 +1331,46 @@ export type Database = {
       eventlogs: {
         Row: {
           created_at: string | null
+          error_category: string | null
           event_name: string
           id: string
           message: string | null
           metadata: Json | null
+          processing_error: string | null
+          processing_finished_at: string | null
+          processing_started_at: string | null
+          processing_time_ms: number | null
+          source_request_id: string | null
           source_system: string | null
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
+          error_category?: string | null
           event_name: string
           id?: string
           message?: string | null
           metadata?: Json | null
+          processing_error?: string | null
+          processing_finished_at?: string | null
+          processing_started_at?: string | null
+          processing_time_ms?: number | null
+          source_request_id?: string | null
           source_system?: string | null
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
+          error_category?: string | null
           event_name?: string
           id?: string
           message?: string | null
           metadata?: Json | null
+          processing_error?: string | null
+          processing_finished_at?: string | null
+          processing_started_at?: string | null
+          processing_time_ms?: number | null
+          source_request_id?: string | null
           source_system?: string | null
           user_id?: string | null
         }
@@ -1665,13 +1683,23 @@ export type Database = {
       NotificationQueue: {
         Row: {
           created_at: string | null
+          dead_lettered_at: string | null
+          error_category: string | null
           event_id: string | null
           event_name: string
+          first_attempt_at: string | null
           id: string
+          last_attempt_at: string | null
+          last_error: string | null
+          last_http_status: number | null
           marker: string | null
+          max_retry_count: number
           message_text: string | null
+          next_retry_at: string | null
           payload: Json | null
+          processing_time_ms: number | null
           project_id: string | null
+          retry_count: number
           status: string | null
           target_email: string | null
           title: string | null
@@ -1679,13 +1707,23 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          dead_lettered_at?: string | null
+          error_category?: string | null
           event_id?: string | null
           event_name: string
+          first_attempt_at?: string | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          last_http_status?: number | null
           marker?: string | null
+          max_retry_count?: number
           message_text?: string | null
+          next_retry_at?: string | null
           payload?: Json | null
+          processing_time_ms?: number | null
           project_id?: string | null
+          retry_count?: number
           status?: string | null
           target_email?: string | null
           title?: string | null
@@ -1693,13 +1731,23 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          dead_lettered_at?: string | null
+          error_category?: string | null
           event_id?: string | null
           event_name?: string
+          first_attempt_at?: string | null
           id?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          last_http_status?: number | null
           marker?: string | null
+          max_retry_count?: number
           message_text?: string | null
+          next_retry_at?: string | null
           payload?: Json | null
+          processing_time_ms?: number | null
           project_id?: string | null
+          retry_count?: number
           status?: string | null
           target_email?: string | null
           title?: string | null
@@ -2130,45 +2178,72 @@ export type Database = {
       push_log: {
         Row: {
           created_at: string | null
+          dead_lettered_at: string | null
+          error_category: string | null
           event_name: string | null
           id: string
+          last_error: string | null
+          last_http_status: number | null
           marker: string | null
+          max_retry_count: number
+          next_retry_at: string | null
           notification_id: string | null
+          onesignal_message_id: string | null
           player_id: string | null
+          processing_time_ms: number | null
           project_id: string | null
           response: Json | null
           response_body: string | null
           response_headers: Json | null
+          retry_count: number
           status: string | null
           status_code: number | null
           user_id: string | null
         }
         Insert: {
           created_at?: string | null
+          dead_lettered_at?: string | null
+          error_category?: string | null
           event_name?: string | null
           id?: string
+          last_error?: string | null
+          last_http_status?: number | null
           marker?: string | null
+          max_retry_count?: number
+          next_retry_at?: string | null
           notification_id?: string | null
+          onesignal_message_id?: string | null
           player_id?: string | null
+          processing_time_ms?: number | null
           project_id?: string | null
           response?: Json | null
           response_body?: string | null
           response_headers?: Json | null
+          retry_count?: number
           status?: string | null
           status_code?: number | null
           user_id?: string | null
         }
         Update: {
           created_at?: string | null
+          dead_lettered_at?: string | null
+          error_category?: string | null
           event_name?: string | null
           id?: string
+          last_error?: string | null
+          last_http_status?: number | null
           marker?: string | null
+          max_retry_count?: number
+          next_retry_at?: string | null
           notification_id?: string | null
+          onesignal_message_id?: string | null
           player_id?: string | null
+          processing_time_ms?: number | null
           project_id?: string | null
           response?: Json | null
           response_body?: string | null
           response_headers?: Json | null
+          retry_count?: number
           status?: string | null
           status_code?: number | null
           user_id?: string | null
@@ -3419,6 +3494,30 @@ export type Database = {
         }
         Relationships: []
       }
+      sofinity_pipeline_failed_summary: {
+        Row: {
+          error_category: string | null
+          ids: string | null
+          source_table: string | null
+          total: number | null
+        }
+        Relationships: []
+      }
+      sofinity_pipeline_monitoring: {
+        Row: {
+          avg_push_time_ms: number | null
+          notification_dead: number | null
+          notification_failed: number | null
+          notification_pending: number | null
+          push_dead: number | null
+          push_failed: number | null
+          push_pending: number | null
+          push_sent: number | null
+          snapshot_minute: string | null
+          total_eventlogs: number | null
+        }
+        Relationships: []
+      }
       user_devices_active: {
         Row: {
           device_type: string | null
@@ -3724,6 +3823,10 @@ export type Database = {
         Args: { p_max_count: number; p_user_id: string; p_window_start: string }
         Returns: number
       }
+      insert_event_from_onemil: {
+        Args: { p_event_name: string; p_metadata: Json; p_user_id: string }
+        Returns: undefined
+      }
       notify_sofinity_event: {
         Args: {
           p_event_name: string
@@ -3799,14 +3902,6 @@ export type Database = {
       }
       test_push_notification:
         | {
-            Args: { test_user_id?: string }
-            Returns: {
-              log_id: string
-              message: string
-              test_status: string
-            }[]
-          }
-        | {
             Args: { test_email?: string }
             Returns: {
               log_id: string
@@ -3814,6 +3909,14 @@ export type Database = {
               player_id: string
               test_status: string
               user_id_used: string
+            }[]
+          }
+        | {
+            Args: { test_user_id?: string }
+            Returns: {
+              log_id: string
+              message: string
+              test_status: string
             }[]
           }
       text_to_bytea: { Args: { data: string }; Returns: string }
