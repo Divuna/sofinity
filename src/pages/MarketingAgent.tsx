@@ -41,7 +41,7 @@ export default function MarketingAgent() {
         .select('id, prompt, status, created_at')
         .eq('type', 'campaign_generator')
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(3);
       if (error) throw error;
       return data ?? [];
     },
