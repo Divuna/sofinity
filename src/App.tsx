@@ -53,6 +53,7 @@ import EmailFeedback from "./pages/EmailFeedback";
 import Settings from "./pages/Settings";
 import SofinityPushSender from "./pages/SofinityPushSender";
 import CustomerInbox from "./pages/CustomerInbox";
+import MarketingAgent from "./pages/MarketingAgent";
 
 
 const queryClient = new QueryClient();
