@@ -260,7 +260,7 @@ export default function MarketingAgent() {
             <DialogTitle>{selectedCampaign?.name}</DialogTitle>
           </DialogHeader>
           <DialogDescription asChild>
-            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap overflow-y-auto max-h-[70vh]">
               {selectedCampaign?.post ?? 'Žádný obsah kampaně.'}
             </p>
           </DialogDescription>
