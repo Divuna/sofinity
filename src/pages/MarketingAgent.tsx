@@ -162,9 +162,9 @@ export default function MarketingAgent() {
           {agentActions.length === 0 ? (
             <p className="text-sm text-muted-foreground">Žádné nedávné akce</p>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-border">
               {agentActions.map((a) => (
-                <div key={a.id} className="flex items-center justify-between rounded-md border border-border p-3">
+                <div key={a.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-xs text-muted-foreground shrink-0">{formatTime(a.created_at)}</span>
                     <span className="text-sm truncate">{a.prompt?.substring(0, 60)}{(a.prompt?.length ?? 0) > 60 ? '…' : ''}</span>
