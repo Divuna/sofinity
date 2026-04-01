@@ -13,11 +13,12 @@ export function ProjectTabsBar() {
 
   useEffect(() => {
     const fetchProjects = async () => {
-      const { data, error } = await (supabase
+      const query = supabase
         .from('Projects')
         .select('id, name')
         .eq('active', true)
-        .order('name') as any);
+        .order('name');
+      const { data, error } = await (query as unknown as Promise<{ data: ProjectTab[] | null; error: any }>);
       if (error) {
         console.error('Error fetching projects:', error);
         return;
