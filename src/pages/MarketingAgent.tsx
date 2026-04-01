@@ -267,6 +267,47 @@ export default function MarketingAgent() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Campaign Detail Dialog */}
+      <Dialog open={!!detailCampaign} onOpenChange={(open) => { if (!open) setDetailCampaign(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{detailCampaign?.name}</DialogTitle>
+            <DialogDescription>Detail kampaně</DialogDescription>
+          </DialogHeader>
+          {detailCampaign?.post && (
+            <p className="text-sm text-foreground whitespace-pre-wrap">{detailCampaign.post}</p>
+          )}
+          <div className="flex gap-2 justify-end pt-2">
+            <Button
+              size="sm"
+              variant="gradient"
+              onClick={() => {
+                if (detailCampaign) {
+                  updateCampaign.mutate({ id: detailCampaign.id, status: 'active' });
+                  setDetailCampaign(null);
+                }
+              }}
+              disabled={updateCampaign.isPending}
+            >
+              Schválit
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (detailCampaign) {
+                  updateCampaign.mutate({ id: detailCampaign.id, status: 'rejected' });
+                  setDetailCampaign(null);
+                }
+              }}
+              disabled={updateCampaign.isPending}
+            >
+              Zamítnout
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
