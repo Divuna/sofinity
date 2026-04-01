@@ -53,6 +53,7 @@ import EmailFeedback from "./pages/EmailFeedback";
 import Settings from "./pages/Settings";
 import SofinityPushSender from "./pages/SofinityPushSender";
 import CustomerInbox from "./pages/CustomerInbox";
+import MarketingAgent from "./pages/MarketingAgent";
 
 
 const queryClient = new QueryClient();
@@ -125,6 +126,7 @@ const App = () => {
                 <Route path="/settings" element={<AuthGuard><MainLayout><Settings /></MainLayout></AuthGuard>} />
                 <Route path="/sofinity-push-sender" element={<AuthGuard><MainLayout><SofinityPushSender /></MainLayout></AuthGuard>} />
                 <Route path="/customer-inbox" element={<AuthGuard><MainLayout><CustomerInbox /></MainLayout></AuthGuard>} />
+                <Route path="/marketing-agent" element={<AuthGuard><MainLayout><MarketingAgent /></MainLayout></AuthGuard>} />
                 
                 {/* Existing routes */}
                 <Route path="/team-feedback" element={<AuthGuard><MainLayout><TeamFeedback /></MainLayout></AuthGuard>} />
