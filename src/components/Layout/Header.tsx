@@ -1,16 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bell, User, Search, LogOut } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { ProjectSwitcher } from '@/components/ProjectSwitcher';
+import { Bell, User, LogOut } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { robustSignOut } from '@/lib/auth-cleanup';
-
 export function Header() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -91,22 +88,9 @@ export function Header() {
   };
 
   return (
-    <header className="h-16 bg-background border-b border-border flex items-center justify-between px-6">
-      {/* Search */}
-      <div className="flex-1 max-w-md">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Hledat kampaně, obsah..."
-            className="pl-10 bg-surface border-border"
-          />
-        </div>
-      </div>
-
+    <header className="h-16 bg-background border-b border-border flex items-center justify-end px-6">
       {/* Right side */}
       <div className="flex items-center space-x-4">
-        {/* Project Selector */}
-        <ProjectSwitcher />
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
