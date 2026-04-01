@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { 
   Plus, 
   Search, 
@@ -60,16 +61,30 @@ export default function Templates() {
     content: ''
   });
   const { toast } = useToast();
+  const { selectedProject } = useSelectedProject();
 
   useEffect(() => {
-    fetchTemplates();
-  }, []);
+    if (selectedProject?.id) {
+      setLoading(true);
+      fetchTemplates();
+    } else {
+      setTemplates([]);
+      setLoading(false);
+    }
+  }, [selectedProject?.id]);
 
   const fetchTemplates = async () => {
+    if (!selectedProject?.id) {
+      setTemplates([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('Templates')
         .select('*')
+        .eq('project_id', selectedProject.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -108,7 +123,7 @@ export default function Templates() {
       } else {
         const { error } = await supabase
           .from('Templates')
-          .insert(templateData);
+          .insert({ ...templateData, project_id: selectedProject?.id ?? null });
 
         if (error) throw error;
         
@@ -200,7 +215,7 @@ export default function Templates() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Šablony</h1>
+          <h1 className="text-3xl font-bold text-foreground">Šablony{selectedProject ? ` — ${selectedProject.name}` : ''}</h1>
           <p className="text-muted-foreground mt-1">
             Správa šablon pro e-maily, posty a video scripty
           </p>
