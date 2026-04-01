@@ -6,10 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { Bot, Zap, CheckCircle, XCircle, Clock, Loader2, Inbox } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+
 const statusBadge = (status: string) => {
   switch (status) {
     case 'completed':
@@ -30,7 +32,6 @@ export default function MarketingAgent() {
   const { selectedProject } = useSelectedProject();
   const queryClient = useQueryClient();
   const [prompt, setPrompt] = useState('');
-  const [detailCampaign, setDetailCampaign] = useState<{ id: string; name: string; post: string | null } | null>(null);
 
   // 1. Agent status — last 3 campaign_generator requests for selected project
   const { data: agentActions = [] } = useQuery({
@@ -52,6 +53,9 @@ export default function MarketingAgent() {
   });
 
   const isAgentActive = agentActions.some((a) => a.status === 'waiting');
+
+  // Campaign detail dialog
+  const [selectedCampaign, setSelectedCampaign] = useState<{ id: string; name: string; post?: string | null } | null>(null);
 
   // 2. Pending campaigns
   const { data: pendingCampaigns = [] } = useQuery({
@@ -208,15 +212,19 @@ export default function MarketingAgent() {
               <>
                 <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                   {visible.map((c) => (
-                    <Card key={c.id} className="border-border cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setDetailCampaign(c)}>
+                    <Card
+                      key={c.id}
+                      className="border-border cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => setSelectedCampaign(c)}
+                    >
                       <CardContent className="p-4 space-y-3">
                         <h4 className="font-semibold">{c.name}</h4>
                         {c.post && <p className="text-sm text-muted-foreground line-clamp-3">{c.post}</p>}
-                        <div className="flex gap-2">
+                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
                           <Button
                             size="sm"
                             variant="gradient"
-                            onClick={(e) => { e.stopPropagation(); updateCampaign.mutate({ id: c.id, status: 'active' }); }}
+                            onClick={() => updateCampaign.mutate({ id: c.id, status: 'active' })}
                             disabled={updateCampaign.isPending}
                           >
                             Schválit
@@ -224,7 +232,7 @@ export default function MarketingAgent() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={(e) => { e.stopPropagation(); updateCampaign.mutate({ id: c.id, status: 'rejected' }); }}
+                            onClick={() => updateCampaign.mutate({ id: c.id, status: 'rejected' })}
                             disabled={updateCampaign.isPending}
                           >
                             Zamítnout
@@ -244,6 +252,20 @@ export default function MarketingAgent() {
           })()}
         </CardContent>
       </Card>
+
+      {/* Campaign detail dialog */}
+      <Dialog open={!!selectedCampaign} onOpenChange={(open) => { if (!open) setSelectedCampaign(null); }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{selectedCampaign?.name}</DialogTitle>
+          </DialogHeader>
+          <DialogDescription asChild>
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              {selectedCampaign?.post ?? 'Žádný obsah kampaně.'}
+            </p>
+          </DialogDescription>
+        </DialogContent>
+      </Dialog>
 
       {/* SECTION 3: Create Campaign */}
       <Card>
@@ -267,47 +289,6 @@ export default function MarketingAgent() {
           </Button>
         </CardContent>
       </Card>
-
-      {/* Campaign Detail Dialog */}
-      <Dialog open={!!detailCampaign} onOpenChange={(open) => { if (!open) setDetailCampaign(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{detailCampaign?.name}</DialogTitle>
-            <DialogDescription>Detail kampaně</DialogDescription>
-          </DialogHeader>
-          {detailCampaign?.post && (
-            <p className="text-sm text-foreground whitespace-pre-wrap">{detailCampaign.post}</p>
-          )}
-          <div className="flex gap-2 justify-end pt-2">
-            <Button
-              size="sm"
-              variant="gradient"
-              onClick={() => {
-                if (detailCampaign) {
-                  updateCampaign.mutate({ id: detailCampaign.id, status: 'active' });
-                  setDetailCampaign(null);
-                }
-              }}
-              disabled={updateCampaign.isPending}
-            >
-              Schválit
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                if (detailCampaign) {
-                  updateCampaign.mutate({ id: detailCampaign.id, status: 'rejected' });
-                  setDetailCampaign(null);
-                }
-              }}
-              disabled={updateCampaign.isPending}
-            >
-              Zamítnout
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

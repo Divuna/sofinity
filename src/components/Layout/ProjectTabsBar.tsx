@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useSelectedProject } from '@/providers/ProjectProvider';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface ProjectTab {
   id: string;
@@ -8,33 +9,39 @@ interface ProjectTab {
 }
 
 export function ProjectTabsBar() {
-  const { selectedProject, setSelectedProject } = useSelectedProject();
+  const { selectedProject, setSelectedProject, loadingSelectedProject } = useSelectedProject();
   const [projects, setProjects] = useState<ProjectTab[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProjects = async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const client: any = supabase;
-      const { data, error } = await client
-        .from('Projects')
-        .select('id, name')
-        .eq('active', true)
-        .order('name');
-      if (error) {
-        console.error('Error fetching projects:', error);
-        return;
-      }
+    supabase
+      .from('Projects')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('name')
+      .then(({ data, error }) => {
+        if (!error && data) {
+          setProjects(data);
+          if (!selectedProject && data.length > 0) {
+            setSelectedProject({ id: data[0].id, name: data[0].name });
+          }
+        }
+        setLoading(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-      const fetched = data ?? [];
-      setProjects(fetched);
-
-      if (!selectedProject && fetched.length > 0) {
-        setSelectedProject({ id: fetched[0].id, name: fetched[0].name });
-      }
-    };
-
-    fetchProjects();
-  }, [selectedProject, setSelectedProject]);
+  if (loading || loadingSelectedProject) {
+    return (
+      <div className="sticky top-0 z-30 w-full bg-background border-b border-border">
+        <div className="flex items-center gap-2 px-4 py-2">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-8 w-24 rounded-md" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (projects.length === 0) return null;
 

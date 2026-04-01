@@ -16,7 +16,7 @@ export function MainLayout({ children }: MainLayoutProps) {
     <div className="min-h-screen bg-gradient-surface flex">
       {/* Sidebar */}
       <Sidebar currentPath={location.pathname} />
-      
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         <Header />
