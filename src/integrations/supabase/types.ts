@@ -362,6 +362,7 @@ export type Database = {
           created_at: string | null
           generated_by_ai: boolean | null
           id: string
+          project_id: string | null
           question: string
           response: string
           user_id: string | null
@@ -371,6 +372,7 @@ export type Database = {
           created_at?: string | null
           generated_by_ai?: boolean | null
           id?: string
+          project_id?: string | null
           question: string
           response: string
           user_id?: string | null
@@ -380,11 +382,20 @@ export type Database = {
           created_at?: string | null
           generated_by_ai?: boolean | null
           id?: string
+          project_id?: string | null
           question?: string
           response?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "Autoresponses_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       CallToAction: {
         Row: {
@@ -935,6 +946,7 @@ export type Database = {
           id: string
           last_message_at: string | null
           last_message_preview: string | null
+          project_id: string | null
           status: string | null
           unread_count: number | null
           user_id: string
@@ -947,6 +959,7 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           last_message_preview?: string | null
+          project_id?: string | null
           status?: string | null
           unread_count?: number | null
           user_id: string
@@ -959,11 +972,20 @@ export type Database = {
           id?: string
           last_message_at?: string | null
           last_message_preview?: string | null
+          project_id?: string | null
           status?: string | null
           unread_count?: number | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "customer_conversations_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       customer_messages: {
         Row: {
@@ -2559,6 +2581,7 @@ export type Database = {
           created_at: string | null
           id: string
           name: string
+          project_id: string | null
           type: string | null
           user_id: string | null
         }
@@ -2567,6 +2590,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           name: string
+          project_id?: string | null
           type?: string | null
           user_id?: string | null
         }
@@ -2575,10 +2599,19 @@ export type Database = {
           created_at?: string | null
           id?: string
           name?: string
+          project_id?: string | null
           type?: string | null
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "Templates_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "Projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       tickets: {
         Row: {
