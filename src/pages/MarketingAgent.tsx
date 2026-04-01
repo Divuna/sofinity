@@ -10,6 +10,7 @@ import { toast } from '@/hooks/use-toast';
 import { Bot, Zap, CheckCircle, XCircle, Clock, Loader2, Inbox } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 
 const statusBadge = (status: string) => {
   switch (status) {
@@ -31,6 +32,7 @@ export default function MarketingAgent() {
   const { selectedProject } = useSelectedProject();
   const queryClient = useQueryClient();
   const [prompt, setPrompt] = useState('');
+  const [detailCampaign, setDetailCampaign] = useState<{ id: string; name: string; post: string | null } | null>(null);
 
   // 1. Agent status — last 5 campaign_generator requests
   const { data: agentActions = [] } = useQuery({
@@ -208,7 +210,11 @@ export default function MarketingAgent() {
               <>
                 <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
                   {visible.map((c) => (
-                    <Card key={c.id} className="border-border">
+                    <Card
+                      key={c.id}
+                      className="border-border cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => setDetailCampaign(c)}
+                    >
                       <CardContent className="p-4 space-y-3">
                         <h4 className="font-semibold">{c.name}</h4>
                         {c.post && <p className="text-sm text-muted-foreground line-clamp-3">{c.post}</p>}
@@ -216,7 +222,7 @@ export default function MarketingAgent() {
                           <Button
                             size="sm"
                             variant="gradient"
-                            onClick={() => updateCampaign.mutate({ id: c.id, status: 'active' })}
+                            onClick={(e) => { e.stopPropagation(); updateCampaign.mutate({ id: c.id, status: 'active' }); }}
                             disabled={updateCampaign.isPending}
                           >
                             Schválit
@@ -224,7 +230,7 @@ export default function MarketingAgent() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateCampaign.mutate({ id: c.id, status: 'rejected' })}
+                            onClick={(e) => { e.stopPropagation(); updateCampaign.mutate({ id: c.id, status: 'rejected' }); }}
                             disabled={updateCampaign.isPending}
                           >
                             Zamítnout
@@ -267,6 +273,42 @@ export default function MarketingAgent() {
           </Button>
         </CardContent>
       </Card>
+
+      {/* Campaign Detail Dialog */}
+      <Dialog open={!!detailCampaign} onOpenChange={(open) => !open && setDetailCampaign(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{detailCampaign?.name}</DialogTitle>
+          </DialogHeader>
+          {detailCampaign?.post ? (
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">{detailCampaign.post}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">Žádný obsah</p>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (detailCampaign) updateCampaign.mutate({ id: detailCampaign.id, status: 'rejected' });
+                setDetailCampaign(null);
+              }}
+              disabled={updateCampaign.isPending}
+            >
+              Zamítnout
+            </Button>
+            <Button
+              variant="gradient"
+              onClick={() => {
+                if (detailCampaign) updateCampaign.mutate({ id: detailCampaign.id, status: 'active' });
+                setDetailCampaign(null);
+              }}
+              disabled={updateCampaign.isPending}
+            >
+              Schválit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
