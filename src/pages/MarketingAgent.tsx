@@ -36,15 +36,18 @@ export default function MarketingAgent() {
   const { data: agentActions = [] } = useQuery({
     queryKey: ['agent-actions'],
     queryFn: async () => {
+      if (!selectedProject?.id) return [];
       const { data, error } = await supabase
         .from('AIRequests')
         .select('id, prompt, status, created_at')
         .eq('type', 'campaign_generator')
+        .eq('project_id', selectedProject.id)
         .order('created_at', { ascending: false })
         .limit(3);
       if (error) throw error;
       return data ?? [];
     },
+    enabled: !!selectedProject?.id,
     refetchInterval: 5000,
   });
 
