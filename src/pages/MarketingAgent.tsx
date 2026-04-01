@@ -9,8 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { Bot, Zap, CheckCircle, XCircle, Clock, Loader2, Inbox } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Separator } from '@/components/ui/separator';
-
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 const statusBadge = (status: string) => {
   switch (status) {
     case 'completed':
