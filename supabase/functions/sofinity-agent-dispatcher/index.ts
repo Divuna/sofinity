@@ -22,6 +22,7 @@ serve(async (req) => {
       id,
       user_id,
       type,
+      project_id: requestProjectId ?? null,
       prompt: prompt ? `${prompt.substring(0, 100)}...` : null,
       promptLength: prompt?.length,
     }));
@@ -62,6 +63,7 @@ serve(async (req) => {
       throw new Error('Missing required environment variables');
     }
 
+    // NOTE: Service role key bypasses RLS entirely — Campaign insert is NOT blocked by RLS policies
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Define system prompts based on request type
@@ -215,6 +217,16 @@ serve(async (req) => {
         }
 
         const campaignName = prompt.substring(0, 80);
+
+        // Log exact insert payload before execution
+        console.log('📝 Campaign insert payload:', JSON.stringify({
+          name: campaignName,
+          status: 'draft',
+          project_id: resolvedProjectId,
+          user_id: user_id ?? null,
+          postLength: generatedText.length,
+        }));
+
         const { data: campaignData, error: campaignError } = await supabase
           .from('Campaigns')
           .insert({
@@ -228,9 +240,20 @@ serve(async (req) => {
           .single();
 
         if (campaignError) {
-          console.error('⚠️ Failed to insert Campaign:', campaignError.message);
+          console.error('⚠️ Failed to insert Campaign:', JSON.stringify({
+            message: campaignError.message,
+            code: campaignError.code,
+            details: campaignError.details,
+            hint: campaignError.hint,
+            project_id: resolvedProjectId,
+            user_id: user_id ?? null,
+          }));
         } else {
-          console.log('✅ Campaign draft created:', campaignData?.id);
+          console.log('✅ Campaign draft created:', JSON.stringify({
+            campaign_id: campaignData?.id,
+            project_id: resolvedProjectId,
+            name: campaignName,
+          }));
         }
       } catch (err) {
         console.error('⚠️ Exception creating Campaign:', err);
