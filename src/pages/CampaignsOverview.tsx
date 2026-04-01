@@ -209,19 +209,6 @@ export default function CampaignsOverview() {
                 <SelectItem value="done">Dokončeno</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={projectFilter} onValueChange={setProjectFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filtr podle projektu" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Všechny projekty</SelectItem>
-                {projects.map(project => (
-                  <SelectItem key={project.name} value={project.name}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
