@@ -65,8 +65,31 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Define system prompts based on request type
+    // For campaign_generator, fetch recent OneMil stats from EventLogs
+    let oneMilContext = '';
+    if (type === 'campaign_generator') {
+      try {
+        const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        const [regResult, voucherResult, contestResult] = await Promise.all([
+          supabase.from('EventLogs').select('id', { count: 'exact', head: true })
+            .eq('event_name', 'user_registered').gte('created_at', since),
+          supabase.from('EventLogs').select('id', { count: 'exact', head: true })
+            .eq('event_name', 'voucher_purchased').gte('created_at', since),
+          supabase.from('EventLogs').select('id', { count: 'exact', head: true })
+            .eq('event_name', 'coin_redeemed').gte('created_at', since),
+        ]);
+        const reg = regResult.count ?? 0;
+        const vouchers = voucherResult.count ?? 0;
+        const contests = contestResult.count ?? 0;
+        oneMilContext = `Aktuální data z OneMil: ${reg} nových registrací, ${vouchers} nákupů voucherů, ${contests} vstupů do soutěží za posledních 30 dní. Navrhni kampaň která reaguje na tato data.`;
+        console.log('📊 OneMil context fetched:', { reg, vouchers, contests });
+      } catch (err) {
+        console.error('⚠️ Failed to fetch OneMil context:', err);
+      }
+    }
+
     const systemPrompts: Record<string, string> = {
-      campaign_generator: `You are a creative marketing campaign generator. Create compelling campaign content in Czech language that engages the target audience and drives action. Focus on clear messaging and strong calls-to-action.`,
+      campaign_generator: `You are a creative marketing campaign generator. Create compelling campaign content in Czech language that engages the target audience and drives action. Focus on clear messaging and strong calls-to-action.${oneMilContext ? '\n\n' + oneMilContext : ''}`,
       email_assistant: `You are an email content specialist. Generate professional, engaging email content in Czech language that is clear, concise, and effective for business communication.`,
       video_script: `You are a video script writer. Create engaging video scripts in Czech language with clear structure, compelling narrative, and strong visual descriptions.`,
       evaluator: `You are an AI evaluator analyzing marketing campaign performance. Provide objective analysis with actionable insights and recommendations in Czech language.`,
