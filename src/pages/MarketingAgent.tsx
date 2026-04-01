@@ -7,7 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Bot, Zap, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
+import { Bot, Zap, CheckCircle, XCircle, Clock, Loader2, Inbox } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Separator } from '@/components/ui/separator';
 
 const statusBadge = (status: string) => {
   switch (status) {
