@@ -586,39 +586,6 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* Horizontal Project Selector */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">Projekty</h2>
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          <button
-            onClick={() => setSelectedProject(null)}
-            className={`flex-shrink-0 px-4 py-3 rounded-lg border transition-all duration-200 min-w-[120px] ${
-              !selectedProject 
-                ? 'bg-primary text-primary-foreground border-primary shadow-md' 
-                : 'bg-surface border-border hover:bg-surface-variant hover:shadow-soft'
-            }`}
-          >
-            <div className="text-sm font-medium">Všechny projekty</div>
-            <div className="text-xs opacity-75 mt-1">{Array.isArray(projects) ? projects.length : 0} projektů</div>
-          </button>
-          {projects.map((project) => (
-            <button
-              key={project.id}
-              onClick={() => setSelectedProject({ id: project.id, name: project.name })}
-              className={`flex-shrink-0 px-4 py-3 rounded-lg border transition-all duration-200 min-w-[140px] ${
-                selectedProject?.id === project.id
-                  ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                  : 'bg-surface border-border hover:bg-surface-variant hover:shadow-soft'
-              }`}
-            >
-            <div className="text-sm font-medium text-left truncate">{project.name}</div>
-              <div className="text-xs opacity-75 mt-1 text-left">
-                {project.campaignCount || 0} kampaní · {project.emailCount || 0} emailů
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Stats Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
