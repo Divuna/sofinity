@@ -586,40 +586,6 @@ export default function Dashboard() {
         </Button>
       </div>
 
-      {/* Horizontal Project Selector */}
-      <div className="space-y-3">
-        <h2 className="text-lg font-semibold text-foreground">Projekty</h2>
-        <div className="flex gap-3 overflow-x-auto pb-2">
-          <button
-            onClick={() => setSelectedProject(null)}
-            className={`flex-shrink-0 px-4 py-3 rounded-lg border transition-all duration-200 min-w-[120px] ${
-              !selectedProject 
-                ? 'bg-primary text-primary-foreground border-primary shadow-md' 
-                : 'bg-surface border-border hover:bg-surface-variant hover:shadow-soft'
-            }`}
-          >
-            <div className="text-sm font-medium">Všechny projekty</div>
-            <div className="text-xs opacity-75 mt-1">{Array.isArray(projects) ? projects.length : 0} projektů</div>
-          </button>
-          {projects.map((project) => (
-            <button
-              key={project.id}
-              onClick={() => setSelectedProject({ id: project.id, name: project.name })}
-              className={`flex-shrink-0 px-4 py-3 rounded-lg border transition-all duration-200 min-w-[140px] ${
-                selectedProject?.id === project.id
-                  ? 'bg-primary text-primary-foreground border-primary shadow-md'
-                  : 'bg-surface border-border hover:bg-surface-variant hover:shadow-soft'
-              }`}
-            >
-            <div className="text-sm font-medium text-left truncate">{project.name}</div>
-              <div className="text-xs opacity-75 mt-1 text-left">
-                {project.campaignCount || 0} kampaní · {project.emailCount || 0} emailů
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Stats Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-5">
         <StatsCard
@@ -971,10 +937,8 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Recent Campaigns */}
-        <div className="lg:col-span-2">
-          <Card>
+      {/* Recent Campaigns */}
+      <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Nedávné kampaně</CardTitle>
               <Button variant="ghost" size="sm" asChild>
@@ -1082,106 +1046,6 @@ export default function Dashboard() {
               )}
             </CardContent>
           </Card>
-        </div>
-
-        {/* Projects Overview */}
-        <div>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg flex items-center">
-                <FolderOpen className="w-5 h-5 mr-2" />
-                Projekty
-              </CardTitle>
-              <Button variant="ghost" size="sm">
-                <Settings className="w-4 h-4" />
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {Array.isArray(projects) && projects.length > 0 ? (
-                projects.map((project) => (
-                  <div
-                    key={project.id}
-                    className={`p-3 rounded-lg border bg-surface-variant hover:shadow-soft transition-all duration-300 ${
-                      project.external_connection ? 'border-success border-2' : 'border-border'
-                    }`}
-                  >
-                     <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-semibold text-sm">{project.name}</h4>
-                        <div className="flex items-center gap-2">
-                          {project.external_connection ? (
-                            <Badge variant="default" className="text-xs">
-                              <Link2 className="w-3 h-3 mr-1" />
-                              Propojeno se Sofinity
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs">
-                              <Link2Off className="w-3 h-3 mr-1" />
-                              Nepřipojeno
-                            </Badge>
-                          )}
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  className="h-8 w-8 p-0"
-                                  onClick={() => handleProjectConnection(project)}
-                                >
-                                  {project.external_connection ? (
-                                    <Link2 className="w-4 h-4 text-success" />
-                                  ) : (
-                                    <Link2Off className="w-4 h-4 text-muted-foreground" />
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {project.external_connection 
-                                  ? 'Klikněte pro odpojení' 
-                                  : 'Klikněte pro připojení'
-                                }
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between mb-2">
-                        <Badge variant="outline" className="text-xs">
-                          {project.is_active ? 'Aktivní' : 'Neaktivní'}
-                        </Badge>
-                      </div>
-                    
-                    <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
-                      {project.description}
-                    </p>
-                    
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div className="text-center">
-                        <div className="font-medium text-foreground">{project.campaignCount || 0}</div>
-                        <div className="text-muted-foreground">Kampaně</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-medium text-foreground">{project.emailCount || 0}</div>
-                        <div className="text-muted-foreground">E-maily</div>
-                      </div>
-                      <div className="text-center">
-                        <div className="font-medium text-foreground">{project.aiRequestCount || 0}</div>
-                        <div className="text-muted-foreground">AI žádosti</div>
-                      </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-4">
-                  <FolderOpen className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground">Žádné projekty</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
     </div>
   );
 }
