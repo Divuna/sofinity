@@ -7,16 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
-import { Bot, Zap, CheckCircle, XCircle, Clock, Loader2 } from 'lucide-react';
+import { Bot, Zap, CheckCircle, XCircle, Clock, Loader2, Inbox } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Separator } from '@/components/ui/separator';
 
 const statusBadge = (status: string) => {
   switch (status) {
     case 'completed':
-      return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30"><CheckCircle className="w-3 h-3 mr-1" />Hotovo</Badge>;
+      return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs px-2.5 py-1"><CheckCircle className="w-3.5 h-3.5 mr-1.5" />Hotovo</Badge>;
     case 'error':
-      return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Chyba</Badge>;
+      return <Badge variant="destructive" className="text-xs px-2.5 py-1"><XCircle className="w-3.5 h-3.5 mr-1.5" />Chyba</Badge>;
     default:
-      return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30"><Clock className="w-3 h-3 mr-1" />Čeká</Badge>;
+      return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs px-2.5 py-1"><Clock className="w-3.5 h-3.5 mr-1.5" />Čeká</Badge>;
   }
 };
 
@@ -39,7 +41,7 @@ export default function MarketingAgent() {
         .select('id, prompt, status, created_at')
         .eq('type', 'campaign_generator')
         .order('created_at', { ascending: false })
-        .limit(5);
+        .limit(3);
       if (error) throw error;
       return data ?? [];
     },
@@ -160,9 +162,9 @@ export default function MarketingAgent() {
           {agentActions.length === 0 ? (
             <p className="text-sm text-muted-foreground">Žádné nedávné akce</p>
           ) : (
-            <div className="space-y-2">
+            <div className="divide-y divide-border">
               {agentActions.map((a) => (
-                <div key={a.id} className="flex items-center justify-between rounded-md border border-border p-3">
+                <div key={a.id} className="flex items-center justify-between py-3 first:pt-0 last:pb-0">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-xs text-muted-foreground shrink-0">{formatTime(a.created_at)}</span>
                     <span className="text-sm truncate">{a.prompt?.substring(0, 60)}{(a.prompt?.length ?? 0) > 60 ? '…' : ''}</span>
@@ -185,38 +187,58 @@ export default function MarketingAgent() {
           <CardDescription>Kampaně ve stavu „draft" čekající na vaše rozhodnutí</CardDescription>
         </CardHeader>
         <CardContent>
-          {pendingCampaigns.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Žádné kampaně ke schválení</p>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {pendingCampaigns.map((c) => (
-                <Card key={c.id} className="border-border">
-                  <CardContent className="p-4 space-y-3">
-                    <h4 className="font-semibold">{c.name}</h4>
-                    {c.post && <p className="text-sm text-muted-foreground line-clamp-3">{c.post}</p>}
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="gradient"
-                        onClick={() => updateCampaign.mutate({ id: c.id, status: 'active' })}
-                        disabled={updateCampaign.isPending}
-                      >
-                        Schválit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateCampaign.mutate({ id: c.id, status: 'rejected' })}
-                        disabled={updateCampaign.isPending}
-                      >
-                        Zamítnout
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          {(() => {
+            const filtered = pendingCampaigns.filter((c) => !c.name.startsWith('AI Campaign'));
+            const hasMore = filtered.length > 6;
+            const visible = filtered.slice(0, 6);
+
+            if (visible.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                  <Inbox className="w-12 h-12 mb-3 opacity-40" />
+                  <p className="text-sm">Žádné kampaně ke schválení</p>
+                </div>
+              );
+            }
+
+            return (
+              <>
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                  {visible.map((c) => (
+                    <Card key={c.id} className="border-border">
+                      <CardContent className="p-4 space-y-3">
+                        <h4 className="font-semibold">{c.name}</h4>
+                        {c.post && <p className="text-sm text-muted-foreground line-clamp-3">{c.post}</p>}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="gradient"
+                            onClick={() => updateCampaign.mutate({ id: c.id, status: 'active' })}
+                            disabled={updateCampaign.isPending}
+                          >
+                            Schválit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateCampaign.mutate({ id: c.id, status: 'rejected' })}
+                            disabled={updateCampaign.isPending}
+                          >
+                            Zamítnout
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                {hasMore && (
+                  <div className="mt-4 text-center">
+                    <Link to="/campaigns" className="text-sm text-primary hover:underline">Zobrazit vše →</Link>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
 
