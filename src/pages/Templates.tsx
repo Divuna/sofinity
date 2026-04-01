@@ -123,7 +123,7 @@ export default function Templates() {
       } else {
         const { error } = await supabase
           .from('Templates')
-          .insert(templateData);
+          .insert({ ...templateData, project_id: selectedProject?.id ?? null });
 
         if (error) throw error;
         
