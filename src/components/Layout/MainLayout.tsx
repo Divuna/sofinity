@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sidebar } from '@/components/Layout/Sidebar';
 import { Header } from '@/components/Layout/Header';
+import { ProjectTabsBar } from '@/components/Layout/ProjectTabsBar';
 import { BackButton } from '@/components/ui/back-button';
 import { useLocation } from 'react-router-dom';
 
