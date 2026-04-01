@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { 
   Plus, 
   Search, 
@@ -61,16 +62,24 @@ export default function AutoresponsesManager() {
     channel: 'web'
   });
   const { toast } = useToast();
+  const { selectedProject } = useSelectedProject();
 
   useEffect(() => {
     fetchAutoresponses();
-  }, []);
+  }, [selectedProject?.id]);
 
   const fetchAutoresponses = async () => {
+    if (!selectedProject?.id) {
+      setAutoresponses([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('Autoresponses')
         .select('*')
+        .eq('project_id', selectedProject.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -113,7 +122,8 @@ export default function AutoresponsesManager() {
             question: item.question,
             response: item.response,
             channel: item.channel,
-            generated_by_ai: false
+            generated_by_ai: false,
+            project_id: selectedProject?.id ?? null,
           });
 
         if (error) throw error;

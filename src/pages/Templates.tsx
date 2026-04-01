@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { 
   Plus, 
   Search, 
@@ -60,16 +61,24 @@ export default function Templates() {
     content: ''
   });
   const { toast } = useToast();
+  const { selectedProject } = useSelectedProject();
 
   useEffect(() => {
     fetchTemplates();
-  }, []);
+  }, [selectedProject?.id]);
 
   const fetchTemplates = async () => {
+    if (!selectedProject?.id) {
+      setTemplates([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('Templates')
         .select('*')
+        .eq('project_id', selectedProject.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -100,7 +109,7 @@ export default function Templates() {
           .eq('id', editingTemplate.id);
 
         if (error) throw error;
-        
+
         toast({
           title: "Uloženo",
           description: "Šablona byla aktualizována"
@@ -108,7 +117,7 @@ export default function Templates() {
       } else {
         const { error } = await supabase
           .from('Templates')
-          .insert(templateData);
+          .insert({ ...templateData, project_id: selectedProject?.id ?? null });
 
         if (error) throw error;
         

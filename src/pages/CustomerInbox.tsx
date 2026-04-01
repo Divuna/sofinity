@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -45,14 +46,18 @@ const CustomerInbox = () => {
   const [replyText, setReplyText] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { selectedProject } = useSelectedProject();
 
   // Fetch conversations
   const { data: conversations, isLoading: conversationsLoading } = useQuery({
-    queryKey: ['customer_conversations'],
+    queryKey: ['customer_conversations', selectedProject?.id],
     queryFn: async () => {
+      if (!selectedProject?.id) return [];
+
       const { data, error } = await supabase
         .from('customer_conversations')
         .select('*')
+        .eq('project_id', selectedProject.id)
         .order('last_message_at', { ascending: false, nullsFirst: false });
 
       if (error) throw error;

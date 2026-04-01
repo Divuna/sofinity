@@ -32,14 +32,17 @@ export default function MarketingAgent() {
   const queryClient = useQueryClient();
   const [prompt, setPrompt] = useState('');
 
-  // 1. Agent status — last 5 campaign_generator requests
+  // 1. Agent status — last 3 campaign_generator requests for selected project
   const { data: agentActions = [] } = useQuery({
-    queryKey: ['agent-actions'],
+    queryKey: ['agent-actions', selectedProject?.id],
     queryFn: async () => {
+      if (!selectedProject?.id) return [];
+
       const { data, error } = await supabase
         .from('AIRequests')
         .select('id, prompt, status, created_at')
         .eq('type', 'campaign_generator')
+        .eq('project_id', selectedProject.id)
         .order('created_at', { ascending: false })
         .limit(3);
       if (error) throw error;
@@ -54,15 +57,14 @@ export default function MarketingAgent() {
   const { data: pendingCampaigns = [] } = useQuery({
     queryKey: ['pending-campaigns', selectedProject?.id],
     queryFn: async () => {
-      let query = supabase
+      if (!selectedProject?.id) return [];
+
+      const { data, error } = await supabase
         .from('Campaigns')
         .select('id, name, post, created_at')
         .eq('status', 'draft')
+        .eq('project_id', selectedProject.id)
         .order('created_at', { ascending: false });
-      if (selectedProject?.id) {
-        query = query.eq('project_id', selectedProject.id);
-      }
-      const { data, error } = await query;
       if (error) throw error;
       return data ?? [];
     },

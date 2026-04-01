@@ -152,19 +152,18 @@ export default function NotificationCenter() {
   };
 
   const fetchPushLogs = async () => {
+    if (!selectedProject?.id) {
+      setPushLogs([]);
+      setPushLoading(false);
+      return;
+    }
+
     setPushLoading(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        setPushLogs([]);
-        return;
-      }
-
       const { data, error } = await supabase
         .from('push_log')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('project_id', selectedProject.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
