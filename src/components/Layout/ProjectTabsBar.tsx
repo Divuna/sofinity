@@ -24,7 +24,13 @@ export function ProjectTabsBar() {
           .order('name');
 
         if (error) throw error;
-        setProjects(data || []);
+        const fetched = data || [];
+        setProjects(fetched);
+
+        // Auto-select first project if none selected
+        if (!selectedProject && fetched.length > 0) {
+          setSelectedProject({ id: fetched[0].id, name: fetched[0].name });
+        }
       } catch (error) {
         console.error('Error fetching projects:', error);
       } finally {
