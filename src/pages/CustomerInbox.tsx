@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -45,19 +46,23 @@ const CustomerInbox = () => {
   const [replyText, setReplyText] = useState('');
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { selectedProject } = useSelectedProject();
 
-  // Fetch conversations
+  // Fetch conversations filtered by project
   const { data: conversations, isLoading: conversationsLoading } = useQuery({
-    queryKey: ['customer_conversations'],
+    queryKey: ['customer_conversations', selectedProject?.id],
     queryFn: async () => {
+      if (!selectedProject?.id) return [];
       const { data, error } = await supabase
         .from('customer_conversations')
         .select('*')
+        .eq('project_id', selectedProject.id)
         .order('last_message_at', { ascending: false, nullsFirst: false });
 
       if (error) throw error;
       return data as Conversation[];
     },
+    enabled: !!selectedProject?.id,
   });
 
   // Fetch messages for selected conversation
@@ -128,13 +133,12 @@ const CustomerInbox = () => {
         });
       } catch (webhookError) {
         console.error('Failed to send webhook to OneMil:', webhookError);
-        // Don't throw - message was saved successfully in Sofinity
       }
     },
     onSuccess: () => {
       setReplyText('');
       queryClient.invalidateQueries({ queryKey: ['customer_messages', selectedConversationId] });
-      queryClient.invalidateQueries({ queryKey: ['customer_conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['customer_conversations', selectedProject?.id] });
       toast({
         title: 'Zpráva odeslána',
         description: 'Vaše odpověď byla úspěšně odeslána.',
@@ -183,7 +187,7 @@ const CustomerInbox = () => {
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-foreground flex items-center gap-2">
           <MessageSquare className="h-8 w-8 text-primary" />
-          Zákaznická Schránka
+          Zákaznická Schránka{selectedProject ? ` — ${selectedProject.name}` : ''}
         </h1>
         <p className="text-muted-foreground mt-2">Správa konverzací se zákazníky</p>
       </div>

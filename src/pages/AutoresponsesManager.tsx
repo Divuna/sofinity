@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useSelectedProject } from '@/providers/ProjectProvider';
 import { 
   Plus, 
   Search, 
@@ -61,16 +62,30 @@ export default function AutoresponsesManager() {
     channel: 'web'
   });
   const { toast } = useToast();
+  const { selectedProject } = useSelectedProject();
 
   useEffect(() => {
-    fetchAutoresponses();
-  }, []);
+    if (selectedProject?.id) {
+      setLoading(true);
+      fetchAutoresponses();
+    } else {
+      setAutoresponses([]);
+      setLoading(false);
+    }
+  }, [selectedProject?.id]);
 
   const fetchAutoresponses = async () => {
+    if (!selectedProject?.id) {
+      setAutoresponses([]);
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('Autoresponses')
         .select('*')
+        .eq('project_id', selectedProject.id)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -89,7 +104,6 @@ export default function AutoresponsesManager() {
   const handleSave = async (item: Partial<Autoresponse>) => {
     try {
       if (editingItem) {
-        // Update existing
         const { error } = await supabase
           .from('Autoresponses')
           .update({
@@ -106,14 +120,14 @@ export default function AutoresponsesManager() {
           description: "Auto-odpověď byla aktualizována"
         });
       } else {
-        // Create new
         const { error } = await supabase
           .from('Autoresponses')
           .insert({
             question: item.question,
             response: item.response,
             channel: item.channel,
-            generated_by_ai: false
+            generated_by_ai: false,
+            project_id: selectedProject?.id ?? null
           });
 
         if (error) throw error;
@@ -182,7 +196,9 @@ export default function AutoresponsesManager() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Auto-odpovědi</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Auto-odpovědi{selectedProject ? ` — ${selectedProject.name}` : ''}
+          </h1>
           <p className="text-muted-foreground mt-1">
             Správa automatických odpovědí pro různé komunikační kanály
           </p>
