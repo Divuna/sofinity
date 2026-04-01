@@ -187,38 +187,58 @@ export default function MarketingAgent() {
           <CardDescription>Kampaně ve stavu „draft" čekající na vaše rozhodnutí</CardDescription>
         </CardHeader>
         <CardContent>
-          {pendingCampaigns.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Žádné kampaně ke schválení</p>
-          ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {pendingCampaigns.map((c) => (
-                <Card key={c.id} className="border-border">
-                  <CardContent className="p-4 space-y-3">
-                    <h4 className="font-semibold">{c.name}</h4>
-                    {c.post && <p className="text-sm text-muted-foreground line-clamp-3">{c.post}</p>}
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="gradient"
-                        onClick={() => updateCampaign.mutate({ id: c.id, status: 'active' })}
-                        disabled={updateCampaign.isPending}
-                      >
-                        Schválit
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => updateCampaign.mutate({ id: c.id, status: 'rejected' })}
-                        disabled={updateCampaign.isPending}
-                      >
-                        Zamítnout
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
+          {(() => {
+            const filtered = pendingCampaigns.filter((c) => !c.name.startsWith('AI Campaign'));
+            const hasMore = filtered.length > 6;
+            const visible = filtered.slice(0, 6);
+
+            if (visible.length === 0) {
+              return (
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                  <Inbox className="w-12 h-12 mb-3 opacity-40" />
+                  <p className="text-sm">Žádné kampaně ke schválení</p>
+                </div>
+              );
+            }
+
+            return (
+              <>
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                  {visible.map((c) => (
+                    <Card key={c.id} className="border-border">
+                      <CardContent className="p-4 space-y-3">
+                        <h4 className="font-semibold">{c.name}</h4>
+                        {c.post && <p className="text-sm text-muted-foreground line-clamp-3">{c.post}</p>}
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="gradient"
+                            onClick={() => updateCampaign.mutate({ id: c.id, status: 'active' })}
+                            disabled={updateCampaign.isPending}
+                          >
+                            Schválit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => updateCampaign.mutate({ id: c.id, status: 'rejected' })}
+                            disabled={updateCampaign.isPending}
+                          >
+                            Zamítnout
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+                {hasMore && (
+                  <div className="mt-4 text-center">
+                    <Link to="/campaigns" className="text-sm text-primary hover:underline">Zobrazit vše →</Link>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </CardContent>
       </Card>
 
