@@ -20,6 +20,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col">
         <Header />
+        <ProjectTabsBar />
         <main className="flex-1 p-6">
           <div className="mb-4">
             <BackButton />
