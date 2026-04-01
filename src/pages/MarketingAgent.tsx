@@ -14,11 +14,11 @@ import { Separator } from '@/components/ui/separator';
 const statusBadge = (status: string) => {
   switch (status) {
     case 'completed':
-      return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30"><CheckCircle className="w-3 h-3 mr-1" />Hotovo</Badge>;
+      return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 text-xs px-2.5 py-1"><CheckCircle className="w-3.5 h-3.5 mr-1.5" />Hotovo</Badge>;
     case 'error':
-      return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Chyba</Badge>;
+      return <Badge variant="destructive" className="text-xs px-2.5 py-1"><XCircle className="w-3.5 h-3.5 mr-1.5" />Chyba</Badge>;
     default:
-      return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30"><Clock className="w-3 h-3 mr-1" />Čeká</Badge>;
+      return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-xs px-2.5 py-1"><Clock className="w-3.5 h-3.5 mr-1.5" />Čeká</Badge>;
   }
 };
 
