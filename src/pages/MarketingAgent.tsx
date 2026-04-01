@@ -32,6 +32,7 @@ export default function MarketingAgent() {
   const { selectedProject } = useSelectedProject();
   const queryClient = useQueryClient();
   const [prompt, setPrompt] = useState('');
+  const [detailCampaign, setDetailCampaign] = useState<{ id: string; name: string; post: string | null } | null>(null);
 
   // 1. Agent status — last 5 campaign_generator requests
   const { data: agentActions = [] } = useQuery({
