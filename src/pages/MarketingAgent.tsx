@@ -117,6 +117,7 @@ export default function MarketingAgent() {
           user_id: user?.id,
           type: 'campaign_generator',
           prompt: prompt.trim(),
+          project_id: selectedProject?.id ?? null,
         },
       });
 
