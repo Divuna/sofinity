@@ -49,7 +49,7 @@ export default function CampaignsOverview() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [projectFilter, setProjectFilter] = useState<string>('all');
+  
   const { toast } = useToast();
   const navigate = useNavigate();
   const { selectedProject } = useSelectedProject();
