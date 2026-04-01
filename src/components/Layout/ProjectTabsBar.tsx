@@ -56,16 +56,6 @@ export function ProjectTabsBar() {
   return (
     <div className="sticky top-0 z-30 w-full bg-background border-b border-border px-6 py-2">
       <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-        <button
-          onClick={() => setSelectedProject(null)}
-          className={`flex-shrink-0 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200 ${
-            !selectedProject
-              ? 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] shadow-sm'
-              : 'bg-transparent border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30'
-          }`}
-        >
-          Všechny projekty
-        </button>
         {projects.map((project) => (
           <button
             key={project.id}
