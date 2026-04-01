@@ -49,7 +49,7 @@ export default function CampaignsOverview() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [projectFilter, setProjectFilter] = useState<string>('all');
+  
   const { toast } = useToast();
   const navigate = useNavigate();
   const { selectedProject } = useSelectedProject();
@@ -137,8 +137,7 @@ export default function CampaignsOverview() {
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter;
-    const matchesProject = projectFilter === 'all' || projectFilter === campaign.project;
-    return matchesSearch && matchesStatus && matchesProject;
+    return matchesSearch && matchesStatus;
   });
 
   const getStatusBadge = (status: string) => {
@@ -208,19 +207,6 @@ export default function CampaignsOverview() {
                 <SelectItem value="draft">Koncept</SelectItem>
                 <SelectItem value="active">Aktivní</SelectItem>
                 <SelectItem value="done">Dokončeno</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={projectFilter} onValueChange={setProjectFilter}>
-              <SelectTrigger className="w-full sm:w-[200px]">
-                <SelectValue placeholder="Filtr podle projektu" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Všechny projekty</SelectItem>
-                {projects.map(project => (
-                  <SelectItem key={project.name} value={project.name}>
-                    {project.name}
-                  </SelectItem>
-                ))}
               </SelectContent>
             </Select>
           </div>
