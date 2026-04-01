@@ -137,8 +137,7 @@ export default function CampaignsOverview() {
   const filteredCampaigns = campaigns.filter(campaign => {
     const matchesSearch = campaign.name.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || campaign.status === statusFilter;
-    const matchesProject = projectFilter === 'all' || projectFilter === campaign.project;
-    return matchesSearch && matchesStatus && matchesProject;
+    return matchesSearch && matchesStatus;
   });
 
   const getStatusBadge = (status: string) => {
