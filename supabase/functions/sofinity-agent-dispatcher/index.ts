@@ -15,7 +15,7 @@ serve(async (req) => {
 
   try {
     const requestBody = await req.json();
-    const { id, user_id, type, prompt } = requestBody;
+    const { id, user_id, type, prompt, project_id: requestProjectId } = requestBody;
     
     // Log full request payload for debugging
     console.log('🔍 Sofinity Agent Dispatcher - Full request:', JSON.stringify({
@@ -196,6 +196,45 @@ serve(async (req) => {
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
+    }
+
+    // For campaign_generator, insert a draft Campaign row
+    if (type === 'campaign_generator') {
+      try {
+        // Resolve project_id: use from request, or fall back to OneMil project lookup
+        let resolvedProjectId: string | null = requestProjectId ?? null;
+        if (!resolvedProjectId) {
+          const { data: oneMilProject } = await supabase
+            .from('Projects')
+            .select('id')
+            .or('name.ilike.%onemil%,name.ilike.%one mil%')
+            .limit(1)
+            .single();
+          resolvedProjectId = oneMilProject?.id ?? null;
+          console.log('📁 Resolved OneMil project_id:', resolvedProjectId);
+        }
+
+        const campaignName = prompt.substring(0, 80);
+        const { data: campaignData, error: campaignError } = await supabase
+          .from('Campaigns')
+          .insert({
+            name: campaignName,
+            post: generatedText,
+            status: 'draft',
+            project_id: resolvedProjectId,
+            user_id: user_id ?? null,
+          })
+          .select('id')
+          .single();
+
+        if (campaignError) {
+          console.error('⚠️ Failed to insert Campaign:', campaignError.message);
+        } else {
+          console.log('✅ Campaign draft created:', campaignData?.id);
+        }
+      } catch (err) {
+        console.error('⚠️ Exception creating Campaign:', err);
+      }
     }
 
     console.log('✅ Successfully processed request:', { id, type, user_id });
